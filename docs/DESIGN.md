@@ -1,35 +1,33 @@
-# BurokkuKuzushi — ゲーム設計仕様書
+# BurokkuKuzushi 仕様書
 
 最終更新: 2026-05-11
 
-このドキュメントは「BurokkuKuzushi」（ローカル2人対戦ブロック崩しゲーム）のゲーム設計仕様の決定版である。実装の指針はここを参照し、仕様変更があった場合はここを更新する。
+---
+
+## 1. 概要
+
+| 項目 | 内容 |
+|---|---|
+| タイトル | BurokkuKuzushi |
+| ジャンル | ローカル2人対戦ブロック崩し |
+| プラットフォーム | PC (Unity 6 / URP) |
+| プレイ人数 | 2人（同一画面、左右スプリットスクリーン） |
+| 想定試合時間 | 1試合 3〜5分 |
+| 入力 | キーボード（Unity Input System） |
+
+各プレイヤーは独立したアリーナを持ち、上から降ってくるブロックをボールとパドルで破壊する。ブロックを連続で破壊すると相手のアリーナに妨害が発生する。先に HP が 0 になった方が負け。
 
 ---
 
-## 1. コアコンセプト
+## 2. 勝利条件
 
-> **リスクを取ってコンボを伸ばし、相手より速く相手のフィールドを変質させる駆け引きゲーム**
-
-- ジャンル: ローカル2人対戦ブロック崩し
-- 想定プレイ時間: 1試合3〜5分
-- 設計思想:
-  - **「同条件耐久」にならない相互干渉**: コンボ→自動妨害送付＋アイテム＋スキルで状況が動的に変化する
-  - **プレイヤー主権 + 操作シンプル**: 「やれば強いが必須ではない」レイヤーを用意し、コアは複雑化させない
-  - **ピンチほど攻めれる**: HP帯ごとの動的パラメータでカムバック性を担保
-  - **不確実性（≠ランダム性）**: ランダム要素は常に選択肢を生む形で導入する
-  - **プランナーフレンドリー**: 全パラメータをScriptableObjectに外出しし、ハードコードを排除
-
----
-
-## 2. 操作レイヤー構造
-
-ゲームを「やらなければいけない」と「やれば強い」に分ける。
-
-| 層 | 内容 | 自動度 |
-|---|---|---|
-| **コア層**（必須） | ボールを返す・ブロックを壊す | 手動 |
-| **戦術層**（やれば強い） | アイテム取捨・スキル発動・メトロノーム発射 | 任意 |
-| **自動層**（気にしなくていい） | 妨害送付・ボール角度補正・リスポーン・ループ脱出 | 自動 |
+- 各プレイヤーに HP がある（初期値 500）。
+- 以下のイベントで HP が減少する:
+  - ボールの落下
+  - 自陣のブロックが底に到達
+  - 妨害効果による被弾（毒エリア、棘ブロック等）
+- HP が 0 になったプレイヤーが負け。
+- 試合は複数ラウンド制（先取数で勝利、デフォルト 1 本先取）。
 
 ---
 
@@ -37,237 +35,296 @@
 
 ```
 [マッチ開始]
-   │ スキル装備（試合前 1〜2 個セット、UI 簡易）
+   │
+   │ スキル装備（1〜2 個セット、Phase D 以降）
    ▼
-[ラウンド開始] ← 演出は短く、即操作可
-   │
-   ├─ コア: ボール処理・ブロック破壊
-   ├─ 戦術: アイテム取捨・スキル発動
-   ├─ 自動: 妨害送付・カムバック発動
+[ラウンド開始]
+   │  プレイ中:
+   │   - ボール処理 / ブロック破壊（コア）
+   │   - アイテム取得 / スキル発動 / 角度発射（戦術）
+   │   - コンボによる妨害自動送付
+   ▼
+[ラウンド終了]
+   │  どちらかの HP が 0
+   ▼
+[次ラウンド or マッチ終了]
    │
    ▼
-[ラウンド決着] ← ボスストップ風演出、1秒以内に次へ
-   │
-   ├─ HP残ありなら次ラウンド
-   └─ HP0 ならマッチ終了
-   │
-   ▼
-[マッチ終了] ← 1ボタンで即リスタート
+[マッチ終了画面 → 即リスタート可]
 ```
 
 ---
 
-## 4. システム仕様
+## 4. プレイヤー操作
 
-### 4.1 HP / ダメージ
-
-- `maxHP = 500`（粒度を持たせ、様々なダメージを混在可能に）
-- ダメージソース:
-  | イベント | ダメージ | 備考 |
-  |---|---|---|
-  | ボール落下 | 20 | 軽く惜しい |
-  | ブロック1個底到達 | 10 | チリも積もれば |
-  | ブロック多数同時底到達 | スタック | 5個以上で罰則強化 |
-  | 棘ブロック接触 | 30 | 設置型妨害 |
-  | 毒エリア滞在 | 5/秒 | 残留型 |
-  | 上部攻撃被弾（将来） | 40 | 予告ありの避け要素 |
-
-### 4.2 HP帯ごとの動的パラメータ（カムバック機構）
-
-`HPStateBand` を ScriptableObject で複数定義し、現在HPに応じて参照プロファイルを切り替える。
-
-| HP帯 | 効果 |
-|---|---|
-| 100% 〜 70% | デフォルト |
-| 70% 〜 30% | スキルゲージ蓄積 ×1.3、アイテムドロップ ×1.2 |
-| 30% 〜 10% | スキルゲージ ×1.6、アイテムドロップ ×1.5、良アイテム偏重、スコア倍率 ×1.5 |
-| 10% 以下 | ピンチBGM、ピンチ専用スキル解禁 |
-
-数値はプロファイルアセットでInspector調整可能。
-
-### 4.3 ボール
-
-- 通常は1個。スキル/アイテムで一時的に増えることはある
-- 属性 (`BallAttribute`): Normal / Fire / Thunder / Ice / Heavy
-  - 属性は **常時付与でなく**、スキル/アイテム/ゲート通過で一時的に発動する設計
-- 軌道補正（既存）: 壁沿いのループ防止
-- **ループ脱出保険**: 5秒間ブロックに当たらないと速度+10%（爆走化）
-
-### 4.4 パドル
-
-- 横移動のみ、ローカル座標で動作
-- 通常時は当たったボールを自動反射
-- **メトロノーム式発射**（初回発射時に確定）:
-  - リスポーン後、角度インジケーターが左右にオシレーション
-  - 専用キー入力でその角度に発射
-  - キャッチ機能（試合中も保持可能）の実装は様子見
-
-### 4.5 ブロック種類
-
-#### ブロック分類軸
-- **起源軸**: N (Neutral, 通常スポーン) / S (Self-generated, バフ) / O (Opponent-sent, 妨害)
-- **性質軸**: Block（破壊可） / Zone（床エリア） / Gate（通過効果）
-
-#### ビジュアル区別ルール
-- N: 標準カラー
-- S: 青系オーラ
-- O: 赤系オーラ、ヒビ/棘などの不穏な見た目
-
-#### 実装カタログ
-
-| 名前 | 起源 | 性質 | 効果 | 実装フェーズ |
-|---|---|---|---|---|
-| `BlockNormal` | N | Block | HP1 | 既存 |
-| `BlockHard` | N | Block | HP2-3 | 既存 |
-| `BlockExplosive` | N | Block | 隣接破壊 | 既存 |
-| `BlockAbsorb` | N | Block | スコア吸収 | 既存 |
-| `BlockItem` | N | Block | 確定アイテムドロップ | C |
-| `BlockSpike` | O | Block | 破壊時に毒エリアを残す | E |
-| `BlockHardened` | O | Block | 通常→硬化変換 | E |
-| `ZonePoison` | O | Zone | パドル接触でダメージ | E |
-| `ZoneSlow` | O | Zone | ボール減速 | E |
-| `ZoneHeal` | S | Zone | ボール通過で微回復 | G |
-| `ZoneAutoClear` | S | Zone | 一定時間ブロック自動破壊 | G |
-| `GatePower` | N or S | Gate | 通過で属性付与 | G |
-| `GateSpeed` | N or S | Gate | 通過で加速 | G |
-| `GateMulti` | N or S | Gate | 通過でボール分裂 | G |
-
-### 4.6 アイテム
-
-- ブロック破壊時に確率ドロップ
-- 落下してパドルでキャッチ
-- 不利アイテムも混在 → 「取るか避けるか」の判断要素
-- 効果はすべて `ItemDefinition`（EffectDefinitionの具象）として定義
-
-#### 有利系
-| 名前 | 効果 |
-|---|---|
-| `ItemAttribute_Fire` | ボール属性=炎、10秒 |
-| `ItemAttribute_Ice` | ボール属性=氷、10秒 |
-| `ItemAttribute_Thunder` | ボール属性=雷、10秒 |
-| `ItemAttribute_Heavy` | ボール属性=重、10秒 |
-| `ItemPaddle_Enlarge` | パドル1.5倍、10秒 |
-| `ItemPaddle_SpeedUp` | パドル加速、10秒 |
-| `ItemBall_Pierce` | ボール貫通、数回 |
-| `ItemHeal` | HP +50 |
-
-#### 不利系
-| 名前 | 効果 |
-|---|---|
-| `ItemPaddle_Shrink` | パドル0.7倍、10秒 |
-| `ItemBall_Hyperspeed` | ボール超加速、10秒 |
-| `ItemView_Disturb` | 視界エフェクト、10秒 |
-
-### 4.7 スキル（装備制・自己強化型）
-
-- 試合前に1〜2個装備
-- エナジー満タンで**キー1つで発動**
-- **代償なし**（シンプルに発動するだけ。リスクは発動タイミングの選択にある）
-
-#### 仕様
-| 名前 | 効果 |
-|---|---|
-| `SkillPaddle_Enlarge` | パドル1.5倍、10秒 |
-| `SkillBall_Multi` | ボール+1、10秒 |
-| `SkillBall_Attribute_Fire` | 炎属性、10秒 |
-| `SkillForceCatch` | 次のボール強制キャッチ |
-| `SkillPanic_BlockClear` | 上半分のブロック破壊（HP1/3以下のみ発動可、ピンチ専用） |
-
-エナジー蓄積はブロック破壊・コンボで増える。HP帯に応じてゲージ蓄積率が変動（カムバック）。
-
-### 4.8 妨害（変化中心・自動送付）
-
-- コンボ閾値到達で **自動送付**（プレイヤー操作なし、コア層の集中を維持）
-- 「変化させる」が主軸、ブロック追加は弱保険
-- `InterferencePayload` で種類・強度・継続時間を汎用化
-
-#### 種類
-| 名前 | 効果 |
-|---|---|
-| `InterferenceHarden` | 既存Normalブロック数個をHard化 |
-| `InterferenceSpike` | ランダムブロックをSpike化 |
-| `InterferencePoison` | 盤面下部に毒エリアを数秒生成 |
-| `InterferenceSlow` | 盤面中央にスローエリア生成 |
-| `InterferenceAddRow` | 1段だけ既存ブロックの上に追加（保険） |
-| `InterferenceDirectAttack` | 上部攻撃（将来枠） |
-
-送付の種別はランダム抽選 or 自分のスキル装備に応じて変動。
-
-### 4.9 演出（ヒットストップ）
-
-桜井政博氏が強調する「手応えの基盤」。Phase A-2 で基盤を構築する。
-
-#### 実装ルール
-- `IFreezable` インターフェース（Ball / Block / Paddle / BlockSpawner が実装）
-- `HitStopController`（各 ArenaController に1つ）が司令塔
-- アクター個別停止（`Time.timeScale` は使わない: 2P対戦のため）
-
-#### 適用場面
-| イベント | フレーム数 | 備考 |
-|---|---|---|
-| Normalブロック破壊 | **なし** | 頻発するため除外 |
-| Hardブロック破壊 | **なし** | 頻発するため除外 |
-| Explosiveブロック爆発 | 6f | 連鎖の頂点で手応え |
-| Spikeブロック破壊 | 4f | 妨害破壊時の手応え |
-| パドルで受け止め | 1〜2f | ごく軽い手応え |
-| 妨害発動瞬間 | 8〜10f | 派手なフラッシュ＋振動 |
-| ピンチスキル発動 | 15f | ボスストップ風 |
-| ラウンド決着 | 30〜60f | 完全な決着演出 |
-| マッチ決着 | 60f以上 | フィニッシュ演出 |
-| 壁反射 | **なし** | ボール挙動がガタつくため |
-
-数値はすべて `HitStopSettings`（GameBalanceProfile内）で調整可能。
-
-### 4.10 リスタート機構
-
-- マッチ終了後、Space キー等の1ボタンで `StartNewMatch()` を呼ぶ
-- 演出は短く（1秒以内に操作復帰）
-- 「冷める前にバトンを渡す」原則
+| プレイヤー | 移動 | 発射 | スキル |
+|---|---|---|---|
+| 1P | A / D または ← / → | Space（Phase B 以降） | Q（Phase D 以降） |
+| 2P | J / L | （未定） | （未定） |
 
 ---
 
-## 5. アーキテクチャ
+## 5. システム仕様
 
-### 5.1 GameBalanceProfile（中核ScriptableObject）
+### 5.1 HP
+
+- 各プレイヤーは HP を持つ（初期値 500）。
+- ラウンド開始時に最大値までリセット。
+- HP が 0 になった瞬間にそのラウンドの敗者が確定する。
+
+#### ダメージ表
+
+| 発生源 | ダメージ |
+|---|---|
+| ボール落下 | 20 |
+| ブロック1個 底到達 | 10 |
+| 棘ブロック接触 | 30 |
+| 毒エリア滞在 | 5 / 秒 |
+| 上部攻撃被弾（Phase G+） | 40 |
+
+#### HP帯ごとの動的パラメータ
+
+現在 HP の最大値に対する割合に応じて、以下のパラメータが切り替わる。
+
+| HP割合 | スキルゲージ蓄積倍率 | アイテムドロップ倍率 | スコア倍率 | その他 |
+|---|---|---|---|---|
+| 100% 〜 70% | 1.0 | 1.0 | 1.0 | - |
+| 70% 〜 30% | 1.3 | 1.2 | 1.0 | - |
+| 30% 〜 10% | 1.6 | 1.5 | 1.5 | 有利アイテム偏重 |
+| 10% 以下 | 1.6 | 1.5 | 1.5 | ピンチ専用スキル解禁 |
+
+### 5.2 ボール
+
+- 各アリーナに通常1個。スキル/アイテムで一時的に増えることがある。
+- 一定速度で動き続ける（速度はバランス設定で指定）。
+- ブロック・壁・パドルに衝突して反射する。
+- パドル下のデッドゾーンに到達すると落下扱い（プレイヤー HP -20）。
+
+#### 軌道補正
+- 反射後、X/Y 成分どちらかが閾値未満（デフォルト 0.2）の場合、強制的に角度を修正して壁沿いのループを防ぐ。
+
+#### ループ脱出保険
+- 一定時間（デフォルト5秒）ブロックに当たらない場合、ボールの速度に倍率（デフォルト1.1）をかける。
+
+#### 属性
+ボールには属性を持たせることができる。属性は通常は付与されておらず、スキル/アイテム/ゲート通過で一時的に付与される。
+
+| 属性 | 効果 |
+|---|---|
+| Normal | 通常（属性なし）。ダメージ1 |
+| Fire | 着弾点周囲のブロックにダメージを与える |
+| Thunder | 着弾点周囲の同種ブロックに連鎖ダメージ |
+| Ice | ダメージ2 |
+| Heavy | ダメージ3、ブロックを貫通 |
+
+### 5.3 パドル
+
+- 左右のみ移動可能。
+- 通常時は当たったボールを自動反射する。
+
+#### メトロノーム式発射（Phase B 以降）
+- ボールリスポーン時、パドル上に角度インジケーターが表示される。
+- インジケーターは一定周期（デフォルト1秒）で左右に振れる（範囲 ±60°）。
+- 発射キーを押した瞬間のインジケーター角度でボールが発射される。
+
+### 5.4 ブロック
+
+#### 分類
+
+| 起源 | 説明 |
+|---|---|
+| Neutral (N) | 通常スポーンで降ってくる |
+| Self-generated (S) | 自分のスキル/アイテムで自陣に生成 |
+| Opponent-sent (O) | 相手の干渉により自陣に発生 |
+
+#### ビジュアル表現
+- N: 標準カラー
+- S: 青系オーラ
+- O: 赤系オーラ、ヒビ・棘などの不穏な見た目
+
+#### ブロック一覧
+
+| 名前 | 起源 | 性質 | 効果 | 実装フェーズ |
+|---|---|---|---|---|
+| BlockNormal | N | Block | HP1。1撃で破壊 | 既存 |
+| BlockHard | N | Block | HP2〜3 | 既存 |
+| BlockExplosive | N | Block | 破壊で周囲ブロックに巻き込みダメージ | 既存 |
+| BlockAbsorb | N | Block | 当たったボールを減速させる | 既存 |
+| BlockItem | N | Block | 破壊で確定アイテムドロップ | C |
+| BlockSpike | O | Block | 破壊時に毒エリアを残す | E |
+| BlockHardened | O | Block | 通常ブロックが硬化変換されたもの | E |
+| ZonePoison | O | Zone | パドル接触で HP減少 | E |
+| ZoneSlow | O | Zone | ボール減速エリア | E |
+| ZoneHeal | S | Zone | ボール通過で HP微回復 | G |
+| ZoneAutoClear | S | Zone | 一定時間、降下ブロックを自動破壊 | G |
+| GatePower | N/S | Gate | 通過したボールに属性付与 | G |
+| GateSpeed | N/S | Gate | 通過したボールに速度上昇 | G |
+| GateMulti | N/S | Gate | 通過したボールを分裂させる | G |
+
+#### スポーン仕様
+- 一定間隔（デフォルト5秒）で 1 行ずつ降ってくる。
+- 1行あたりのブロック数（デフォルト7）、ブロック間の隙間（デフォルト0.1）。
+- 降下速度はデフォルト 0.3 unit/秒。
+- 通常行の構成: 通常 / Hard（20%） / Explosive（10%）。
+- 妨害行（妨害送付時）の構成: Hard / Absorb のミックス。
+
+### 5.5 アイテム
+
+- ブロック破壊時に確率でドロップ。
+- 落下し、パドルでキャッチすると効果が発動。
+- 有利・不利の両方が存在する。
+
+#### アイテム一覧
+
+| 名前 | 種別 | 効果 |
+|---|---|---|
+| ItemAttribute_Fire | 有利 | ボールを 10 秒間 Fire 属性に |
+| ItemAttribute_Thunder | 有利 | ボールを 10 秒間 Thunder 属性に |
+| ItemAttribute_Ice | 有利 | ボールを 10 秒間 Ice 属性に |
+| ItemAttribute_Heavy | 有利 | ボールを 10 秒間 Heavy 属性に |
+| ItemPaddle_Enlarge | 有利 | パドルを 10 秒間 1.5 倍に |
+| ItemPaddle_SpeedUp | 有利 | パドル移動速度を 10 秒間 増加 |
+| ItemBall_Pierce | 有利 | ボールが数回ブロックを貫通 |
+| ItemHeal | 有利 | HP +50 |
+| ItemPaddle_Shrink | 不利 | パドルを 10 秒間 0.7 倍に |
+| ItemBall_Hyperspeed | 不利 | ボール速度が 10 秒間 大幅上昇 |
+| ItemView_Disturb | 不利 | 視界エフェクト 10 秒間 |
+
+### 5.6 スキル
+
+- 試合開始前に 1〜2 個のスキルを装備する。
+- ゲージが満タンになるとキー入力 1 つで発動できる。
+- 発動中の効果は一定時間で自動解除される。
+- ゲージはブロック破壊・コンボで蓄積され、蓄積率は HP帯に応じて変動する（5.1参照）。
+
+#### スキル一覧
+
+| 名前 | 効果 |
+|---|---|
+| SkillPaddle_Enlarge | パドル 10 秒間 1.5 倍 |
+| SkillBall_Multi | ボール +1、10 秒間 |
+| SkillBall_Attribute_Fire | ボール 10 秒間 Fire 属性 |
+| SkillForceCatch | 次に当たったボールを強制キャッチ |
+| SkillPanic_BlockClear | 上半分のブロックを破壊。HP 1/3 以下のみ発動可 |
+
+### 5.7 妨害
+
+#### 発動条件
+- 自分のコンボ数が閾値（デフォルト 5 個）に達した時点で自動的に相手に妨害を送付する。
+- プレイヤーの操作介入はない。
+
+#### 妨害種別
+
+| 名前 | 効果 |
+|---|---|
+| InterferenceHarden | 相手アリーナの通常ブロック数個を Hard 化 |
+| InterferenceSpike | 相手アリーナのランダムブロックを Spike 化 |
+| InterferencePoison | 相手アリーナ下部に毒エリアを数秒間生成 |
+| InterferenceSlow | 相手アリーナ中央にスローエリア生成 |
+| InterferenceAddRow | 相手アリーナの既存ブロック上に 1 行追加 |
+| InterferenceDirectAttack | 上部から予告型の攻撃を発生（Phase G+） |
+
+送付される種別はランダム抽選、または送付側のスキル装備に応じて変動する。
+
+### 5.8 ヒットストップ
+
+特定のイベントで、該当アリーナ内のアクター（ボール / ブロック / パドル / ブロック降下処理）を指定フレーム数だけ停止させる演出。
+
+`Time.timeScale` は使用しない（2人プレイのため、片方のアリーナだけ止める必要がある）。
+
+#### 適用イベント
+
+| イベント | フレーム数 |
+|---|---|
+| BlockNormal 破壊 | なし（頻発するため除外） |
+| BlockHard 破壊 | なし（頻発するため除外） |
+| BlockExplosive 爆発 | 6 |
+| BlockSpike 破壊 | 4 |
+| パドル受け止め | 1〜2 |
+| 妨害発動瞬間 | 8〜10 |
+| ピンチスキル発動 | 15 |
+| ラウンド決着 | 30 |
+| マッチ決着 | 60 |
+| 壁反射 | なし |
+
+### 5.9 リスタート
+
+- マッチ終了状態で Space キー押下により次のマッチを即開始する（Phase A-3 で実装予定）。
+- ラウンド間の待機時間はデフォルト 2 秒。
+
+---
+
+## 6. UI
+
+### 6.1 画面構成
+
+```
++-------------------+-------------------+
+|                   |                   |
+|     Arena1        |     Arena2        |
+|     (1P)          |     (2P)          |
+|                   |                   |
++-------------------+-------------------+
+            (Screen Space Overlay)
+[P1: HP/Score/Combo/Wins][P2: HP/Score/Combo/Wins]
+              [試合状態テキスト]
+```
+
+### 6.2 各表示要素
+
+| 要素 | 内容 |
+|---|---|
+| HP テキスト | `HP {current} / {max}` |
+| HP バー | 横長 Image、Fill Type = Filled。HP割合に応じてカラー変化（緑/黄/赤） |
+| Score テキスト | `{score}` |
+| Combo テキスト | `Combo {current} / {threshold}` |
+| Wins テキスト | `Wins: {roundWins}` |
+| 試合状態テキスト | ラウンド/マッチ終了時のみ表示。`Round Over!` / `P{N} WINS!` |
+
+---
+
+## 7. アーキテクチャ
+
+### 7.1 GameBalanceProfile（ScriptableObject）
+
+全パラメータを集約するアセット。`Assets/Settings/GameBalanceProfile.asset` に配置。
 
 ```
 GameBalanceProfile
 ├── HPSettings { maxHP, ダメージ各種 }
-├── HPStateBand[] { threshold, gaugeMul, itemDropMul, scoreMul, ... }
-├── ComboSettings { threshold, interferenceTriggerValue }
-├── ItemDropTable { ItemDefinition[] with weight }
-├── BlockSpawnTable { BlockDefinition[] with weight, spawnInterval, descentSpeed, ... }
-├── SkillCatalog { SkillDefinition[] }
-├── InterferenceSettings { 妨害方式の重み・パラメータ }
-├── BallSettings { speed, minAxisRatio, hyperspeedTimeout, ... }
-├── LaunchSettings { metronome 振れ幅・周期 }
-└── HitStopSettings { 各イベントごとのフレーム数 }
+├── HPStateBand[] { thresholdPercent, gaugeRateMul, itemDropMul, scoreMul, ... }
+├── ComboSettings { interferenceTriggerCombo, ... }
+├── BallSettings { speed, minAxisRatio, ダメージ・属性範囲 }
+├── LaunchSettings { metronomeAngleRange, metronomePeriodSec }
+├── HitStopSettings { 各イベントのフレーム数 }
+└── BlockSpawnSettings { blocksPerRow, spawnInterval, descentSpeed, 各種出現率 }
 ```
 
-シーンに `GameBalanceProfile` の参照を1つ持たせ、`GameManager` 経由でアクセス。差し替えるだけでバランスを総入れ替えできる。
+シーンの GameManager が Profile への参照を持ち、各スクリプトは `GameManager.Instance.Profile` 経由でアクセスする。
 
-### 5.2 EffectDefinition（効果の共通基底）
+### 7.2 EffectDefinition（抽象基底クラス）
+
+```
+EffectDefinition (abstract ScriptableObject)
+├── ItemDefinition       （アイテムの効果を定義）
+├── SkillDefinition      （スキルの効果を定義）
+└── GateEffectDefinition （ゲート通過効果を定義）
+```
+
+`Apply(GameContext)` / `Remove(GameContext)` メソッドを持ち、効果の発動と解除を共通インターフェースで扱う。
+
+### 7.3 IFreezable インターフェース
 
 ```csharp
-public abstract class EffectDefinition : ScriptableObject {
-    public string displayName;
-    public Sprite icon;
-    public float duration;
-    public abstract void Apply(GameContext ctx);
-    public abstract void Remove(GameContext ctx);
+public interface IFreezable {
+    void Freeze(int frames);
+    void Unfreeze();
 }
 ```
 
-- `ItemDefinition` / `SkillDefinition` / `GateEffectDefinition` が継承
-- 「パドル拡大」効果が Item から来ても Skill から来ても Gate から来ても **同じコードで動く**
-- 拡張性が高い（後付けで Gate を追加するときも同じ枠で済む）
+ボール / ブロック / パドル / BlockSpawner が実装。各アリーナに 1 つ配置される `HitStopController` がこれらを統括する。
 
-### 5.3 BlockDefinition
-
-- ブロック種を enum でなく ScriptableObject で管理（既存の `BlockType` enum から段階移行）
-- 後から新ブロックを追加してもコード変更不要
-
-### 5.4 InterferencePayload
+### 7.4 InterferencePayload
 
 ```csharp
 public enum InterferenceType {
@@ -280,114 +337,121 @@ public class InterferencePayload {
 }
 ```
 
-- コンボで `InterferencePayload` を作って相手アリーナに渡す
-- 新種類追加は enum拡張 + ハンドラ追加のみ
+コンボ閾値到達時にこのオブジェクトを生成し、相手アリーナに渡して効果を発動させる。
 
-### 5.5 IFreezable + HitStopController
+### 7.5 シーン構造
 
-```csharp
-public interface IFreezable {
-    void Freeze(int frames);
-    void Unfreeze();
-}
-public class HitStopController : MonoBehaviour {
-    public void RequestFreeze(int frames);
-    // 子要素のIFreezable全てに伝搬
-}
+```
+SampleScene
+├── Main Camera        (Arena1専用カメラ, Viewport 0,0,0.5,1)
+├── Camera2            (Arena2専用カメラ, Viewport 0.5,0,0.5,1)
+├── EventSystem
+├── GameManager        (Singleton, profile 参照, HPSystem 保持)
+├── CenterUI           (Canvas, Screen Space Overlay)
+│   ├── P1HPText / P1HPFill / P1Score / P1Combo / P1Wins
+│   ├── P2HPText / P2HPFill / P2Score / P2Combo / P2Wins
+│   └── 試合状態テキスト
+├── Arena1
+│   ├── TopWall / LeftWall / RightWall / Plane
+│   ├── Ball
+│   ├── Player (パドル)
+│   ├── DeadZone
+│   ├── BlockSpawner
+│   └── ArenaController
+└── Arena2  （Arena1と同構成）
 ```
 
-各 Arena に 1 つ `HitStopController` を置く。
+座標は各 Arena の親 GameObject に対するローカル座標で扱う。
 
 ---
 
-## 6. 命名規則
+## 8. 命名規則
 
-桜井政博氏の方針を参考にしたソートしやすい命名。
+| 対象 | 形式 | 例 |
+|---|---|---|
+| クラス / アセット名 | PascalCase | `BlockNormal`, `ItemPaddle_Enlarge` |
+| プレフィックス | カテゴリ → 対象 → 詳細 の順 | `SkillBall_Multi`, `InterferenceHarden` |
+| 変数 | camelCase | `damageBallDrop`, `spawnInterval` |
+| ファイル名 | クラス名と一致 | `BlockSpawner.cs` |
 
-### ファイル / クラス / アセット名
-- カテゴリ → 対象 → 詳細 の順
-- 例:
-  - `BlockNormal`, `BlockHard`, `BlockExplosive`, `BlockSpike`
-  - `ItemAttribute_Fire`, `ItemPaddle_Enlarge`
-  - `SkillPaddle_Enlarge`, `SkillBall_Multi`
-  - `InterferenceHarden`, `InterferenceSpike`
-- PascalCase
-
-### 変数名
-- camelCase
-- 数値パラメータは ScriptableObject に出す（`[SerializeField]` での個別公開は最小限）
-
-### 言語
-- 英語ベース（チームに海外の人が来ても通じる）
-- 日本語コメントはOK
+ファイル名でソートしたときに同種が綺麗に並ぶように、カテゴリを先頭に置く。
 
 ---
 
-## 7. パラメータ一覧（プランナー触り場）
+## 9. パラメータ一覧
 
-実装が進むにつれて埋めていく。すべて `GameBalanceProfile` 配下に存在する想定。
+実装される全パラメータは `GameBalanceProfile` アセット内に集約される。プランナーはこのアセットを編集することでバランス調整を行う。
 
 ### HPSettings
-| 名前 | デフォルト | 意味 |
+| 名前 | デフォルト | 単位 |
 |---|---|---|
-| maxHP | 500 | 最大HP |
-| damageBallDrop | 20 | ボール落下時のダメージ |
-| damageBlockReachBottom | 10 | ブロック底到達時のダメージ |
-| damageSpike | 30 | 棘ブロック接触ダメージ |
-| damagePoisonPerSec | 5 | 毒エリア滞在ダメージ/秒 |
+| maxHP | 500 | HP |
+| damageBallDrop | 20 | HP |
+| damageBlockReachBottom | 10 | HP |
+| damageBlockSpike | 30 | HP |
+| damagePoisonPerSec | 5 | HP/秒 |
 
 ### ComboSettings
-| 名前 | デフォルト | 意味 |
+| 名前 | デフォルト | 単位 |
 |---|---|---|
-| comboTimeoutSec | 2 | コンボ判定の連続時間 |
-| interferenceTriggerCombo | 5 | 妨害送付に必要なコンボ数 |
+| comboTimeoutSec | 2 | 秒 |
+| interferenceTriggerCombo | 5 | 個 |
 
 ### BallSettings
-| 名前 | デフォルト | 意味 |
+| 名前 | デフォルト | 単位 |
 |---|---|---|
-| speed | 7 | ボール速度 |
-| minAxisRatio | 0.2 | 軌道補正の強さ |
-| relaunchAngleSpread | 0.5 | リスポーン時の発射角度ランダム幅 |
-| stuckTimeoutSec | 5 | この時間ブロック未ヒットで加速 |
-| stuckSpeedMul | 1.1 | 加速倍率 |
+| speed | 7 | unit/秒 |
+| minAxisRatio | 0.2 | - |
+| relaunchAngleSpread | 0.5 | - |
+| stuckTimeoutSec | 5 | 秒 |
+| stuckSpeedMul | 1.1 | - |
+| normalDamage | 1 | HP |
+| iceDamage | 2 | HP |
+| heavyDamage | 3 | HP |
+| fireRadius | 1.5 | unit |
+| thunderRadius | 2.5 | unit |
 
-### LaunchSettings（メトロノーム）
-| 名前 | デフォルト | 意味 |
+### LaunchSettings
+| 名前 | デフォルト | 単位 |
 |---|---|---|
-| metronomeAngleRange | 60 | 振れ幅（左右±度数） |
-| metronomePeriodSec | 1.0 | 1周期の時間 |
+| metronomeAngleRange | 60 | 度 |
+| metronomePeriodSec | 1.0 | 秒 |
 
 ### HitStopSettings
-| 名前 | デフォルト | 意味 |
+| 名前 | デフォルト | 単位 |
 |---|---|---|
-| explosiveBlockFrames | 6 | Explosive破壊時 |
-| spikeBlockFrames | 4 | Spike破壊時 |
-| paddleBounceFrames | 1 | パドル受け止め |
-| interferenceTriggerFrames | 10 | 妨害発動 |
-| panicSkillFrames | 15 | ピンチスキル発動 |
-| roundEndFrames | 30 | ラウンド決着 |
-| matchEndFrames | 60 | マッチ決着 |
+| explosiveBlockFrames | 6 | フレーム |
+| spikeBlockFrames | 4 | フレーム |
+| paddleBounceFrames | 1 | フレーム |
+| interferenceTriggerFrames | 10 | フレーム |
+| panicSkillFrames | 15 | フレーム |
+| roundEndFrames | 30 | フレーム |
+| matchEndFrames | 60 | フレーム |
+
+### BlockSpawnSettings
+| 名前 | デフォルト | 単位 |
+|---|---|---|
+| blocksPerRow | 7 | 個 |
+| blockGap | 0.1 | unit |
+| blockHeight | 0.7 | unit |
+| spawnInterval | 5 | 秒 |
+| descentSpeed | 0.3 | unit/秒 |
+| explosiveBlockChance | 0.1 | - |
+| hardBlockChance | 0.2 | - |
+| hardBlockHp | 2 | HP |
+| sabotageHardRatio | 0.5 | - |
+| sabotageBlockHp | 2 | HP |
+
+### ArenaController（シーン上のコンポーネント、Inspector）
+| 名前 | デフォルト | 単位 | 意味 |
+|---|---|---|---|
+| arenaHalfWidth | 5 | unit | アリーナ幅の半分 |
+| arenaHalfHeight | 4.5 | unit | アリーナ高さの半分 |
+| paddleMargin | 0.8 | unit | パドルを下端から何 unit 上に置くか |
 
 ---
 
-## 8. 既知の方針決定（議論履歴の結論）
+## 10. 関連ドキュメント
 
-過去の議論で確定した方針を記録する。後で「なぜそうしたか」を忘れないため。
-
-- **HP制を選択**: 残機制はリアルタイム対戦と相性が悪い
-- **HP500**: 粒度を持たせて様々なダメージを混在可能に
-- **スキルは代償なし**: ゲーム性が上がれば一般性が下がる、プレイヤーがパンクする
-- **妨害は変化中心**: いきなりブロックを降らせるのは危険、既存盤面の変質を主軸
-- **メトロノーム発射採用**: 角度入力問題の解決策として優れる
-- **キャッチ機能は様子見**: 初回発射のみで十分な可能性、要検討
-- **直接攻撃は将来枠に温存**: 諦めないが、ストックを優先
-- **ブロック破壊のヒットストップ**: Normal/Hardは除外（頻発のため）、Explosiveは入れる
-- **GameBalanceProfile 一元集約**: ハードコード排除、プランナー触れる構造に
-
----
-
-## 9. このドキュメントの保守
-
-- 仕様変更があったら必ずここを更新する
-- 実装に入った後、Inspector で調整した最新デフォルト値もここに反映
-- 議論の結論は §8 に追記していく
+- 開発フェーズ・進捗管理: [`ROADMAP.md`](./ROADMAP.md)
+- 実装の引継ぎ情報: [`../CLAUDE.md`](../CLAUDE.md)

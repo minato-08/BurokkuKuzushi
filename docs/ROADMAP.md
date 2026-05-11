@@ -1,154 +1,135 @@
-# BurokkuKuzushi — 開発ロードマップ
+# BurokkuKuzushi 開発ロードマップ
 
 最終更新: 2026-05-11
 
-このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。チケット的に使用する。
+このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
 
 ---
 
-## 全体方針
+## 進め方
 
-- 拡張性を最初に仕込む（後から Gate/Zone/上部攻撃を足せる構造に）
-- フェーズ完了ごとに動作確認・コミット・GitHub プッシュ
-- 各フェーズは「動くものができる」まで完結させる（中途半端な状態を残さない）
+- 拡張性を最初に組み込み、後から要素を追加できる構造を作る。
+- フェーズが完了したら動作確認 → コミット → GitHub プッシュ。
+- 各フェーズは「動くものができる」状態まで完結させ、中途半端な状態は残さない。
 
 ---
 
 ## Phase A: 基盤刷新
 
-ハードコードされた数値を ScriptableObject に追い出し、HP制とヒットストップ基盤を入れる。**最も大規模なリファクタリング**。
+ハードコードされた数値を ScriptableObject に集約し、HP制とヒットストップの基盤を構築する。
 
 ### Phase A-1: GameBalanceProfile + HP制移行
 
-- [ ] `GameBalanceProfile` ScriptableObject 新設
-  - [ ] `HPSettings`, `HPStateBand[]`, `ComboSettings`, `BallSettings`, `LaunchSettings`, `HitStopSettings` の構造定義
-- [ ] `HPSystem` クラス新設（プレイヤーごとに1つ）
-- [ ] 既存の残機制 (`GameManager.lives`) を廃止し、HP制に移行
-- [ ] 既存ハードコードを Profile 参照に置換:
-  - [ ] `BlockSpawner` の spawnInterval, descentSpeed, blocksPerRow, etc.
-  - [ ] `BallScript` の speed, minAxisRatio, etc.
-  - [ ] `GameManager` の comboThreshold
-- [ ] UI を残機表示 → HPバー表示に変更
-- [ ] HP帯ごとの動的パラメータ参照機構
-
-**完了基準**: 残機制が完全に廃止され、HPバーが表示され、HP帯に応じてゲージ蓄積率などが変動する
+- [x] `GameBalanceProfile` ScriptableObject 新設
+- [x] `HPSystem` クラス新設（プレイヤーごと）
+- [x] 残機制 (`maxLives`) を廃止し、HP制 (`maxHP = 500`) に移行
+- [x] 既存ハードコードを Profile 参照に置換
+- [x] UI を残機表示 → HPバー表示に変更
+- [x] HP帯ごとの動的パラメータ参照機構
+- [x] ボール衝突すり抜け対策（Rigidbody CCD 有効化）
+- [ ] Unity Editor で Profile アセット生成 + UI差し替えの手動セットアップ実行
+- [ ] 動作確認
 
 ### Phase A-2: ヒットストップ基盤
 
 - [ ] `IFreezable` インターフェース定義
-- [ ] `BallScript` / `Block` / `PlayerController` / `BlockSpawner` が `IFreezable` 実装
+- [ ] `BallScript` / `Block` / `PlayerController` / `BlockSpawner` に実装
 - [ ] `HitStopController` を `ArenaController` 配下に追加
-- [ ] `Explosive` ブロック破壊時にヒットストップ呼び出し
-- [ ] パドル受け止め時に軽いヒットストップ呼び出し
-- [ ] ラウンド決着・マッチ決着時にボスストップ風長尺ヒットストップ
-
-**完了基準**: Explosiveブロック爆発時に明確な手応えがあり、決着時に演出としてのストップが入る
+- [ ] `BlockExplosive` ブロック爆発時にヒットストップ
+- [ ] パドル受け止め時に軽いヒットストップ
+- [ ] ラウンド決着・マッチ決着時に長尺ヒットストップ
 
 ### Phase A-3: 即リスタート機構
 
-- [ ] マッチ終了状態を検出し、Spaceキーで `StartNewMatch()` を呼ぶ
-- [ ] 演出を短くし、1秒以内に操作復帰
-- [ ] `Time.timeScale = 0` のフリーズ解除も処理
-
-**完了基準**: マッチ終了から Space 1 押しで次の試合が即始まる
+- [ ] マッチ終了状態を検出し、Space キーで `StartNewMatch()` 呼び出し
+- [ ] 演出を短縮し、1 秒以内に操作復帰
+- [ ] `Time.timeScale = 0` のフリーズ解除
 
 ---
 
 ## Phase B: メトロノーム発射
 
 - [ ] `LaunchAimer` クラス新設
-- [ ] リスポーン後にメトロノーム角度インジケーター UI 表示
-- [ ] 専用キー押下時に確定角度で発射
+- [ ] リスポーン後に角度インジケーター UI 表示
+- [ ] 発射キー押下時に確定角度で発射
 - [ ] `LaunchSettings`（振れ幅・周期）を Profile から参照
-- [ ] キャッチ機能の検討（初回のみで十分か、試合中もか）
-
-**完了基準**: ボールリスポーン時にプレイヤーが角度を選択して発射できる
 
 ---
 
-## Phase C: アイテム（パドルキャッチ式）
+## Phase C: アイテム
 
 - [ ] `EffectDefinition` 抽象クラス定義
-- [ ] `ItemDefinition`（EffectDefinitionの具象）定義
-- [ ] `ItemDrop` MonoBehaviour（落下するアイテム本体）
-- [ ] ブロック破壊時に `ItemDropTable` 参照してドロップ判定
+- [ ] `ItemDefinition` 実装
+- [ ] `ItemDrop` MonoBehaviour（落下するアイテム）
+- [ ] ブロック破壊時にドロップ判定
 - [ ] パドルキャッチで効果適用
-- [ ] 初期アイテム実装:
-  - [ ] `ItemAttribute_Fire` / `ItemAttribute_Ice` / `ItemAttribute_Thunder` / `ItemAttribute_Heavy`
-  - [ ] `ItemPaddle_Enlarge` / `ItemPaddle_SpeedUp`
-  - [ ] `ItemHeal`
-  - [ ] `ItemPaddle_Shrink`（不利）
-  - [ ] `ItemBall_Hyperspeed`（不利）
-
-**完了基準**: アイテムが落下→キャッチ→効果適用→時間経過で解除のフローが動く
+- [ ] アイテム実装:
+  - [ ] 属性付与系（Fire / Ice / Thunder / Heavy）
+  - [ ] パドル強化系（Enlarge / SpeedUp）
+  - [ ] ボール強化系（Pierce）
+  - [ ] 回復系（Heal）
+  - [ ] 不利系（Shrink / Hyperspeed）
 
 ---
 
-## Phase D: スキル（装備制・代償なし）
+## Phase D: スキル
 
-- [ ] `SkillDefinition`（EffectDefinitionの具象）定義
+- [ ] `SkillDefinition` 実装
 - [ ] エナジーゲージ実装
 - [ ] HP帯に応じたゲージ蓄積率変動
-- [ ] 試合前のスキル装備UI（1〜2個セット）
-- [ ] キーで即発動
-- [ ] 初期スキル実装:
+- [ ] 試合前のスキル装備 UI
+- [ ] キー入力で発動
+- [ ] スキル実装:
   - [ ] `SkillPaddle_Enlarge`
   - [ ] `SkillBall_Multi`
   - [ ] `SkillBall_Attribute_Fire`
   - [ ] `SkillForceCatch`
-  - [ ] `SkillPanic_BlockClear`（ピンチ専用）
-
-**完了基準**: 試合前にスキルを選び、試合中にキーで発動できる
+  - [ ] `SkillPanic_BlockClear`
 
 ---
 
-## Phase E: 妨害多様化（変化中心）
+## Phase E: 妨害多様化
 
-- [ ] `BlockDefinition` ScriptableObject化（既存enumから移行）
+- [ ] `BlockDefinition` ScriptableObject 化（既存 enum から移行）
 - [ ] `InterferencePayload` 機構実装
-- [ ] 変化系妨害の実装:
-  - [ ] `InterferenceHarden`（ブロック硬化）
-  - [ ] `InterferenceSpike`（棘化）
-  - [ ] `InterferencePoison`（毒エリア生成）
-  - [ ] `InterferenceSlow`（スローエリア生成）
-- [ ] 既存「妨害行追加」を `InterferenceAddRow` として残す（保険）
-- [ ] 新ブロック種実装: `BlockSpike`, `BlockHardened`
-- [ ] 新Zone実装: `ZonePoison`, `ZoneSlow`
-
-**完了基準**: コンボ閾値到達で相手側ブロックが変化する複数の妨害方式が動作する
+- [ ] 妨害種別の実装:
+  - [ ] `InterferenceHarden`
+  - [ ] `InterferenceSpike`
+  - [ ] `InterferencePoison`
+  - [ ] `InterferenceSlow`
+- [ ] 新ブロック / Zone 実装:
+  - [ ] `BlockSpike`
+  - [ ] `BlockHardened`
+  - [ ] `ZonePoison`
+  - [ ] `ZoneSlow`
 
 ---
 
 ## Phase F: 演出強化
 
-- [ ] 破壊ブロック飛翔演出（Screen Space Overlay）
-  - [ ] 自分が破壊 → 画面端 → 相手側へ飛ぶアニメーション
-  - [ ] 相手の妨害発生タイミングと同期
-- [ ] ヒットストップの拡張（妨害発動時のフラッシュ・振動）
+- [ ] 破壊ブロック飛翔演出（Screen Space Overlay アニメーション）
+- [ ] ヒットストップ拡張（妨害発動時のフラッシュ・振動）
 - [ ] カメラシェイク
-- [ ] Trail Renderer（ボール軌跡、属性ごとに色変更）
-- [ ] ブロック破壊の破片（Rigidbody欠片）
+- [ ] Trail Renderer（ボール軌跡、属性ごとに色変化）
+- [ ] ブロック破壊の破片（Rigidbody 欠片）
 - [ ] 属性ボールの動的ライティング
-
-**完了基準**: プレイ中に「3Dらしさ」と「やった/やられた感」がはっきり感じられる
 
 ---
 
 ## Phase G+: 拡張要素
 
-優先度順に順次取り組む。Phase A〜F のスキームに乗せて追加していく形。
-
-- [ ] Gate 系（`GateEffectDefinition` を EffectDefinition の具象として）
-  - [ ] `GatePower`, `GateSpeed`, `GateMulti`
-- [ ] Zone 系（自陣バフ）
-  - [ ] `ZoneHeal`, `ZoneAutoClear`
+- [ ] Gate 系
+  - [ ] `GatePower`
+  - [ ] `GateSpeed`
+  - [ ] `GateMulti`
+- [ ] 自陣 Zone 系
+  - [ ] `ZoneHeal`
+  - [ ] `ZoneAutoClear`
 - [ ] 上部攻撃（`InterferenceDirectAttack`）
-  - [ ] Undertale風予告型ダメージエリア
-- [ ] ブロック送付の強化
-  - [ ] `InterferenceAddRow` のバリエーション（速度差・配置差など）
-- [ ] スコア独自表示（「破壊力%」「翻弄度」など）
-- [ ] BGM/SE 系
-- [ ] タイトル画面・モード選択
+- [ ] ブロック送付のバリエーション（速度差・配置差）
+- [ ] 独自スコア表示（破壊力%、翻弄度など）
+- [ ] BGM / SE
+- [ ] タイトル画面 / モード選択
 
 ---
 
@@ -157,11 +138,12 @@
 - 完了したチェックボックスは `[x]` に変更
 - フェーズ完了時にコミット + GitHub プッシュ
 - フェーズ完了時にこのファイルの「最終更新」日付を更新
-- 仕様変更が必要になったら DESIGN.md を先に更新してから実装に着手
+- 仕様変更が必要になったら `DESIGN.md` を先に更新してから実装に着手
 
 ---
 
 ## 現在のステータス
 
-- **完了**: Phase 1〜8（初期実装〜スプリットスクリーンUI）
-- **次に着手**: Phase A-1（GameBalanceProfile + HP制移行）
+- **完了**: 初期実装〜スプリットスクリーン UI、Phase A-1 のコード実装
+- **進行中**: Phase A-1 の Unity Editor 手動セットアップと動作確認
+- **次フェーズ**: Phase A-2（ヒットストップ基盤）
