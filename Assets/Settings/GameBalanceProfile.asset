@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f86a710dee8136244956fc91df75e550, type: 3}
+  m_Name: GameBalanceProfile
+  m_EditorClassIdentifier: Assembly-CSharp::GameBalanceProfile
+  hp:
+    maxHP: 500
+    damageBallDrop: 20
+    damageBlockReachBottom: 10
+    damageBlockSpike: 30
+    damagePoisonPerSec: 5
+  hpStateBands:
+  - thresholdPercent: 1
+    gaugeRateMul: 1
+    itemDropMul: 1
+    scoreMul: 1
+    goodItemBias: 0
+    panicMode: 0
+  - thresholdPercent: 0.7
+    gaugeRateMul: 1.3
+    itemDropMul: 1.2
+    scoreMul: 1
+    goodItemBias: 0
+    panicMode: 0
+  - thresholdPercent: 0.3
+    gaugeRateMul: 1.6
+    itemDropMul: 1.5
+    scoreMul: 1.5
+    goodItemBias: 0.7
+    panicMode: 0
+  - thresholdPercent: 0.1
+    gaugeRateMul: 1.6
+    itemDropMul: 1.5
+    scoreMul: 1.5
+    goodItemBias: 0.7
+    panicMode: 1
+  combo:
+    comboTimeoutSec: 2
+    interferenceTriggerCombo: 5
+  ball:
+    speed: 7
+    minAxisRatio: 0.2
+    relaunchAngleSpread: 0.5
+    stuckTimeoutSec: 5
+    stuckSpeedMul: 1.1
+    normalDamage: 1
+    iceDamage: 2
+    heavyDamage: 3
+    fireRadius: 1.5
+    thunderRadius: 2.5
+  launch:
+    metronomeAngleRange: 60
+    metronomePeriodSec: 1
+  hitStop:
+    explosiveBlockFrames: 6
+    spikeBlockFrames: 4
+    paddleBounceFrames: 1
+    interferenceTriggerFrames: 10
+    panicSkillFrames: 15
+    roundEndFrames: 30
+    matchEndFrames: 60
+  blockSpawn:
+    blocksPerRow: 7
+    blockGap: 0.1
+    blockHeight: 0.7
+    spawnInterval: 5
+    descentSpeed: 0.3
+    explosiveBlockChance: 0.1
+    hardBlockChance: 0.2
+    hardBlockHp: 2
+    sabotageHardRatio: 0.5
+    sabotageBlockHp: 2
