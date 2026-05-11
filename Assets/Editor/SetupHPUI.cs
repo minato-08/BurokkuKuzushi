@@ -16,8 +16,15 @@ public static class SetupHPUI
         UIManager ui = Object.FindFirstObjectByType<UIManager>();
         if (ui == null)
         {
-            Debug.LogError("[SetupHPUI] シーンに UIManager が見つかりません。");
-            return;
+            // UIManager コンポーネントが見つからない場合、CenterUI に自動アタッチする
+            GameObject centerUI = GameObject.Find("CenterUI");
+            if (centerUI == null)
+            {
+                Debug.LogError("[SetupHPUI] シーンに UIManager も CenterUI も見つかりません。Canvas 構成を確認してください。");
+                return;
+            }
+            ui = centerUI.AddComponent<UIManager>();
+            Debug.Log("[SetupHPUI] UIManager コンポーネントを CenterUI に自動アタッチしました。");
         }
 
         // P1Lives と P2Lives を見つけて、HP表示に転用する
