@@ -50,8 +50,37 @@ public class BallScript : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+
+        // 高速移動時にブロックをすり抜ける問題への対策。
+        // ContinuousDynamic は他の Continuous/ContinuousDynamic な Rigidbody との
+        // 衝突も貫通防止できるが、相手が Static Collider の場合は Continuous でも十分。
+        // ブロック側は Rigidbody なしの Static Collider 想定なので Continuous で足りるが、
+        // 念のため ContinuousDynamic にしておく（パフォーマンス影響は単一ボールなら軽微）。
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        // Profile があれば設定を読み込む（Inspector の値を上書き）
+        ApplyProfile();
+
         ApplyAttributeColor();
         Launch(initialLocalDirection);
+    }
+
+    // GameBalanceProfile の BallSettings を読み込んで自身のフィールドに反映する
+    private void ApplyProfile()
+    {
+        var profile = GameManager.Instance?.Profile;
+        if (profile == null) return;
+
+        var bs = profile.ball;
+        speed                = bs.speed;
+        minAxisRatio         = bs.minAxisRatio;
+        relaunchAngleSpread  = bs.relaunchAngleSpread;
+        normalDamage         = bs.normalDamage;
+        iceDamage            = bs.iceDamage;
+        heavyDamage          = bs.heavyDamage;
+        fireRadius           = bs.fireRadius;
+        thunderRadius        = bs.thunderRadius;
     }
 
     void FixedUpdate()

@@ -8,20 +8,20 @@ public class BlockSpawner : MonoBehaviour
 
     [Header("ブロック設定")]
     [SerializeField] private GameObject blockPrefab;
-    [SerializeField] private int blocksPerRow = 7;
-    [SerializeField] private float blockWidth = 1.5f;   // ブロック1個の横幅
-    [SerializeField] private float blockGap   = 0.1f;   // ブロック間の隙間
-    [SerializeField] private float blockHeight = 0.7f;
+    [SerializeField] private int   blocksPerRow = 7;
+    [SerializeField] private float blockWidth   = 1.5f;   // ブロック1個の横幅
+    [SerializeField] private float blockGap     = 0.1f;   // ブロック間の隙間
+    [SerializeField] private float blockHeight  = 0.7f;
 
     [Header("スポーン・降下設定（ローカル座標）")]
-    [SerializeField] private float spawnY = 4.5f;
-    [SerializeField] private float bottomY = -4.5f;
+    [SerializeField] private float spawnY        = 4.5f;
+    [SerializeField] private float bottomY       = -4.5f;
     [SerializeField] private float spawnInterval = 5f;
-    [SerializeField] private float descentSpeed = 0.3f;
+    [SerializeField] private float descentSpeed  = 0.3f;
 
     [Header("通常行のブロック種出現率")]
     [Range(0f, 1f)] [SerializeField] private float explosiveBlockChance = 0.1f;
-    [Range(0f, 1f)] [SerializeField] private float hardBlockChance = 0.2f;
+    [Range(0f, 1f)] [SerializeField] private float hardBlockChance      = 0.2f;
     [SerializeField] private int hardBlockHp = 2;
 
     [Header("妨害行設定")]
@@ -30,12 +30,44 @@ public class BlockSpawner : MonoBehaviour
 
     private List<GameObject> allBlocks = new List<GameObject>();
     private float spawnTimer = 0f;
-    private int pendingSabotageRows = 0; // 受信済みだがまだ生成していない妨害行の数
+    private int   pendingSabotageRows = 0; // 受信済みだがまだ生成していない妨害行の数
 
     void Start()
     {
+        // ArenaController から再度サイズ取得して、Profile 反映後の値で再計算する
+        // （Awake 順序によっては ConfigureFromArena 時点で GameManager.Instance が
+        //   まだ null の可能性があるため、Start で確実にやり直す）
+        ArenaController arena = GetComponentInParent<ArenaController>();
+        if (arena != null)
+        {
+            ConfigureFromArena(arena.arenaHalfWidth, arena.arenaHalfHeight);
+        }
+        else
+        {
+            ApplyProfile();
+        }
+
         // ゲーム開始時に最初の行を生成
         SpawnRow();
+    }
+
+    // GameBalanceProfile の BlockSpawnSettings を読み込んで自身のフィールドに反映する
+    private void ApplyProfile()
+    {
+        var profile = GameManager.Instance?.Profile;
+        if (profile == null) return;
+
+        var bs = profile.blockSpawn;
+        blocksPerRow         = bs.blocksPerRow;
+        blockGap             = bs.blockGap;
+        blockHeight          = bs.blockHeight;
+        spawnInterval        = bs.spawnInterval;
+        descentSpeed         = bs.descentSpeed;
+        explosiveBlockChance = bs.explosiveBlockChance;
+        hardBlockChance      = bs.hardBlockChance;
+        hardBlockHp          = bs.hardBlockHp;
+        sabotageHardRatio    = bs.sabotageHardRatio;
+        sabotageBlockHp      = bs.sabotageBlockHp;
     }
 
     void Update()
@@ -71,10 +103,9 @@ public class BlockSpawner : MonoBehaviour
         }
 
         // blocksPerRow個のブロックをX方向に均等配置
-        // 中心間距離 = ブロック幅 + 隙間
-        float spacing   = blockWidth + blockGap;
+        float spacing    = blockWidth + blockGap;
         float totalWidth = (blocksPerRow - 1) * spacing;
-        float startX    = -totalWidth / 2f;
+        float startX     = -totalWidth / 2f;
 
         for (int i = 0; i < blocksPerRow; i++)
         {
@@ -87,16 +118,13 @@ public class BlockSpawner : MonoBehaviour
             Block blockScript = block.GetComponent<Block>();
             if (blockScript == null) continue;
 
-            if (isSabotage)
-                ApplySabotageRowSettings(blockScript);
-            else
-                ApplyNormalRowSettings(blockScript);
+            if (isSabotage) ApplySabotageRowSettings(blockScript);
+            else            ApplyNormalRowSettings(blockScript);
 
             allBlocks.Add(block);
         }
     }
 
-    // 通常行：確率で各ブロックの種類を決める
     private void ApplyNormalRowSettings(Block blockScript)
     {
         float rand = Random.value;
@@ -107,12 +135,11 @@ public class BlockSpawner : MonoBehaviour
         else if (rand < explosiveBlockChance + hardBlockChance)
         {
             blockScript.blockType = BlockType.Hard;
-            blockScript.hp = hardBlockHp;
+            blockScript.hp        = hardBlockHp;
         }
-        // それ以外はNormalのまま
+        // それ以外は Normal のまま
     }
 
-    // 妨害行：硬い or 吸収ブロックをランダムで配置
     private void ApplySabotageRowSettings(Block blockScript)
     {
         blockScript.blockType = Random.value < sabotageHardRatio
@@ -125,7 +152,6 @@ public class BlockSpawner : MonoBehaviour
     {
         float step = descentSpeed * Time.deltaTime;
 
-        // 後ろから走査することで、削除時にインデックスがずれない
         for (int i = allBlocks.Count - 1; i >= 0; i--)
         {
             if (allBlocks[i] == null)
@@ -133,32 +159,47 @@ public class BlockSpawner : MonoBehaviour
                 allBlocks.RemoveAt(i);
                 continue;
             }
-
             allBlocks[i].transform.localPosition -= new Vector3(0f, step, 0f);
         }
     }
 
+    // 底に到達したブロックを破棄し、その数を集計して GameManager に通知する
+    // HP制移行に伴い「1個でも到達したら即ラウンド終了」から「到達数に応じてダメージ」に変更
     private void CheckBottomReached()
     {
-        foreach (var block in allBlocks)
+        int reachedCount = 0;
+        for (int i = allBlocks.Count - 1; i >= 0; i--)
         {
-            if (block == null) continue;
-            if (block.transform.localPosition.y <= bottomY)
+            GameObject blockObj = allBlocks[i];
+            if (blockObj == null)
             {
-                GameManager.Instance?.OnBlocksReachedBottom(playerIndex);
-                return;
+                allBlocks.RemoveAt(i);
+                continue;
             }
+
+            if (blockObj.transform.localPosition.y <= bottomY)
+            {
+                reachedCount++;
+                Destroy(blockObj);
+                allBlocks.RemoveAt(i);
+            }
+        }
+
+        if (reachedCount > 0)
+        {
+            GameManager.Instance?.OnBlocksReachedBottom(playerIndex, reachedCount);
         }
     }
 
     // ArenaController からサイズを受け取って自動設定する
     public void ConfigureFromArena(float halfWidth, float halfHeight)
     {
+        // GameManager がいれば Profile を先に反映してから blockWidth を計算する
+        ApplyProfile();
+
         spawnY  =  halfHeight;
         bottomY = -halfHeight;
 
-        // ブロック幅をアリーナ幅から逆算
-        // 全ブロックが halfWidth*2 に収まるように spacing を決める
         if (blocksPerRow > 1)
         {
             float spacing = (halfWidth * 2f) / (blocksPerRow - 1);
@@ -166,14 +207,12 @@ public class BlockSpawner : MonoBehaviour
         }
     }
 
-    // PVP干渉：相手から妨害行を受け取る
-    // 即時生成ではなくキューに積む → スポーン位置が空いてから生成される
+    // PVP干渉：相手から妨害行を受け取る（即時生成ではなくキューに積む）
     public void ReceiveSabotageRow()
     {
         pendingSabotageRows++;
     }
 
-    // スポーン位置（spawnY付近）にブロックがないか確認する
     private bool IsTopClear()
     {
         foreach (var block in allBlocks)
@@ -194,6 +233,7 @@ public class BlockSpawner : MonoBehaviour
         }
         allBlocks.Clear();
         spawnTimer = 0f;
+        pendingSabotageRows = 0;
         SpawnRow();
     }
 }
