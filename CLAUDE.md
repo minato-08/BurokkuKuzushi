@@ -36,7 +36,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - `Assets/Settings/GameBalanceProfile.asset` を生成し GameManager にバインド
 2. `BurokkuKuzushi > Setup HP UI` を実行
    - CenterUI 配下の UI 要素を検出・生成し、UIManager に参照をバインド
-   - 両メニュー操作とも冪等（何度実行しても安全）
+3. `BurokkuKuzushi > Setup HitStop` を実行
+   - Arena1 / Arena2 の子に `HitStopController` GameObject を生成し、カメラ参照（Camera1 / Camera2）をバインド
+   - すべてのメニュー操作は冪等（何度実行しても安全）
 
 ---
 
@@ -103,6 +105,8 @@ ArenaController.Awake()
 
 各スクリプトは `Start()` で一度だけ Profile を読み込む。**試合中にアセットを編集しても反映されない**。次ラウンド / 試合開始時のみ反映される。
 
+`BlockSpawner` は例外で `Start()` で `ConfigureFromArena()` → `ApplyProfile()` を再実行する。`ArenaController.Awake()` 時点で `GameManager.Instance` がまだ null の可能性があるため、Profile 反映を Start に後回しにしている。
+
 ---
 
 ## スクリプト一覧
@@ -112,6 +116,7 @@ ArenaController.Awake()
 - `HPSystem` をプレイヤーごとに保持し、`ApplyDamage()` が全ダメージの最終窓口
 - HP帯に応じた動的パラメータ参照: `GetCurrentBand(playerIndex)` → `HPStateBand`
 - `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
+- `GetCombo(playerIndex)` は「コンボ数」ではなく「次の妨害送付までのブロック破壊カウント」を返す（`p1DestroyedCount`）。`GetComboThreshold()` と組み合わせて UI に表示する
 
 ### `GameBalanceProfile.cs`（ScriptableObject）
 - 全パラメータを集約するアセット（`Assets/Settings/GameBalanceProfile.asset`）
@@ -123,9 +128,21 @@ ArenaController.Awake()
 - API: `TakeDamage / Heal / Reset / SetMaxHP`
 - プロパティ: `CurrentHP`, `MaxHP`, `Ratio`, `IsAlive`
 
+### `IFreezable.cs`（インターフェース）
+- `Freeze()` / `Unfreeze()` の2メソッドのみ
+- `BallScript` / `BlockSpawner` / `PlayerController` が実装。ヒットストップ中は各 Update/FixedUpdate を停止する
+
+### `HitStopController.cs`
+- `ArenaController` の子 GameObject にアタッチ
+- `RegisterFreezable(IFreezable)` で管理対象を登録（ArenaController.Awake で呼ばれる）
+- `TriggerHitStop(frames, strong)`: 対象を freeze → カメラシェイク → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
+- `strong=true` で強シェイク（ラウンド/マッチ決着時）
+
 ### `ArenaController.cs`
 - アリーナサイズの唯一の管理者。`arenaHalfWidth / arenaHalfHeight` を変えると全コンポーネントが追従
 - `leftWall / rightWall / topWall` を Inspector でバインドすると壁位置も自動調整される（任意）
+- `arenaCamera` を Inspector でバインド（Setup HitStop で自動設定）→ `HitStopController` に渡す
+- `TriggerHitStop(frames, strong)` を公開 — Block / BallScript / GameManager はこれを呼ぶ
 
 ### `BlockSpawner.cs`
 - タイマーで行を生成、毎フレーム降下、底判定
@@ -133,18 +150,21 @@ ArenaController.Awake()
 - 底到達: `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知
 
 ### `BallScript.cs`
-- `BallAttribute` enum: `Normal / Fire / Thunder / Ice / Heavy`
+- `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（貫通）
+- `FixedUpdate` で毎フレーム速度を `speed` に正規化するため、外部から velocity を変えてもスピードは戻る（Absorb ブロックの減速は一時的）
 - `OnCollisionEnter` で衝突直後に角度補正（`ClampAngle`）→ 壁沿いループ防止
 - `lastVelocity` は `FixedUpdate` でのみ更新（Heavy属性の貫通処理が衝突前速度を復元するために使用）
 - `Launch()`: `transform.parent.TransformDirection()` でローカル→ワールド変換
+- ボール GameObject に `"BallTag"` Unity タグが必須（`Block` / `DeadZone` どちらも `CompareTag("BallTag")` で判定）
 
 ### `PlayerController.cs`
 - `rb.isKinematic = true` + `transform.localPosition` 直接操作
 - 1P: A/D（または矢印キー）、2P: J/L
 
 ### `Block.cs`
-- `BlockType` enum: `Normal / Hard / Absorb / Explosive`
-- `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し
+- `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを増加）
+- `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須（未設定だと衝突判定スルー）
+- `blockType` / `hp` はパブリックフィールド（`SerializeField` ではない）。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
 - スコア値（`normalScore` / `hardScore`）は現時点でハードコード（Profile 未対応）
 
 ### `UIManager.cs`
@@ -154,6 +174,7 @@ ArenaController.Awake()
 ### Editor スクリプト (`Assets/Editor/`)
 - `SetupGameBalanceProfile.cs`: `BurokkuKuzushi > Setup GameBalanceProfile`
 - `SetupHPUI.cs`: `BurokkuKuzushi > Setup HP UI`（冪等）
+- `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— Camera1/Camera2 を ArenaController にバインド
 - `SetupUIManager.cs` / `SetupSplitScreen.cs`: 旧スクリプト、現在は不要
 
 ---

@@ -1736,6 +1736,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &913038403
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 913038404}
+  - component: {fileID: 913038405}
+  m_Layer: 0
+  m_Name: HitStopController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &913038404
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 913038403}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1342564223}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &913038405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 913038403}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 753cf0f39ec954704b5d52bb5846350e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitStopController
+  shakeIntensityNormal: 0.08
+  shakeIntensityStrong: 0.2
 --- !u!1 &992062501
 GameObject:
   m_ObjectHideFlags: 0
@@ -1902,7 +1948,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1544561336}
   m_Father: {fileID: 2146055006}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1085258024
@@ -1927,6 +1974,7 @@ MonoBehaviour:
   ball: {fileID: 897915112}
   spawner: {fileID: 308994974}
   launchDelay: 1
+  arenaCamera: {fileID: 898796470}
 --- !u!1 &1131519715
 GameObject:
   m_ObjectHideFlags: 0
@@ -2637,7 +2685,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 913038404}
   m_Father: {fileID: 1378150931}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1342564224
@@ -2662,6 +2711,7 @@ MonoBehaviour:
   ball: {fileID: 1624743854}
   spawner: {fileID: 1298050404}
   launchDelay: 1
+  arenaCamera: {fileID: 330585545}
 --- !u!1 &1378150930
 GameObject:
   m_ObjectHideFlags: 0
@@ -3225,6 +3275,52 @@ RectTransform:
   m_AnchoredPosition: {x: -10, y: -90}
   m_SizeDelta: {x: 200, y: 35}
   m_Pivot: {x: 1, y: 1}
+--- !u!1 &1544561335
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1544561336}
+  - component: {fileID: 1544561337}
+  m_Layer: 0
+  m_Name: HitStopController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1544561336
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1544561335}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1085258023}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1544561337
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1544561335}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 753cf0f39ec954704b5d52bb5846350e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitStopController
+  shakeIntensityNormal: 0.08
+  shakeIntensityStrong: 0.2
 --- !u!1 &1548280305
 GameObject:
   m_ObjectHideFlags: 0
@@ -3834,13 +3930,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
   p1ScoreText: {fileID: 1242972385}
-  p1LivesText: {fileID: 2095094750}
+  p1HPText: {fileID: 0}
+  p1HPFill: {fileID: 0}
   p1ComboText: {fileID: 1393598563}
   p1RoundWinsText: {fileID: 92284155}
   p2ScoreText: {fileID: 992062502}
-  p2LivesText: {fileID: 1492051492}
+  p2HPText: {fileID: 0}
+  p2HPFill: {fileID: 0}
   p2ComboText: {fileID: 1523684075}
   p2RoundWinsText: {fileID: 1289639996}
+  hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
+  hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
+  hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
+  midThreshold: 0.7
+  lowThreshold: 0.3
   statusText: {fileID: 740959086}
 --- !u!1 &2074190967
 GameObject:
@@ -3871,10 +3974,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22b61ac4f3379d4489cda0ad8eb5fcf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  maxLives: 3
+  profile: {fileID: 0}
   roundsToWin: 2
   nextRoundDelay: 2
-  comboThreshold: 5
   arena1: {fileID: 1342564224}
   arena2: {fileID: 1085258024}
 --- !u!4 &2074190969

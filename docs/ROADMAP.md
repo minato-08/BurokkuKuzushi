@@ -1,6 +1,6 @@
 # BurokkuKuzushi 開発ロードマップ
 
-最終更新: 2026-05-12
+最終更新: 2026-05-14
 
 このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
 
@@ -28,17 +28,17 @@
 - [x] HP帯ごとの動的パラメータ参照機構
 - [x] ボール衝突すり抜け対策（Rigidbody CCD 有効化）
 - [x] Unity Editor で Profile アセット生成 + UI差し替えの手動セットアップ実行
-- [ ] 動作確認（HPバー表示、ボール落下時 -20HP、色変化、ブロック破壊）
+- [x] 動作確認（HPバー表示、ボール落下時 -20HP、色変化、ブロック破壊）
 
 ### Phase A-2: ヒットストップ基盤
 
-- [ ] `IFreezable` インターフェース定義
-- [ ] `BallScript` / `Block` / `PlayerController` / `BlockSpawner` に実装
-- [ ] `HitStopController` を `ArenaController` 配下に追加
-- [ ] カメラシェイク基盤（HitStop と同時発火、通常は片側カメラ・決着時は両方）
-- [ ] `BlockExplosive` ブロック爆発時にヒットストップ
-- [ ] パドル受け止め時に軽いヒットストップ
-- [ ] ラウンド決着・マッチ決着時に長尺ヒットストップ + 両カメラシェイク
+- [x] `IFreezable` インターフェース定義
+- [x] `BallScript` / `PlayerController` / `BlockSpawner` に実装
+- [x] `HitStopController` を `ArenaController` 配下に追加
+- [x] カメラシェイク基盤（HitStop と同時発火、通常は片側カメラ・決着時は両方）
+- [x] `BlockExplosive` ブロック爆発時にヒットストップ
+- [x] パドル受け止め時に軽いヒットストップ
+- [x] ラウンド決着・マッチ決着時に長尺ヒットストップ + 両カメラシェイク
 
 ### Phase A-3: マッチ結果画面
 
@@ -147,6 +147,6 @@
 
 ## 現在のステータス
 
-- **完了**: 初期実装〜スプリットスクリーン UI、Phase A-1 のコード実装、Editor 手動セットアップ（Profile アセット生成 + HP UI 配置）
-- **進行中**: Phase A-1 の動作確認（Unity Play で HP制の挙動を検証）
-- **次フェーズ**: Phase A-2（ヒットストップ基盤）
+- **完了**: Phase A-1（HP制・GameBalanceProfile）、Phase A-2（ヒットストップ基盤）
+- **進行中**: Phase A-3（マッチ結果画面）
+- **次フェーズ**: Phase A-3 完了後 → Phase B（メトロノーム発射）

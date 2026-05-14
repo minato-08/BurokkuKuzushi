@@ -9,7 +9,7 @@ public enum BallAttribute
     Heavy   // 重：貫通する
 }
 
-public class BallScript : MonoBehaviour
+public class BallScript : MonoBehaviour, IFreezable
 {
     [Header("ボール設定")]
     [SerializeField] public float speed = 7f;
@@ -46,6 +46,25 @@ public class BallScript : MonoBehaviour
     private Rigidbody rb;
     // Heavy属性で「衝突直前の速度」を復元するために前フレームの速度を保持
     private Vector3 lastVelocity;
+
+    private bool frozen = false;
+    private Vector3 frozenVelocity;
+
+    public void Freeze()
+    {
+        if (rb == null) return;
+        frozen = true;
+        frozenVelocity = rb.linearVelocity;
+        rb.linearVelocity = Vector3.zero;
+    }
+
+    public void Unfreeze()
+    {
+        frozen = false;
+        if (rb == null) return;
+        rb.linearVelocity = frozenVelocity;
+        lastVelocity = frozenVelocity;
+    }
 
     void Start()
     {
@@ -85,6 +104,7 @@ public class BallScript : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (frozen) return;
         if (rb.linearVelocity != Vector3.zero)
         {
             // 速度の大きさをスピードに固定（スピードが変わらないようにする）
@@ -100,6 +120,14 @@ public class BallScript : MonoBehaviour
     {
         if (rb.linearVelocity.sqrMagnitude < 0.01f) return;
         rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * speed;
+
+        // パドルに当たったときにヒットストップ発火
+        if (collision.gameObject.GetComponent<PlayerController>() != null)
+        {
+            ArenaController arena = GetComponentInParent<ArenaController>();
+            int frames = GameManager.Instance?.Profile?.hitStop.paddleBounceFrames ?? 1;
+            arena?.TriggerHitStop(frames);
+        }
     }
 
     // X・Y どちらかが minAxisRatio 未満なら補正して再正規化する

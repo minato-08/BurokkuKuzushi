@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class BlockSpawner : MonoBehaviour
+public class BlockSpawner : MonoBehaviour, IFreezable
 {
     [Header("プレイヤー紐付け")]
     [SerializeField] public int playerIndex = 1;
@@ -31,6 +31,10 @@ public class BlockSpawner : MonoBehaviour
     private List<GameObject> allBlocks = new List<GameObject>();
     private float spawnTimer = 0f;
     private int   pendingSabotageRows = 0; // 受信済みだがまだ生成していない妨害行の数
+    private bool  frozen = false;
+
+    public void Freeze()   => frozen = true;
+    public void Unfreeze() => frozen = false;
 
     void Start()
     {
@@ -72,6 +76,7 @@ public class BlockSpawner : MonoBehaviour
 
     void Update()
     {
+        if (frozen) return;
         if (GameManager.Instance != null &&
             GameManager.Instance.GetCurrentState() != GameManager.GameState.Playing)
             return;

@@ -24,13 +24,31 @@ public class ArenaController : MonoBehaviour
     [Header("ボールリスポーン設定")]
     [SerializeField] private float launchDelay = 1f;
 
+    [Header("カメラ・ヒットストップ")]
+    [SerializeField] private Camera arenaCamera;
+
     // ボールリスポーン位置（ConfigureArena で自動計算）
     private Vector3 ballSpawnLocalPos;
+    private HitStopController hitStop;
 
     public BlockSpawner GetSpawner() => spawner;
 
+    public void TriggerHitStop(int frames, bool strong = false)
+    {
+        hitStop?.TriggerHitStop(frames, strong);
+    }
+
     void Awake()
     {
+        hitStop = GetComponentInChildren<HitStopController>();
+        if (hitStop != null)
+        {
+            hitStop.SetCamera(arenaCamera);
+            if (ball    != null) hitStop.RegisterFreezable(ball);
+            if (spawner != null) hitStop.RegisterFreezable(spawner);
+            PlayerController pc = GetComponentInChildren<PlayerController>();
+            if (pc != null) hitStop.RegisterFreezable(pc);
+        }
         ConfigureArena();
     }
 

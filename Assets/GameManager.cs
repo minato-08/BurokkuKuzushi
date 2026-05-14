@@ -190,6 +190,9 @@ public class GameManager : MonoBehaviour
         BlockSpawner spawner = target.GetSpawner();
         if (spawner != null) spawner.ReceiveSabotageRow();
 
+        int frames = profile != null ? profile.hitStop.interferenceTriggerFrames : 10;
+        target.TriggerHitStop(frames);
+
         Debug.Log($"P{targetPlayerIndex} に妨害行を送信！");
     }
 
@@ -207,15 +210,27 @@ public class GameManager : MonoBehaviour
         if (p1RoundWins >= roundsToWin || p2RoundWins >= roundsToWin)
         {
             currentState = GameState.MatchOver;
-            Time.timeScale = 0f;
+            int frames = profile != null ? profile.hitStop.matchEndFrames : 60;
+            arena1?.TriggerHitStop(frames, strong: true);
+            arena2?.TriggerHitStop(frames, strong: true);
+            // HitStop が終わってから timeScale=0 にする（coroutine は unscaledDeltaTime を使うので問題なし）
+            StartCoroutine(MatchOverCoroutine(frames));
             Debug.Log($"試合終了！勝者: P{winner}");
         }
         else
         {
             currentState = GameState.RoundOver;
-            // WaitForSecondsRealtime を使えば Time.timeScale=0 にしても待てる
+            int frames = profile != null ? profile.hitStop.roundEndFrames : 30;
+            arena1?.TriggerHitStop(frames, strong: true);
+            arena2?.TriggerHitStop(frames, strong: true);
             StartCoroutine(NextRoundCoroutine());
         }
+    }
+
+    private IEnumerator MatchOverCoroutine(int hitStopFrames)
+    {
+        yield return new WaitForSecondsRealtime(hitStopFrames / 60f);
+        Time.timeScale = 0f;
     }
 
     private IEnumerator NextRoundCoroutine()

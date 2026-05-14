@@ -85,7 +85,7 @@ public class Block : MonoBehaviour
             GameManager.Instance.RegisterBlockDestroyed(ball.playerIndex);
         }
 
-        // 爆発ブロック：周囲のブロックのHPを増やして妨害
+        // 爆発ブロック：周囲のブロックのHPを増やして妨害 + ヒットストップ
         if (blockType == BlockType.Explosive)
         {
             Collider[] nearby = Physics.OverlapSphere(transform.position, explosionRadius);
@@ -95,6 +95,10 @@ public class Block : MonoBehaviour
                 if (nearBlock != null && nearBlock != this)
                     nearBlock.AddHp(explosionHpBuff);
             }
+
+            ArenaController arena = GetComponentInParent<ArenaController>();
+            int frames = GameManager.Instance?.Profile?.hitStop.explosiveBlockFrames ?? 6;
+            arena?.TriggerHitStop(frames);
         }
 
         Destroy(gameObject);

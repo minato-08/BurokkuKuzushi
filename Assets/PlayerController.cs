@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IFreezable
 {
     [Header("プレイヤー設定")]
     [SerializeField] private int playerIndex = 1;
@@ -13,6 +13,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float paddleLocalZ = 0f;
 
     private Rigidbody rb;
+    private bool frozen = false;
+
+    public void Freeze()   => frozen = true;
+    public void Unfreeze() => frozen = false;
 
     // ArenaController からサイズを受け取って自動設定する
     public void ConfigureFromArena(float halfWidth, float halfHeight, float paddleMargin)
@@ -34,6 +38,8 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (frozen) return;
+
         float move = 0f;
 
         if (Keyboard.current == null) return;
