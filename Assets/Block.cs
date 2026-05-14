@@ -23,10 +23,18 @@ public class Block : MonoBehaviour
     [SerializeField] private float absorbSpeedMultiplier = 0.7f;
 
     [Header("爆発設定")]
-    // 周囲ブロックを巻き込む半径
-    [SerializeField] private float explosionRadius = 2f;
-    // 巻き込んだブロックのHPを何増やすか
-    [SerializeField] private int explosionHpBuff = 1;
+    [SerializeField] private float explosionRadius    = 2f;
+    [SerializeField] private int   explosionHpBuff    = 1;
+    [SerializeField] private int   explosiveHitFrames = 6;  // 破壊時ヒットストップフレーム数
+
+    [Header("衝突ヒットストップ（フレーム数・0=なし）")]
+    [SerializeField] private int normalHitFrames = 0;   // Normal ブロック衝突時
+    [SerializeField] private int hardHitFrames   = 0;   // Hard ブロック衝突時
+    [SerializeField] private int absorbHitFrames = 0;   // Absorb ブロック衝突時
+    // Explosive は破壊時に explosiveHitFrames を使用するため衝突時は 0 固定
+
+    [Header("アイテムドロップ設定")]
+    [SerializeField] private float baseDropChance = 0.15f;
 
     private int currentHp;
 
@@ -47,6 +55,23 @@ public class Block : MonoBehaviour
             Rigidbody rb = collision.gameObject.GetComponent<Rigidbody>();
             if (rb != null)
                 rb.linearVelocity *= absorbSpeedMultiplier;
+        }
+
+        // 衝突ヒットストップ（Explosive は破壊時に処理、値0のときはスキップ）
+        if (blockType != BlockType.Explosive)
+        {
+            int baseFrames = blockType switch
+            {
+                BlockType.Normal => normalHitFrames,
+                BlockType.Hard   => hardHitFrames,
+                BlockType.Absorb => absorbHitFrames,
+                _ => 0
+            };
+            if (baseFrames > 0)
+            {
+                float mul = ball?.GetHitStopMultiplier() ?? 1f;
+                GetArena()?.TriggerHitStop(Mathf.RoundToInt(baseFrames * mul));
+            }
         }
 
         // ボールの属性に応じたダメージ量を取得
@@ -96,11 +121,42 @@ public class Block : MonoBehaviour
                     nearBlock.AddHp(explosionHpBuff);
             }
 
-            ArenaController arena = GetComponentInParent<ArenaController>();
-            int frames = GameManager.Instance?.Profile?.hitStop.explosiveBlockFrames ?? 6;
-            arena?.TriggerHitStop(frames);
+            float mul = ball?.GetAttributeMultiplier() ?? 1f;
+            GetArena()?.TriggerHitStop(Mathf.RoundToInt(explosiveHitFrames * mul), shake: true);
         }
 
+        if (ball != null) TryDropItem(ball);
         Destroy(gameObject);
+    }
+
+    private void TryDropItem(BallScript ball)
+    {
+        float dropChance = baseDropChance;
+        if (GameManager.Instance != null)
+            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul;
+
+        if (Random.value > dropChance) return;
+
+        float bias = GameManager.Instance != null
+            ? GameManager.Instance.GetCurrentBand(ball.playerIndex).goodItemBias
+            : 0f;
+        ItemType type = SelectRandomItemType(bias);
+
+        GetArena()?.SpawnItem(transform.position, type);
+    }
+
+    private static ItemType SelectRandomItemType(float goodItemBias)
+    {
+        var good = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal };
+        var all  = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal, ItemType.Shrink, ItemType.Hyper };
+        if (goodItemBias > 0f && Random.value < goodItemBias)
+            return good[Random.Range(0, good.Length)];
+        return all[Random.Range(0, all.Length)];
+    }
+
+    private ArenaController GetArena()
+    {
+        // Block → BlockSpawner (parent) → Arena root (grandparent) → find ArenaController in children
+        return transform.parent?.parent?.GetComponentInChildren<ArenaController>();
     }
 }

@@ -5,41 +5,36 @@ public class DeadZone : MonoBehaviour
     [Header("プレイヤー紐付け")]
     [SerializeField] private int playerIndex = 1;
 
-    [Header("ボールリスポーン設定")]
-    // ボールが復活する位置（アリーナのローカル座標）
-    [SerializeField] private Vector3 ballRespawnLocalPos = new Vector3(0f, -2f, 0f);
-    // ボールが落ちてから再発射までの待機秒数
-    [SerializeField] private float relaunchDelay = 1f;
-
-    // ArenaController からサイズを受け取って自動設定する
-    public void ConfigureFromArena(float halfHeight, Vector3 respawnPos)
-    {
-        // デッドゾーンをアリーナ下端の少し下に配置
-        Vector3 pos = transform.localPosition;
-        pos.y = -halfHeight - 0.5f;
-        transform.localPosition = pos;
-
-        ballRespawnLocalPos = respawnPos;
-    }
+    [Header("ボール初期位置オフセット（パドル上端からの距離）")]
+    [SerializeField] private float ballSpawnOffsetY = 1f;
 
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("BallTag")) return;
 
-        // ペナルティ通知
+        BallScript ball = other.GetComponent<BallScript>();
+
+        // 追加ボール（SkillBall_Multi）は落下してもペナルティなし
+        if (ball != null && ball.isExtraBall)
+        {
+            Object.Destroy(ball.gameObject);
+            return;
+        }
+
         if (GameManager.Instance != null)
             GameManager.Instance.OnBallDropped(playerIndex);
 
-        // ボールをアリーナ中央付近に戻して停止させる
-        Rigidbody rb = other.GetComponent<Rigidbody>();
-        BallScript ball = other.GetComponent<BallScript>();
-        if (rb != null && ball != null)
-        {
-            other.transform.localPosition = ballRespawnLocalPos;
-            rb.linearVelocity = Vector3.zero;
+        if (ball != null)
+            ball.PrepareRespawn(GetRespawnPos());
+    }
 
-            // 一定秒数後にRelaunch()を呼ぶ
-            ball.Invoke(nameof(BallScript.Relaunch), relaunchDelay);
-        }
+    // パドルのローカル位置から動的にリスポーン位置を計算する
+    private Vector3 GetRespawnPos()
+    {
+        // DeadZone の親 = Arena ルート。その中から PlayerController を探す
+        Transform arenaRoot = transform.parent ?? transform;
+        PlayerController pc = arenaRoot.GetComponentInChildren<PlayerController>();
+        float paddleY = pc != null ? pc.transform.localPosition.y : -3.7f;
+        return new Vector3(0f, paddleY + ballSpawnOffsetY, 0f);
     }
 }

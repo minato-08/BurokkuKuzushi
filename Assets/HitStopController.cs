@@ -23,8 +23,8 @@ public class HitStopController : MonoBehaviour
             freezables.Add(f);
     }
 
-    // frames: 停止フレーム数（60fps想定）、strong: 強シェイクか否か
-    public void TriggerHitStop(int frames, bool strong = false)
+    // frames: 停止フレーム数（60fps想定）、strong: 強シェイクか否か、shake: カメラシェイク有無
+    public void TriggerHitStop(int frames, bool strong = false, bool shake = true)
     {
         if (frames <= 0) return;
         if (activeRoutine != null)
@@ -32,7 +32,7 @@ public class HitStopController : MonoBehaviour
             StopCoroutine(activeRoutine);
             UnfreezeAll();
         }
-        float intensity = strong ? shakeIntensityStrong : shakeIntensityNormal;
+        float intensity = !shake ? 0f : (strong ? shakeIntensityStrong : shakeIntensityNormal);
         activeRoutine = StartCoroutine(HitStopRoutine(frames / 60f, intensity));
     }
 

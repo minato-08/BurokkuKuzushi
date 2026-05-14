@@ -2,11 +2,11 @@ using UnityEngine;
 
 public enum BallAttribute
 {
-    Normal, // 通常（属性なし）
-    Fire,   // 炎：周囲のブロックも巻き込む
-    Thunder,// 雷：同種ブロックに連鎖
-    Ice,    // 氷：高ダメージ（2HPブロックを1撃）
-    Heavy   // 重：貫通する
+    Normal,
+    Fire,
+    Thunder,
+    Ice,
+    Heavy
 }
 
 public class BallScript : MonoBehaviour, IFreezable
@@ -16,22 +16,39 @@ public class BallScript : MonoBehaviour, IFreezable
 
     [Header("発射設定")]
     [SerializeField] private Vector3 initialLocalDirection = new Vector3(1f, 1f, 0f);
-    [SerializeField] private float relaunchAngleSpread = 0.5f;
+    [SerializeField] private float relaunchAngleSpread = 3f;
 
-    [Header("軌道補正")]
-    // X・Y それぞれの最小成分比率（0.2 = 約11度以上の角度を保証）
-    // 小さすぎると壁沿いの上下・左右ループが発生する
+    [Header("軌道補正（最小軸成分比率）")]
     [SerializeField] private float minAxisRatio = 0.2f;
+
+    [Header("時間加速（メインボールのみ）")]
+    [SerializeField] private float timeAccelRate = 0.05f;  // 1秒あたりの速度増加（baseSpeed単位）
+    [SerializeField] private float timeAccelMax  = 2.0f;   // 上限: baseSpeed × この倍率
+
+    [Header("コリジョン抜け対策（アリーナローカル座標）")]
+    [SerializeField] private float boundX       = 7f;
+    [SerializeField] private float boundYTop    = 11f;
+    [SerializeField] private float boundYBottom = -13f;
 
     [Header("属性設定")]
     [SerializeField] public BallAttribute attribute = BallAttribute.Normal;
 
     [Header("属性パラメータ")]
     [SerializeField] private int normalDamage = 1;
-    [SerializeField] private int iceDamage = 2;
-    [SerializeField] private int heavyDamage = 3;
-    [SerializeField] private float fireRadius = 1.5f;     // 炎の巻き込み半径
-    [SerializeField] private float thunderRadius = 2.5f;  // 雷の連鎖範囲
+    [SerializeField] private int iceDamage    = 2;
+    [SerializeField] private int heavyDamage  = 3;
+    [SerializeField] private float fireRadius    = 1.5f;
+    [SerializeField] private float thunderRadius = 2.5f;
+
+    [Header("ヒットストップ係数")]
+    [SerializeField] private float hitStopSpeedThreshold = 1.5f; // baseSpeed の何倍超えで発動
+    [SerializeField] private float hitStopHeavyMul   = 1.5f;
+    [SerializeField] private float hitStopFireMul    = 1.2f;
+    [SerializeField] private float hitStopThunderMul = 1.1f;
+    [SerializeField] private float hitStopIceMul     = 1.2f;
+
+    [Header("壁バウンスヒットストップ（フレーム数・0=なし）")]
+    [SerializeField] private int wallBounceFrames = 0;
 
     [Header("属性別カラー")]
     [SerializeField] private Color normalColor  = Color.white;
@@ -44,11 +61,27 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] public int playerIndex = 1;
 
     private Rigidbody rb;
-    // Heavy属性で「衝突直前の速度」を復元するために前フレームの速度を保持
     private Vector3 lastVelocity;
 
     private bool frozen = false;
     private Vector3 frozenVelocity;
+
+    public bool IsWaitingToLaunch { get; private set; }
+
+    // 速度の2層管理:
+    //   naturalSpeed  = baseSpeed + 時間加速（メインボールのみ連続更新）
+    //   speedMultiplier = アイテム効果（SpeedUp/Hyper コルーチンで一時変更）
+    //   実効速度 = naturalSpeed * speedMultiplier
+    private float baseSpeed;
+    private float naturalSpeed;
+    private float speedMultiplier = 1f;
+    private float arenaDwellTime  = 0f;  // リスポーンでリセットするアリーナ滞在時間
+
+    private Coroutine attributeRoutine;
+    private Coroutine speedRoutine;
+
+    // SkillBall_Multi で生成された追加ボール（時間加速なし、落下ペナルティなし）
+    public bool isExtraBall = false;
 
     public void Freeze()
     {
@@ -69,69 +102,74 @@ public class BallScript : MonoBehaviour, IFreezable
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-
-        // 高速移動時にブロックをすり抜ける問題への対策。
-        // ContinuousDynamic は他の Continuous/ContinuousDynamic な Rigidbody との
-        // 衝突も貫通防止できるが、相手が Static Collider の場合は Continuous でも十分。
-        // ブロック側は Rigidbody なしの Static Collider 想定なので Continuous で足りるが、
-        // 念のため ContinuousDynamic にしておく（パフォーマンス影響は単一ボールなら軽微）。
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-        // Profile があれば設定を読み込む（Inspector の値を上書き）
-        ApplyProfile();
-
+        baseSpeed    = speed;
+        naturalSpeed = baseSpeed;
         ApplyAttributeColor();
+
+        if (isExtraBall) return;
         Launch(initialLocalDirection);
-    }
-
-    // GameBalanceProfile の BallSettings を読み込んで自身のフィールドに反映する
-    private void ApplyProfile()
-    {
-        var profile = GameManager.Instance?.Profile;
-        if (profile == null) return;
-
-        var bs = profile.ball;
-        speed                = bs.speed;
-        minAxisRatio         = bs.minAxisRatio;
-        relaunchAngleSpread  = bs.relaunchAngleSpread;
-        normalDamage         = bs.normalDamage;
-        iceDamage            = bs.iceDamage;
-        heavyDamage          = bs.heavyDamage;
-        fireRadius           = bs.fireRadius;
-        thunderRadius        = bs.thunderRadius;
     }
 
     void FixedUpdate()
     {
-        if (frozen) return;
+        if (frozen || IsWaitingToLaunch) return;
+
+        // 時間加速（メインボールのみ。アリーナ滞在への報酬）
+        if (!isExtraBall)
+        {
+            arenaDwellTime += Time.fixedDeltaTime;
+            naturalSpeed = Mathf.Min(baseSpeed * timeAccelMax,
+                                     baseSpeed + timeAccelRate * arenaDwellTime);
+        }
+
+        float effectiveSpeed = naturalSpeed * speedMultiplier;
         if (rb.linearVelocity != Vector3.zero)
         {
-            // 速度の大きさをスピードに固定（スピードが変わらないようにする）
-            rb.linearVelocity = rb.linearVelocity.normalized * speed;
+            rb.linearVelocity = rb.linearVelocity.normalized * effectiveSpeed;
             lastVelocity = rb.linearVelocity;
         }
+
+        CheckBounds();
+    }
+
+    // コリジョン抜けでアリーナ外に出た場合の安全網
+    private void CheckBounds()
+    {
+        Vector3 lp = transform.localPosition;
+        bool escaped = Mathf.Abs(lp.x) > boundX || lp.y > boundYTop || lp.y < boundYBottom;
+        if (!escaped) return;
+
+        if (isExtraBall)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        // ペナルティなしでリスポーン（プレイヤーのミスではないため）
+        PrepareRespawn(GetArena()?.GetBallSpawnLocalPos() ?? new Vector3(0f, -6f, 0f));
     }
 
     // 衝突直後（反射後）に角度を補正する
-    // FixedUpdateより確実：反射計算が終わった直後に実行されるため
-    // lastVelocity は更新しない → Heavy属性の「衝突前に戻す」処理を壊さないため
+    // lastVelocity は更新しない → Heavy属性の「衝突前速度を復元」処理を守るため
     private void OnCollisionEnter(Collision collision)
     {
         if (rb.linearVelocity.sqrMagnitude < 0.01f) return;
-        rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * speed;
+        float effectiveSpeed = naturalSpeed * speedMultiplier;
+        rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * effectiveSpeed;
 
-        // パドルに当たったときにヒットストップ発火
-        if (collision.gameObject.GetComponent<PlayerController>() != null)
+        // 壁バウンスヒットストップ（Block・PlayerController 以外への衝突 = 壁）
+        if (wallBounceFrames > 0
+            && collision.gameObject.GetComponent<Block>() == null
+            && collision.gameObject.GetComponent<PlayerController>() == null)
         {
-            ArenaController arena = GetComponentInParent<ArenaController>();
-            int frames = GameManager.Instance?.Profile?.hitStop.paddleBounceFrames ?? 1;
-            arena?.TriggerHitStop(frames);
+            float mul = GetHitStopMultiplier();
+            if (mul > 0f)
+                GetArena()?.TriggerHitStop(Mathf.RoundToInt(wallBounceFrames * mul), shake: true);
         }
     }
 
-    // X・Y どちらかが minAxisRatio 未満なら補正して再正規化する
-    // 例: dir.x が 0.05 → 0.2 に引き上げてから normalized で長さ1に戻す
     private Vector3 ClampAngle(Vector3 dir)
     {
         if (Mathf.Abs(dir.x) < minAxisRatio)
@@ -141,14 +179,97 @@ public class BallScript : MonoBehaviour, IFreezable
         return dir.normalized;
     }
 
-    public void Relaunch()
+    // DeadZone / ArenaController / LaunchAimer から呼ばれる
+    public void PrepareRespawn(Vector3 localPos)
     {
-        frozen = false; // 凍結状態をクリア（再戦時や落下後のリスポーンで確実にリセット）
-        float randomX = Random.Range(-relaunchAngleSpread, relaunchAngleSpread);
-        Launch(new Vector3(randomX, 1f, 0f));
+        if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
+        if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
+        CancelInvoke();
+
+        frozen          = false;
+        speedMultiplier = 1f;
+        naturalSpeed    = baseSpeed;
+        arenaDwellTime  = 0f;
+        IsWaitingToLaunch = true;
+
+        attribute = BallAttribute.Normal;
+        ApplyAttributeColor();
+
+        transform.localPosition = localPos;
+        rb.linearVelocity = Vector3.zero;
+        GetComponent<Collider>().enabled = false;
     }
 
-    // 属性に応じたダメージ量を返す（Block.cs から呼ばれる）
+    // LaunchAimer から呼ばれる
+    public void LaunchInDirection(Vector3 localDir)
+    {
+        GetComponent<Collider>().enabled = true;
+        IsWaitingToLaunch = false;
+        frozen = false;
+        Launch(localDir);
+    }
+
+    public void Relaunch()
+    {
+        float randomX = Random.Range(-relaunchAngleSpread, relaunchAngleSpread);
+        LaunchInDirection(new Vector3(randomX, 1f, 0f));
+    }
+
+    public void SetAttributeTemporary(BallAttribute attr, float duration)
+    {
+        if (attributeRoutine != null) StopCoroutine(attributeRoutine);
+        attributeRoutine = StartCoroutine(AttributeRoutine(attr, duration));
+    }
+
+    private System.Collections.IEnumerator AttributeRoutine(BallAttribute attr, float duration)
+    {
+        BallAttribute prev = attribute;
+        attribute = attr;
+        ApplyAttributeColor();
+        yield return new WaitForSeconds(duration);
+        attribute = prev;
+        ApplyAttributeColor();
+        attributeRoutine = null;
+    }
+
+    public void SetSpeedTemporary(float multiplier, float duration)
+    {
+        if (speedRoutine != null) StopCoroutine(speedRoutine);
+        speedRoutine = StartCoroutine(SpeedRoutine(multiplier, duration));
+    }
+
+    private System.Collections.IEnumerator SpeedRoutine(float multiplier, float duration)
+    {
+        speedMultiplier = multiplier;
+        yield return new WaitForSeconds(duration);
+        speedMultiplier = 1f;
+        speedRoutine = null;
+    }
+
+    // 速度が hitStopSpeedThreshold 倍を超えた場合のみ 0→1 を返す
+    // ブロック衝突・壁バウンスのフレーム数にそのまま乗算する（上限がフレーム数そのもの）
+    public float GetHitStopMultiplier()
+    {
+        float ratio = naturalSpeed / baseSpeed;
+        if (ratio < hitStopSpeedThreshold) return 0f;
+        float range = timeAccelMax - hitStopSpeedThreshold;
+        if (range <= 0f) return 1f;
+        return Mathf.Clamp01((ratio - hitStopSpeedThreshold) / range);
+    }
+
+    // 属性倍率のみ（Explosive 破壊など、速度閾値によらず掛けたい場合に使う）
+    public float GetAttributeMultiplier()
+    {
+        return attribute switch
+        {
+            BallAttribute.Heavy   => hitStopHeavyMul,
+            BallAttribute.Fire    => hitStopFireMul,
+            BallAttribute.Thunder => hitStopThunderMul,
+            BallAttribute.Ice     => hitStopIceMul,
+            _ => 1f
+        };
+    }
+
     public int GetDamage()
     {
         return attribute switch
@@ -159,28 +280,22 @@ public class BallScript : MonoBehaviour, IFreezable
         };
     }
 
-    // ブロックに当たった瞬間の追加効果（Block.cs から呼ばれる）
     public void OnHitBlock(Block hitBlock)
     {
         switch (attribute)
         {
             case BallAttribute.Heavy:
-                // 衝突で曲がった速度を直前の速度に戻して貫通
                 rb.linearVelocity = lastVelocity;
                 break;
-
             case BallAttribute.Fire:
                 ApplyAreaDamage(hitBlock, fireRadius, sameTypeOnly: false);
                 break;
-
             case BallAttribute.Thunder:
                 ApplyAreaDamage(hitBlock, thunderRadius, sameTypeOnly: true);
                 break;
         }
     }
 
-    // 周囲のブロックにダメージを与える共通処理
-    // sameTypeOnly=true なら、衝突したブロックと同じBlockTypeのものだけが対象
     private void ApplyAreaDamage(Block centerBlock, float radius, bool sameTypeOnly)
     {
         Collider[] nearby = Physics.OverlapSphere(centerBlock.transform.position, radius);
@@ -189,12 +304,10 @@ public class BallScript : MonoBehaviour, IFreezable
             Block other = col.GetComponent<Block>();
             if (other == null || other == centerBlock) continue;
             if (sameTypeOnly && other.blockType != centerBlock.blockType) continue;
-
             other.TakeDamage(normalDamage, this);
         }
     }
 
-    // 属性に応じたボールの色を反映する
     private void ApplyAttributeColor()
     {
         Color color = attribute switch
@@ -205,20 +318,21 @@ public class BallScript : MonoBehaviour, IFreezable
             BallAttribute.Heavy   => heavyColor,
             _ => normalColor
         };
-
         Renderer renderer = GetComponent<Renderer>();
-        if (renderer != null)
-            renderer.material.color = color;
+        if (renderer != null) renderer.material.color = color;
     }
 
-    // ローカル方向 → ワールド方向に変換して発射
     private void Launch(Vector3 localDirection)
     {
         Vector3 dir = localDirection.normalized;
         if (transform.parent != null)
             dir = transform.parent.TransformDirection(dir);
-
-        rb.linearVelocity = dir * speed;
+        rb.linearVelocity = dir * naturalSpeed;
         lastVelocity = rb.linearVelocity;
+    }
+
+    private ArenaController GetArena()
+    {
+        return transform.parent?.GetComponentInChildren<ArenaController>();
     }
 }

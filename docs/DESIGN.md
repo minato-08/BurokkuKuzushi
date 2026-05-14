@@ -1,6 +1,6 @@
 # BurokkuKuzushi 仕様書
 
-最終更新: 2026-05-12（仕様確認セッションにより更新）
+最終更新: 2026-05-15
 
 ---
 
@@ -119,8 +119,9 @@
 #### 軌道補正
 - 反射後、X/Y 成分どちらかが閾値未満（デフォルト 0.2）の場合、強制的に角度を修正して壁沿いのループを防ぐ。
 
-#### ループ脱出保険
-- 一定時間（デフォルト5秒）ブロックに当たらない場合、ボールの速度に倍率（デフォルト1.3）をかける。
+#### 時間加速
+- アリーナ滞在時間に比例してボール速度が徐々に上昇する（メインボールのみ）。リスポーンでリセット。
+- 上限は基本速度の `timeAccelMax` 倍（デフォルト 2.0）。加速量・上限は SerializeField で設定。
 
 #### 属性
 ボールには属性を持たせることができる。属性は通常は付与されておらず、スキル/アイテム/ゲート通過で一時的に付与される。
@@ -144,9 +145,9 @@
 - 発射キーを押した瞬間のインジケーター角度でボールが発射される。
 
 #### ループ対策
-- キャッチ機能は不採用。以下の既存機構で対応する。
+- キャッチ機能は不採用。以下の機構で対応する。
   - 角度補正（`ClampAngle`）: X/Y 成分を最低 0.2 以上に強制し、壁沿いのループを防ぐ。
-  - スタック検出: 一定時間（デフォルト5秒）ブロック未ヒットで速度に倍率をかける。
+  - 時間加速: アリーナ滞在時間に比例して速度が上昇するため、長時間ループしてもいずれ抜ける。
 
 ### 5.4 ブロック
 
@@ -236,7 +237,7 @@
 ### 5.7 妨害
 
 #### 発動条件
-- 自分のコンボ数が閾値（デフォルト 5 個）に達した時点で自動的に相手に妨害を送付する。
+- 自分のコンボ数が閾値（デフォルト 15 個）に達した時点で自動的に相手に妨害を送付する。
 - プレイヤーの操作介入はない。
 
 #### 妨害種別
@@ -266,16 +267,18 @@
 
 | イベント | フレーム数 | 停止対象アリーナ | カメラシェイク |
 |---|---|---|---|
-| BlockNormal 破壊 | なし | — | — |
-| BlockHard 破壊 | なし | — | — |
-| BlockExplosive 爆発 | 6 | 発生側 | 発生側のみ |
+| BlockNormal / Hard / Absorb 衝突 | 0（SerializeField で設定可） | 発生側 | 発生側のみ |
+| BlockExplosive 爆発 | 6（SerializeField） | 発生側 | 発生側のみ |
 | BlockSpike 破壊 | 4 | 発生側 | 発生側のみ |
-| パドル受け止め | 1〜2 | 発生側 | 発生側のみ |
-| 妨害発動瞬間 | 8〜10 | 発生側 | 発生側のみ |
+| ブロック底到達 | 5（SerializeField） | 発生側 | 発生側のみ |
+| パドル受け止め | 0（SerializeField で設定可） | 発生側 | 発生側のみ |
+| 壁反射 | 0（SerializeField で設定可） | 発生側 | 発生側のみ |
+| 妨害発動瞬間 | 10（SerializeField） | 発生側 | 発生側のみ |
 | ピンチスキル発動 | 15 | 発生側 | 発生側のみ |
-| ラウンド決着 | 30 | 両方 | 両方 |
-| マッチ決着 | 60 | 両方 | 両方 |
-| 壁反射 | なし | — | — |
+| ラウンド決着 | 30 | 両方 | 敗者側のみ |
+| マッチ決着 | 60 | 両方 | 敗者側のみ |
+
+**速度閾値ゲート**: ブロック衝突・壁反射のヒットストップは `naturalSpeed / baseSpeed` が `hitStopSpeedThreshold`（デフォルト 1.5）を超えた場合にのみ発動する。フレーム数はその超過量に比例して 0→設定値 にスケールする。BlockExplosive の爆発演出は速度閾値によらず属性倍率のみ適用する。
 
 ### 5.9 ラウンド終了・マッチ終了
 
@@ -326,22 +329,15 @@
 
 ## 7. アーキテクチャ
 
-### 7.1 GameBalanceProfile（ScriptableObject）
+### 7.1 パラメータ管理方針
 
-全パラメータを集約するアセット。`Assets/Settings/GameBalanceProfile.asset` に配置。
+ScriptableObject / Profile は使用しない。すべてのバランスパラメータは各コンポーネントの `SerializeField` に直接持ち、Unity Inspector から調整する。
 
-```
-GameBalanceProfile
-├── HPSettings { maxHP, ダメージ各種 }
-├── HPStateBand[] { thresholdPercent, gaugeRateMul, itemDropMul, scoreMul, ... }
-├── ComboSettings { interferenceTriggerCombo, ... }
-├── BallSettings { speed, minAxisRatio, ダメージ・属性範囲 }
-├── LaunchSettings { metronomeAngleRange, metronomePeriodSec }
-├── HitStopSettings { 各イベントのフレーム数 }
-└── BlockSpawnSettings { blocksPerRow, spawnInterval, descentSpeed, 各種出現率 }
-```
-
-シーンの GameManager が Profile への参照を持ち、各スクリプトは `GameManager.Instance.Profile` 経由でアクセスする。
+- `GameManager` — HP量・ダメージ量・ヒットストップフレーム数・コンボ閾値など
+- `BallScript` — 速度・時間加速・属性ダメージ・時間加速閾値など
+- `BlockSpawner` — 行生成間隔・降下速度・ブロック構成比率など
+- `LaunchAimer` — メトロノーム振れ幅・周期・自動発射時間など
+- `HPStateBand[]` — GameManager の Inspector 配列で HP帯ごとのパラメータを設定（空なら全倍率 1.0）
 
 ### 7.2 EffectDefinition（抽象基底クラス）
 
@@ -358,12 +354,12 @@ EffectDefinition (abstract ScriptableObject)
 
 ```csharp
 public interface IFreezable {
-    void Freeze(int frames);
+    void Freeze();
     void Unfreeze();
 }
 ```
 
-ボール / ブロック / パドル / BlockSpawner が実装。各アリーナに 1 つ配置される `HitStopController` がこれらを統括する。
+`BallScript` / `PlayerController` / `BlockSpawner` が実装。各アリーナの `HitStopController` が `RegisterFreezable()` で対象を登録し、ヒットストップ中は各 Update/FixedUpdate を停止する。
 
 ### 7.4 InterferencePayload
 
@@ -384,25 +380,24 @@ public class InterferencePayload {
 
 ```
 SampleScene
-├── Main Camera        (Arena1専用カメラ, Viewport 0,0,0.5,1)
-├── Camera2            (Arena2専用カメラ, Viewport 0.5,0,0.5,1)
 ├── EventSystem
-├── GameManager        (Singleton, profile 参照, HPSystem 保持)
+├── GameManager        (Singleton, SerializeField で全パラメータ保持)
 ├── CenterUI           (Canvas, Screen Space Overlay)
-│   ├── P1HPText / P1HPFill / P1Score / P1Combo / P1Wins
-│   ├── P2HPText / P2HPFill / P2Score / P2Combo / P2Wins
-│   └── 試合状態テキスト
-├── Arena1
-│   ├── TopWall / LeftWall / RightWall / Plane
-│   ├── Ball
-│   ├── Player (パドル)
-│   ├── DeadZone
-│   ├── BlockSpawner
+│   ├── P1HPText / P1HPFill / P1Score / P1Combo / P1Wins / P1EnergyFill / P1SkillText
+│   ├── P2HPText / P2HPFill / P2Score / P2Combo / P2Wins / P2EnergyFill / P2SkillText
+│   ├── GameOverText / MatchResultPanel / SkillSelectPanel
+├── Arena1             (ワールド座標 0,0,0)
+│   ├── Camera1        (Arena1 の子。localPos: (-0.3,0,-25), FOV 45°)
+│   ├── TopWall / LeftWall / RightWall
+│   ├── Ball / Player (パドル) / DeadZone / BlockSpawner
 │   └── ArenaController
-└── Arena2  （Arena1と同構成）
+│       ├── HitStopController
+│       └── LaunchAimer
+└── Arena2             (ワールド座標 50,0,0、Arena1 と同構成)
+    └── Camera2        (Arena2 の子。localPos: (0.2,0,-25), FOV 45°, AudioListener なし)
 ```
 
-座標は各 Arena の親 GameObject に対するローカル座標で扱う。
+座標は各 Arena の親 GameObject に対するローカル座標で扱う。カメラが Arena の子なので、Arena をオフセットするだけで独立した座標系が得られる。
 
 ---
 
@@ -419,76 +414,53 @@ SampleScene
 
 ---
 
-## 9. パラメータ一覧
+## 9. 主要パラメータ一覧
 
-実装される全パラメータは `GameBalanceProfile` アセット内に集約される。プランナーはこのアセットを編集することでバランス調整を行う。
+すべてのパラメータは各コンポーネントの SerializeField で管理する。以下はコードデフォルト値。実際の調整値は Inspector で設定する。
 
-### HPSettings
-| 名前 | デフォルト | 単位 |
+### GameManager
+| フィールド | デフォルト | 意味 |
 |---|---|---|
-| maxHP | 500 | HP |
-| damageBallDrop | 20 | HP |
-| damageBlockReachBottom | 10 | HP |
-| damageBlockSpike | 30 | HP |
-| damagePoisonPerSec | 5 | HP/秒 |
+| maxHP | 500 | HP初期値 |
+| damageBallDrop | 5 | ボール落下ダメージ |
+| damageBlockReachBottom | 10 | ブロック1個 底到達ダメージ |
+| damageBlockSpike | 15 | 棘ブロック接触ダメージ |
+| damagePoisonPerSec | 5 | 毒ダメージ/秒 |
+| damageForceRespawn | 5 | S/K 強制リスポーンペナルティ |
+| comboThreshold | 15 | 妨害発動コンボ数 |
+| energyPerBlock | 1 | ブロック破壊あたりのゲージ増加量 |
+| interferenceTriggerFrames | 10 | 妨害発動ヒットストップ（フレーム） |
+| roundEndFrames | 30 | ラウンド決着ヒットストップ |
+| matchEndFrames | 60 | マッチ決着ヒットストップ |
+| nextRoundDelay | 2 | 次ラウンドまでの待機秒 |
 
-### ComboSettings
-| 名前 | デフォルト | 単位 |
+### BallScript
+| フィールド | デフォルト | 意味 |
 |---|---|---|
-| comboTimeoutSec | 2 | 秒 |
-| interferenceTriggerCombo | 5 | 個 |
+| speed | 7 | 基本速度 |
+| minAxisRatio | 0.2 | 軌道補正 最小軸成分比率 |
+| timeAccelRate | 0.05 | 時間加速量/秒 |
+| timeAccelMax | 2.0 | 時間加速上限倍率 |
+| hitStopSpeedThreshold | 1.5 | ヒットストップ発動速度倍率 |
+| wallBounceFrames | 0 | 壁バウンス最大ヒットストップフレーム数 |
+| normalDamage / iceDamage / heavyDamage | 1 / 2 / 3 | 属性ダメージ |
 
-### BallSettings
-| 名前 | デフォルト | 単位 |
+### BlockSpawner
+| フィールド | デフォルト | 意味 |
 |---|---|---|
-| speed | 7 | unit/秒 |
-| minAxisRatio | 0.2 | - |
-| relaunchAngleSpread | 0.5 | - |
-| stuckTimeoutSec | 5 | 秒 |
-| stuckSpeedMul | 1.1 | - |
-| normalDamage | 1 | HP |
-| iceDamage | 2 | HP |
-| heavyDamage | 3 | HP |
-| fireRadius | 1.5 | unit |
-| thunderRadius | 2.5 | unit |
+| blocksPerRow | 6 | 1行あたりのブロック数 |
+| spawnInterval | 5 | 行生成間隔（秒） |
+| descentSpeed | 0.1 | 降下速度（unit/秒） |
+| blockDeadZoneY | -4.5 | ブロックが到達してはいけない Y |
+| blockDeadZoneHitFrames | 5 | 底到達ヒットストップフレーム数 |
 
-### LaunchSettings
-| 名前 | デフォルト | 単位 |
+### LaunchAimer
+| フィールド | デフォルト | 意味 |
 |---|---|---|
-| metronomeAngleRange | 60 | 度 |
-| metronomePeriodSec | 1.0 | 秒 |
-
-### HitStopSettings
-| 名前 | デフォルト | 単位 |
-|---|---|---|
-| explosiveBlockFrames | 6 | フレーム |
-| spikeBlockFrames | 4 | フレーム |
-| paddleBounceFrames | 1 | フレーム |
-| interferenceTriggerFrames | 10 | フレーム |
-| panicSkillFrames | 15 | フレーム |
-| roundEndFrames | 30 | フレーム |
-| matchEndFrames | 60 | フレーム |
-
-### BlockSpawnSettings
-| 名前 | デフォルト | 単位 |
-|---|---|---|
-| blocksPerRow | 7 | 個 |
-| blockGap | 0.1 | unit |
-| blockHeight | 0.7 | unit |
-| spawnInterval | 5 | 秒 |
-| descentSpeed | 0.3 | unit/秒 |
-| explosiveBlockChance | 0.1 | - |
-| hardBlockChance | 0.2 | - |
-| hardBlockHp | 2 | HP |
-| sabotageHardRatio | 0.5 | - |
-| sabotageBlockHp | 2 | HP |
-
-### ArenaController（シーン上のコンポーネント、Inspector）
-| 名前 | デフォルト | 単位 | 意味 |
-|---|---|---|---|
-| arenaHalfWidth | 5 | unit | アリーナ幅の半分 |
-| arenaHalfHeight | 4.5 | unit | アリーナ高さの半分 |
-| paddleMargin | 0.8 | unit | パドルを下端から何 unit 上に置くか |
+| metronomeAngleRange | 60 | インジケーター振れ幅（±度） |
+| metronomePeriodSec | 1.0 | 往復周期（秒） |
+| autoLaunchSec | 5.0 | 自動発射までの待機秒 |
+| minAutoLaunchSec | 1.5 | ブロック最下段時の最短自動発射秒 |
 
 ---
 

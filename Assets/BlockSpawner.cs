@@ -9,15 +9,15 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Header("ブロック設定")]
     [SerializeField] private GameObject blockPrefab;
     [SerializeField] private int   blocksPerRow = 7;
-    [SerializeField] private float blockWidth   = 1.5f;   // ブロック1個の横幅
-    [SerializeField] private float blockGap     = 0.1f;   // ブロック間の隙間
+    [SerializeField] private float blockWidth   = 1.5f;
+    [SerializeField] private float blockGap     = 0.1f;
     [SerializeField] private float blockHeight  = 0.7f;
 
     [Header("スポーン・降下設定（ローカル座標）")]
-    [SerializeField] private float spawnY        = 4.5f;
-    [SerializeField] private float bottomY       = -4.5f;
-    [SerializeField] private float spawnInterval = 5f;
-    [SerializeField] private float descentSpeed  = 0.3f;
+    [SerializeField] private float spawnY         = 4.5f;
+    [SerializeField] private float blockDeadZoneY = -4.5f; // ブロックがここを下回ったら破棄してダメージ
+    [SerializeField] private float spawnInterval  = 5f;
+    [SerializeField] private float descentSpeed   = 0.3f;
 
     [Header("通常行のブロック種出現率")]
     [Range(0f, 1f)] [SerializeField] private float explosiveBlockChance = 0.1f;
@@ -28,50 +28,37 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Range(0f, 1f)] [SerializeField] private float sabotageHardRatio = 0.5f;
     [SerializeField] private int sabotageBlockHp = 2;
 
+    [Header("ブロックDeadZone到達時ヒットストップ")]
+    [SerializeField] private int  blockDeadZoneHitFrames = 5;
+    [SerializeField] private bool blockDeadZoneHitShake  = true;
+
     private List<GameObject> allBlocks = new List<GameObject>();
     private float spawnTimer = 0f;
-    private int   pendingSabotageRows = 0; // 受信済みだがまだ生成していない妨害行の数
+    private int   pendingSabotageRows = 0;
     private bool  frozen = false;
 
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
 
-    void Start()
+    // LaunchAimer がブロック位置に基づいて自動発射時間を調整するために使用
+    public float GetLowestBlockY()
     {
-        // ArenaController から再度サイズ取得して、Profile 反映後の値で再計算する
-        // （Awake 順序によっては ConfigureFromArena 時点で GameManager.Instance が
-        //   まだ null の可能性があるため、Start で確実にやり直す）
-        ArenaController arena = GetComponentInParent<ArenaController>();
-        if (arena != null)
+        float lowest = float.MaxValue;
+        foreach (var block in allBlocks)
         {
-            ConfigureFromArena(arena.arenaHalfWidth, arena.arenaHalfHeight);
+            if (block == null) continue;
+            float y = block.transform.localPosition.y;
+            if (y < lowest) lowest = y;
         }
-        else
-        {
-            ApplyProfile();
-        }
-
-        // ゲーム開始時に最初の行を生成
-        SpawnRow();
+        return lowest == float.MaxValue ? spawnY : lowest;
     }
 
-    // GameBalanceProfile の BlockSpawnSettings を読み込んで自身のフィールドに反映する
-    private void ApplyProfile()
-    {
-        var profile = GameManager.Instance?.Profile;
-        if (profile == null) return;
+    public float GetSpawnY()        => spawnY;
+    public float GetBlockDeadZoneY() => blockDeadZoneY;
 
-        var bs = profile.blockSpawn;
-        blocksPerRow         = bs.blocksPerRow;
-        blockGap             = bs.blockGap;
-        blockHeight          = bs.blockHeight;
-        spawnInterval        = bs.spawnInterval;
-        descentSpeed         = bs.descentSpeed;
-        explosiveBlockChance = bs.explosiveBlockChance;
-        hardBlockChance      = bs.hardBlockChance;
-        hardBlockHp          = bs.hardBlockHp;
-        sabotageHardRatio    = bs.sabotageHardRatio;
-        sabotageBlockHp      = bs.sabotageBlockHp;
+    void Start()
+    {
+        SpawnRow();
     }
 
     void Update()
@@ -88,7 +75,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             SpawnRow();
         }
 
-        // 妨害行はスポーン位置が空いてから1行ずつ生成する
         if (pendingSabotageRows > 0 && IsTopClear())
         {
             pendingSabotageRows--;
@@ -107,7 +93,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             return;
         }
 
-        // blocksPerRow個のブロックをX方向に均等配置
         float spacing    = blockWidth + blockGap;
         float totalWidth = (blocksPerRow - 1) * spacing;
         float startX     = -totalWidth / 2f;
@@ -142,7 +127,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             blockScript.blockType = BlockType.Hard;
             blockScript.hp        = hardBlockHp;
         }
-        // それ以外は Normal のまま
     }
 
     private void ApplySabotageRowSettings(Block blockScript)
@@ -168,8 +152,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         }
     }
 
-    // 底に到達したブロックを破棄し、その数を集計して GameManager に通知する
-    // HP制移行に伴い「1個でも到達したら即ラウンド終了」から「到達数に応じてダメージ」に変更
     private void CheckBottomReached()
     {
         int reachedCount = 0;
@@ -182,7 +164,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
                 continue;
             }
 
-            if (blockObj.transform.localPosition.y <= bottomY)
+            if (blockObj.transform.localPosition.y <= blockDeadZoneY)
             {
                 reachedCount++;
                 Destroy(blockObj);
@@ -193,26 +175,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (reachedCount > 0)
         {
             GameManager.Instance?.OnBlocksReachedBottom(playerIndex, reachedCount);
+            GetArena()?.TriggerHitStop(blockDeadZoneHitFrames, shake: blockDeadZoneHitShake);
         }
     }
 
-    // ArenaController からサイズを受け取って自動設定する
-    public void ConfigureFromArena(float halfWidth, float halfHeight)
-    {
-        // GameManager がいれば Profile を先に反映してから blockWidth を計算する
-        ApplyProfile();
-
-        spawnY  =  halfHeight;
-        bottomY = -halfHeight;
-
-        if (blocksPerRow > 1)
-        {
-            float spacing = (halfWidth * 2f) / (blocksPerRow - 1);
-            blockWidth = Mathf.Max(0.1f, spacing - blockGap);
-        }
-    }
-
-    // PVP干渉：相手から妨害行を受け取る（即時生成ではなくキューに積む）
     public void ReceiveSabotageRow()
     {
         pendingSabotageRows++;
@@ -229,7 +195,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         return true;
     }
 
-    // 全ブロックを消去して最初の行を再生成（ラウンド開始時に使う）
     public void ClearAndRespawn()
     {
         foreach (var block in allBlocks)
@@ -240,5 +205,11 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         spawnTimer = 0f;
         pendingSabotageRows = 0;
         SpawnRow();
+    }
+
+    private ArenaController GetArena()
+    {
+        // BlockSpawner → Arena root → ArenaController（兄弟ノード）
+        return transform.parent?.GetComponentInChildren<ArenaController>();
     }
 }

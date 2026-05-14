@@ -1,6 +1,6 @@
 # BurokkuKuzushi 開発ロードマップ
 
-最終更新: 2026-05-14
+最終更新: 2026-05-15
 
 このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
 
@@ -18,17 +18,15 @@
 
 ハードコードされた数値を ScriptableObject に集約し、HP制とヒットストップの基盤を構築する。
 
-### Phase A-1: GameBalanceProfile + HP制移行
+### Phase A-1: HP制移行 + 設定方針確立
 
-- [x] `GameBalanceProfile` ScriptableObject 新設
 - [x] `HPSystem` クラス新設（プレイヤーごと）
 - [x] 残機制 (`maxLives`) を廃止し、HP制 (`maxHP = 500`) に移行
-- [x] 既存ハードコードを Profile 参照に置換
 - [x] UI を残機表示 → HPバー表示に変更
-- [x] HP帯ごとの動的パラメータ参照機構
+- [x] HP帯ごとの動的パラメータ参照機構（`HPStateBand[]` を GameManager SerializeField に集約）
 - [x] ボール衝突すり抜け対策（Rigidbody CCD 有効化）
-- [x] Unity Editor で Profile アセット生成 + UI差し替えの手動セットアップ実行
-- [x] 動作確認（HPバー表示、ボール落下時 -20HP、色変化、ブロック破壊）
+- [x] 動作確認（HPバー表示、ボール落下 HP減、色変化、ブロック破壊）
+- [x] `GameBalanceProfile` ScriptableObject を削除し、全パラメータを各コンポーネント SerializeField に移行
 
 ### Phase A-2: ヒットストップ基盤
 
@@ -36,9 +34,11 @@
 - [x] `BallScript` / `PlayerController` / `BlockSpawner` に実装
 - [x] `HitStopController` を `ArenaController` 配下に追加
 - [x] カメラシェイク基盤（HitStop と同時発火、通常は片側カメラ・決着時は両方）
-- [x] `BlockExplosive` ブロック爆発時にヒットストップ
-- [x] パドル受け止め時に軽いヒットストップ
-- [x] ラウンド決着・マッチ決着時に長尺ヒットストップ + 両カメラシェイク
+- [x] `BlockExplosive` ブロック爆発時にヒットストップ（`GetAttributeMultiplier()` でスケール）
+- [x] パドル受け止め・壁バウンス時にヒットストップ（デフォルト 0、SerializeField で設定可）
+- [x] ラウンド決着・マッチ決着時に長尺ヒットストップ（勝者 shake:false / 敗者 shake:true）
+- [x] ブロック衝突・壁バウンスは速度閾値ゲート付き（`GetHitStopMultiplier()` が 0→1 にスケール）
+- [x] ブロック底到達時にカメラシェイク（`blockDeadZoneHitFrames`）
 
 ### Phase A-3: マッチ結果画面
 
@@ -51,43 +51,46 @@
 
 ## Phase B: メトロノーム発射
 
-- [ ] `LaunchAimer` クラス新設
-- [ ] リスポーン後に角度インジケーター UI 表示
-- [ ] 発射キー押下時に確定角度で発射
-- [ ] `LaunchSettings`（振れ幅・周期）を Profile から参照
-- [ ] スタック検出による速度倍率付与（既存 `ClampAngle` と併用）
+- [x] `LaunchAimer` クラス新設
+- [x] リスポーン後に角度インジケーター UI 表示（LineRenderer）
+- [x] 発射キー押下時に確定角度で発射（1P: S、2P: K）
+- [x] 振れ幅・周期などを SerializeField で設定
+- [x] ボール飛行中に発射キー → 強制リスポーン（HP ペナルティ `damageForceRespawn`）
+- [x] 自動発射タイマーをブロック最下段位置に応じて短縮（危機時に自動発射が速くなる）
+- [x] スタック検出廃止 → アリーナ滞在時間加速に置換（リスポーンでリセット、上限 `timeAccelMax` 倍）
 
 ---
 
 ## Phase C: アイテム
 
-- [ ] `EffectDefinition` 抽象クラス定義
-- [ ] `ItemDefinition` 実装
-- [ ] `ItemDrop` MonoBehaviour（落下するアイテム）
-- [ ] ブロック破壊時にドロップ判定
-- [ ] パドルキャッチで効果適用
-- [ ] アイテム実装:
-  - [ ] 属性付与系（Fire / Ice / Thunder / Heavy）
-  - [ ] パドル強化系（Enlarge / SpeedUp）
-  - [ ] ボール強化系（Pierce）
-  - [ ] 回復系（Heal）
-  - [ ] 不利系（Shrink / Hyperspeed）
+- [x] `EffectDefinition` 抽象クラス定義
+- [x] `ItemDefinition` 実装（`ItemDrop.cs` 内の static クラス）
+- [x] `ItemDrop` MonoBehaviour（落下するアイテム）
+- [x] ブロック破壊時にドロップ判定
+- [x] パドルキャッチで効果適用
+- [x] アイテム実装:
+  - [x] 属性付与系（Fire / Ice / Thunder / Heavy）
+  - [x] パドル強化系（Enlarge）
+  - [x] ボール速度系（SpeedUp / Hyper）
+  - [ ] ボール強化系（Pierce）← Phase D 以降
+  - [x] 回復系（Heal）
+  - [x] 不利系（Shrink / Hyper）
 
 ---
 
 ## Phase D: スキル
 
-- [ ] `SkillDefinition` 実装
-- [ ] エナジーゲージ実装
-- [ ] HP帯に応じたゲージ蓄積率変動
-- [ ] 試合前のスキル装備 UI
-- [ ] キー入力で発動
-- [ ] スキル実装:
-  - [ ] `SkillPaddle_Enlarge`
-  - [ ] `SkillBall_Multi`
-  - [ ] `SkillBall_Attribute_Fire`
-  - [ ] `SkillForceCatch`
-  - [ ] `SkillPanic_BlockClear`
+- [x] `SkillDefinition` 実装
+- [x] エナジーゲージ実装（`EnergySystem` クラス）
+- [x] HP帯に応じたゲージ蓄積率変動
+- [x] 試合前のスキル装備 UI（`SkillSelectUI` + `GameState.SkillSelect`）
+- [x] キー入力で発動（1P: Q、2P: U）
+- [x] スキル実装:
+  - [x] `SkillPaddle_Enlarge`
+  - [x] `SkillBall_Multi`
+  - [x] `SkillBall_Attribute_Fire`
+  - [x] `SkillForceCatch`
+  - [x] `SkillPanic_BlockClear`（HP 1/3 以下のみ発動可）
 
 ---
 
@@ -147,5 +150,8 @@
 
 ## 現在のステータス
 
-- **完了**: Phase A 全フェーズ（A-1 HP制、A-2 ヒットストップ、A-3 マッチ結果画面）
-- **次フェーズ**: Phase B（メトロノーム発射）
+- **完了**: Phase A 全フェーズ（A-1 HP制・SerializeField統合、A-2 ヒットストップ、A-3 マッチ結果画面）
+- **完了**: Phase B（メトロノーム発射 + 強制リスポーン + 時間加速）
+- **完了**: Phase C（アイテム）
+- **完了**: Phase D（スキル）
+- **次フェーズ**: Phase E（妨害多様化）

@@ -3,195 +3,204 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// HP UI のフルセットアップを自動で行う。何度実行しても安全（冪等）。
-// - CenterUI に UIManager コンポーネントがなければ自動追加
-// - CenterUI 配下の既存テキスト（P1Score/P2Score/P1Combo/P2Combo/P1Wins/P2Wins/GameOverText）を
-//   名前で探して UIManager にバインド
-// - HPテキストは既存の P1HPText/P2HPText もしくは P1Lives/P2Lives を転用、なければ新規生成
-// - HPバー（Image, Filled）は既存があれば再利用、なければ新規生成
+// HP / エネルギーゲージ UI のフルセットアップ（冪等）
+// レイアウト方針: 左上 / 右上コーナーに縦 ~130px 以内に収め、
+//   ブロックスポーン最上段との重なりを避ける
 // Unity メニュー [BurokkuKuzushi] > [Setup HP UI] から実行
 public static class SetupHPUI
 {
     private const string CENTER_UI_NAME = "CenterUI";
-    private const float  HP_BAR_WIDTH   = 200f;
-    private const float  HP_BAR_HEIGHT  = 14f;
-    private const float  HP_TEXT_OFFSET_Y = -30f; // P1Score の下に HPText
-    private const float  HP_BAR_OFFSET_Y  = -24f; // HPText の下に HPバー
 
     [MenuItem("BurokkuKuzushi/Setup HP UI")]
     public static void Setup()
     {
-        // 1) CenterUI を探す
-        GameObject centerUI = GameObject.Find(CENTER_UI_NAME);
-        if (centerUI == null)
+        // GameObject.Find は execute_script 環境では動かないため Canvas から探す
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        if (canvas == null || canvas.gameObject.name != CENTER_UI_NAME)
         {
-            Debug.LogError($"[SetupHPUI] '{CENTER_UI_NAME}' が見つかりません。Canvas 構成を確認してください。");
+            // name が違う場合は全 Canvas を検索
+            Canvas[] all = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            canvas = System.Array.Find(all, c => c.gameObject.name == CENTER_UI_NAME);
+        }
+        if (canvas == null)
+        {
+            Debug.LogError($"[SetupHPUI] '{CENTER_UI_NAME}' が見つかりません。");
             return;
         }
+        GameObject centerUI = canvas.gameObject;
 
-        // 2) UIManager コンポーネントを確保（なければ追加）
         UIManager ui = centerUI.GetComponent<UIManager>();
-        if (ui == null)
-        {
-            ui = centerUI.AddComponent<UIManager>();
-            Debug.Log("[SetupHPUI] UIManager コンポーネントを CenterUI に追加しました。");
-        }
+        if (ui == null) ui = centerUI.AddComponent<UIManager>();
 
-        // 3) 既存テキストを CenterUI 配下から名前で取得
-        TextMeshProUGUI p1Score = FindText(centerUI, "P1Score");
-        TextMeshProUGUI p2Score = FindText(centerUI, "P2Score");
-        TextMeshProUGUI p1Combo = FindText(centerUI, "P1Combo");
-        TextMeshProUGUI p2Combo = FindText(centerUI, "P2Combo");
-        TextMeshProUGUI p1Wins  = FindText(centerUI, "P1Wins");
-        TextMeshProUGUI p2Wins  = FindText(centerUI, "P2Wins");
-        TextMeshProUGUI status  = FindText(centerUI, "GameOverText");
+        TMP_FontAsset latinFont = FindLatinFont();
 
-        // 4) HPテキスト：既存 P1HPText/P2HPText、なければ P1Lives/P2Lives を転用、それもなければ新規生成
-        TextMeshProUGUI p1HPText = FindText(centerUI, "P1HPText") ?? TransferLivesText(centerUI, "P1Lives", "P1HPText");
-        TextMeshProUGUI p2HPText = FindText(centerUI, "P2HPText") ?? TransferLivesText(centerUI, "P2Lives", "P2HPText");
+        // ── P1（左上）──────────────────────────────────────────────
+        // Score  |  Wins
+        // [======HPBar=======]
+        // HP xxx/xxx
+        // [==EnergyBar==]  SkillName
+        // Combo x/y
+        var p1Score  = EnsureText(centerUI, "P1Score",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(10,-8),  size: new Vector2(120,28), fontSize: 20, font: latinFont);
 
-        if (p1HPText == null) p1HPText = CreateHPText(centerUI, "P1HPText", p1Score);
-        if (p2HPText == null) p2HPText = CreateHPText(centerUI, "P2HPText", p2Score);
+        var p1Wins   = EnsureText(centerUI, "P1Wins",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(135,-8), size: new Vector2(75,28),  fontSize: 16, font: latinFont);
 
-        // 5) HPバー：既存があれば再利用、なければ HPテキストの下に新規生成
-        Image p1Fill = FindImage(centerUI, "P1HPFill") ?? CreateHPBar(p1HPText, "P1HPFill");
-        Image p2Fill = FindImage(centerUI, "P2HPFill") ?? CreateHPBar(p2HPText, "P2HPFill");
+        var p1HPFill = EnsureBar(centerUI, "P1HPFill",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(10,-40), size: new Vector2(200,12));
 
-        // 6) UIManager に参照をバインド
+        var p1HPText = EnsureText(centerUI, "P1HPText",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(10,-55), size: new Vector2(200,22), fontSize: 14, font: latinFont);
+
+        var p1EnergyFill = EnsureBar(centerUI, "P1EnergyFill",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(10,-82), size: new Vector2(120,8),
+            color: new Color(0.3f, 0.7f, 1f));
+
+        var p1SkillText = EnsureText(centerUI, "P1SkillText",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(135,-78), size: new Vector2(75,18), fontSize: 12, font: latinFont);
+
+        var p1Combo = EnsureText(centerUI, "P1Combo",
+            anchor: new Vector2(0,1), pivot: new Vector2(0,1),
+            pos: new Vector2(10,-96), size: new Vector2(200,22), fontSize: 13, font: latinFont);
+
+        // ── P2（右上）──────────────────────────────────────────────
+        var p2Score  = EnsureText(centerUI, "P2Score",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-10,-8),  size: new Vector2(120,28), fontSize: 20, font: latinFont);
+
+        var p2Wins   = EnsureText(centerUI, "P2Wins",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-135,-8), size: new Vector2(75,28),  fontSize: 16, font: latinFont);
+
+        var p2HPFill = EnsureBar(centerUI, "P2HPFill",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-10,-40), size: new Vector2(200,12));
+
+        var p2HPText = EnsureText(centerUI, "P2HPText",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-10,-55), size: new Vector2(200,22), fontSize: 14, font: latinFont);
+
+        var p2EnergyFill = EnsureBar(centerUI, "P2EnergyFill",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-10,-82), size: new Vector2(120,8),
+            color: new Color(0.3f, 0.7f, 1f));
+
+        var p2SkillText = EnsureText(centerUI, "P2SkillText",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-135,-78), size: new Vector2(75,18), fontSize: 12, font: latinFont);
+
+        var p2Combo = EnsureText(centerUI, "P2Combo",
+            anchor: new Vector2(1,1), pivot: new Vector2(1,1),
+            pos: new Vector2(-10,-96), size: new Vector2(200,22), fontSize: 13, font: latinFont);
+
+        // GameOverText（中央上）
+        var status = EnsureText(centerUI, "GameOverText",
+            anchor: new Vector2(0.5f,1f), pivot: new Vector2(0.5f,1f),
+            pos: new Vector2(0,-8), size: new Vector2(300,36), fontSize: 24, font: latinFont);
+
+        // ── UIManager にバインド ────────────────────────────────────
         SerializedObject so = new SerializedObject(ui);
-        BindProperty(so, "p1ScoreText",     p1Score);
-        BindProperty(so, "p2ScoreText",     p2Score);
-        BindProperty(so, "p1HPText",        p1HPText);
-        BindProperty(so, "p2HPText",        p2HPText);
-        BindProperty(so, "p1HPFill",        p1Fill);
-        BindProperty(so, "p2HPFill",        p2Fill);
-        BindProperty(so, "p1ComboText",     p1Combo);
-        BindProperty(so, "p2ComboText",     p2Combo);
-        BindProperty(so, "p1RoundWinsText", p1Wins);
-        BindProperty(so, "p2RoundWinsText", p2Wins);
-        BindProperty(so, "statusText",      status);
+        Bind(so, "p1ScoreText",      p1Score);
+        Bind(so, "p2ScoreText",      p2Score);
+        Bind(so, "p1HPText",         p1HPText);
+        Bind(so, "p2HPText",         p2HPText);
+        Bind(so, "p1HPFill",         p1HPFill);
+        Bind(so, "p2HPFill",         p2HPFill);
+        Bind(so, "p1ComboText",      p1Combo);
+        Bind(so, "p2ComboText",      p2Combo);
+        Bind(so, "p1RoundWinsText",  p1Wins);
+        Bind(so, "p2RoundWinsText",  p2Wins);
+        Bind(so, "p1EnergyFill",     p1EnergyFill);
+        Bind(so, "p2EnergyFill",     p2EnergyFill);
+        Bind(so, "p1SkillText",      p1SkillText);
+        Bind(so, "p2SkillText",      p2SkillText);
+        Bind(so, "statusText",       status);
         so.ApplyModifiedPropertiesWithoutUndo();
 
         EditorUtility.SetDirty(ui);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(ui.gameObject.scene);
 
-        Debug.Log("[SetupHPUI] 完了。HP UI をセットアップしました。");
-        Debug.Log("[SetupHPUI] HPバーの位置・サイズは初期値で配置しています。気になる場合は手動で調整してください。");
+        Debug.Log("[SetupHPUI] 完了（エネルギーゲージ含む全 UI をセットアップ）。" +
+                  (latinFont == null ? " ※フォント未検出：Inspector で手動設定してください。" : ""));
     }
 
-    // =====================================================
-    // ヘルパー：検索系
-    // =====================================================
+    // ── ヘルパー ──────────────────────────────────────────────────
 
-    private static TextMeshProUGUI FindText(GameObject root, string name)
+    private static TextMeshProUGUI EnsureText(GameObject parent, string name,
+        Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size, int fontSize, TMP_FontAsset font)
     {
-        Transform t = FindRecursive(root.transform, name);
-        return t != null ? t.GetComponent<TextMeshProUGUI>() : null;
-    }
+        Transform ex = parent.transform.Find(name);
+        GameObject go = ex != null ? ex.gameObject : new GameObject(name);
+        if (ex == null) go.transform.SetParent(parent.transform, false);
 
-    private static Image FindImage(GameObject root, string name)
-    {
-        Transform t = FindRecursive(root.transform, name);
-        return t != null ? t.GetComponent<Image>() : null;
-    }
-
-    private static Transform FindRecursive(Transform root, string name)
-    {
-        if (root.name == name) return root;
-        for (int i = 0; i < root.childCount; i++)
-        {
-            Transform found = FindRecursive(root.GetChild(i), name);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    // =====================================================
-    // ヘルパー：生成系
-    // =====================================================
-
-    // P1Lives / P2Lives が残っていれば名前を変えて HP テキストとして転用する
-    private static TextMeshProUGUI TransferLivesText(GameObject centerUI, string oldName, string newName)
-    {
-        Transform t = FindRecursive(centerUI.transform, oldName);
-        if (t == null) return null;
-
-        TextMeshProUGUI text = t.GetComponent<TextMeshProUGUI>();
-        if (text == null) return null;
-
-        t.gameObject.name = newName;
-        text.text = "HP 500 / 500";
-        return text;
-    }
-
-    // 新規 HPテキストを生成（anchor となる既存テキストの直下に配置）
-    private static TextMeshProUGUI CreateHPText(GameObject centerUI, string name, TextMeshProUGUI anchor)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(centerUI.transform, false);
-
-        TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
-        text.text = "HP 500 / 500";
-        text.fontSize = 24;
-        text.alignment = TextAlignmentOptions.Left;
+        TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
+        if (tmp == null) tmp = go.AddComponent<TextMeshProUGUI>();
+        if (font != null) tmp.font = font;
+        tmp.fontSize  = fontSize;
+        tmp.alignment = TextAlignmentOptions.Left;
+        tmp.color     = Color.white;
+        if (string.IsNullOrEmpty(tmp.text)) tmp.text = name;
 
         RectTransform rt = go.GetComponent<RectTransform>();
-        if (anchor != null)
-        {
-            RectTransform anchorRT = anchor.GetComponent<RectTransform>();
-            rt.anchorMin = anchorRT.anchorMin;
-            rt.anchorMax = anchorRT.anchorMax;
-            rt.pivot     = anchorRT.pivot;
-            rt.anchoredPosition = anchorRT.anchoredPosition + new Vector2(0f, HP_TEXT_OFFSET_Y);
-            rt.sizeDelta        = new Vector2(HP_BAR_WIDTH, 30f);
-        }
-        else
-        {
-            rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta        = new Vector2(HP_BAR_WIDTH, 30f);
-        }
-        return text;
+        if (rt == null) rt = go.AddComponent<RectTransform>();
+        rt.anchorMin        = anchor;
+        rt.anchorMax        = anchor;
+        rt.pivot            = pivot;
+        rt.anchoredPosition = pos;
+        rt.sizeDelta        = size;
+        return tmp;
     }
 
-    // 新規 HPバー（Image, FillType=Filled）を生成
-    private static Image CreateHPBar(TextMeshProUGUI anchorText, string name)
+    private static Image EnsureBar(GameObject parent, string name,
+        Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size,
+        Color? color = null)
     {
-        GameObject bar = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        bar.transform.SetParent(anchorText.transform.parent, false);
+        Transform ex = parent.transform.Find(name);
+        GameObject go = ex != null ? ex.gameObject : new GameObject(name);
+        if (ex == null) go.transform.SetParent(parent.transform, false);
 
-        RectTransform rt = bar.GetComponent<RectTransform>();
-        RectTransform anchorRT = anchorText.GetComponent<RectTransform>();
+        if (go.GetComponent<CanvasRenderer>() == null) go.AddComponent<CanvasRenderer>();
 
-        rt.anchorMin = anchorRT.anchorMin;
-        rt.anchorMax = anchorRT.anchorMax;
-        rt.pivot     = anchorRT.pivot;
-        rt.anchoredPosition = anchorRT.anchoredPosition + new Vector2(0f, HP_BAR_OFFSET_Y);
-        rt.sizeDelta        = new Vector2(HP_BAR_WIDTH, HP_BAR_HEIGHT);
-
-        Image img = bar.GetComponent<Image>();
-        // デフォルトの UI スプライトを設定（これがないと Filled モードで表示されない）
-        img.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        Image img = go.GetComponent<Image>();
+        if (img == null) img = go.AddComponent<Image>();
+        img.sprite     = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
         img.type       = Image.Type.Filled;
         img.fillMethod = Image.FillMethod.Horizontal;
         img.fillOrigin = (int)Image.OriginHorizontal.Left;
         img.fillAmount = 1f;
-        img.color      = new Color(0.4f, 1.0f, 0.4f);
+        img.color      = color ?? new Color(0.4f, 1.0f, 0.4f);
 
+        RectTransform rt = go.GetComponent<RectTransform>();
+        if (rt == null) rt = go.AddComponent<RectTransform>();
+        rt.anchorMin        = anchor;
+        rt.anchorMax        = anchor;
+        rt.pivot            = pivot;
+        rt.anchoredPosition = pos;
+        rt.sizeDelta        = size;
         return img;
     }
 
-    // =====================================================
-    // ヘルパー：バインド
-    // =====================================================
-
-    private static void BindProperty(SerializedObject so, string propName, Object value)
+    private static void Bind(SerializedObject so, string prop, Object value)
     {
-        SerializedProperty prop = so.FindProperty(propName);
-        if (prop == null)
+        SerializedProperty p = so.FindProperty(prop);
+        if (p != null) p.objectReferenceValue = value;
+        else Debug.LogWarning($"[SetupHPUI] UIManager に '{prop}' が見つかりません。");
+    }
+
+    private static TMP_FontAsset FindLatinFont()
+    {
+        string[] guids = AssetDatabase.FindAssets("LiberationSans SDF t:TMP_FontAsset");
+        foreach (string g in guids)
         {
-            Debug.LogWarning($"[SetupHPUI] UIManager に '{propName}' フィールドが見つかりません。");
-            return;
+            TMP_FontAsset f = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(g));
+            if (f != null) return f;
         }
-        prop.objectReferenceValue = value;
+        return null;
     }
 }

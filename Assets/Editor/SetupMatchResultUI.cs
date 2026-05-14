@@ -58,8 +58,8 @@ public static class SetupMatchResultUI
 
         // タイトル
         CreateTMP("MatchWinnerText",  panel.transform, new Vector2(0.5f, 0.8f),  new Vector2(600, 80),  "P1 WINS!", 52, TextAlignmentOptions.Center, Color.yellow);
-        CreateTMP("ScoreSummaryText", panel.transform, new Vector2(0.5f, 0.62f), new Vector2(500, 40),  "P1: 0 pts    P2: 0 pts", 24, TextAlignmentOptions.Center, Color.white);
-        CreateTMP("WinsSummaryText",  panel.transform, new Vector2(0.5f, 0.5f),  new Vector2(500, 40),  "P1: 0勝    P2: 0勝",    24, TextAlignmentOptions.Center, Color.white);
+        CreateTMP("ScoreSummaryText", panel.transform, new Vector2(0.5f, 0.62f), new Vector2(500, 40),  "P1: 0 pts    P2: 0 pts",   24, TextAlignmentOptions.Center, Color.white);
+        CreateTMP("WinsSummaryText",  panel.transform, new Vector2(0.5f, 0.5f),  new Vector2(500, 40),  "P1: 0 wins    P2: 0 wins", 24, TextAlignmentOptions.Center, Color.white);
 
         // 選択肢エリア
         var selPanel = CreateGO("SelectionPanel", panel.transform);
@@ -69,12 +69,12 @@ public static class SetupMatchResultUI
         layout.childAlignment = TextAnchor.MiddleCenter;
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
-        CreateTMP("RematchText", selPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(180, 50), "[ 再戦 ]",       30, TextAlignmentOptions.Center, Color.yellow);
-        CreateTMP("MenuText",    selPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(260, 50), "[ メニューへ戻る ]", 30, TextAlignmentOptions.Center, Color.white);
+        CreateTMP("RematchText", selPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(180, 50), "[ Rematch ]", 30, TextAlignmentOptions.Center, Color.yellow);
+        CreateTMP("MenuText",    selPanel.transform, new Vector2(0.5f, 0.5f), new Vector2(260, 50), "[ Menu ]",    30, TextAlignmentOptions.Center, Color.white);
 
         // ヒント
         CreateTMP("HintText", panel.transform, new Vector2(0.5f, 0.12f), new Vector2(520, 34),
-            "A / D  ( または  J / L )  で選択    スペース で決定",
+            "A / D  (or  J / L)  to select    Space to confirm",
             17, TextAlignmentOptions.Center, new Color(0.65f, 0.65f, 0.65f));
 
         return panel;

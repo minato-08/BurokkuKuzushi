@@ -1,27 +1,61 @@
 using System.Collections;
 using UnityEngine;
 
+// HP帯別パラメータ（HP割合に応じて動的に変わるゲームパラメータ）
+// hpStateBands 配列は Inspector で thresholdPercent 降順に設定すること
+[System.Serializable]
+public class HPStateBand
+{
+    [Range(0f, 1f)]
+    public float thresholdPercent = 1.0f;  // この値以上のHP割合で適用
+
+    public float gaugeRateMul = 1.0f;      // スキルゲージ蓄積倍率
+    public float itemDropMul  = 1.0f;      // アイテムドロップ率倍率
+    public float scoreMul     = 1.0f;      // スコア倍率
+    [Range(0f, 1f)]
+    public float goodItemBias = 0f;        // 有利アイテムへの偏重（0=均等、1=有利のみ）
+    public bool  panicMode    = false;     // ピンチ専用スキル解禁などのフラグ
+}
+
 public class GameManager : MonoBehaviour
 {
-    // Singletonパターン：ゲーム中にこのクラスは1つだけ存在する
     public static GameManager Instance { get; private set; }
 
-    [Header("バランス設定")]
-    [SerializeField] private GameBalanceProfile profile;
-
     [Header("試合設定")]
-    [SerializeField] private int   roundsToWin    = 1;   // 何本先取で勝利か
-    [SerializeField] private float nextRoundDelay = 2f;  // ラウンド終了から次ラウンド開始までの秒数
+    [SerializeField] private int   roundsToWin    = 1;
+    [SerializeField] private float nextRoundDelay = 2f;
+
+    [Header("HP設定")]
+    [SerializeField] private int maxHP                  = 500;
+    [SerializeField] private int damageBallDrop         = 5;
+    [SerializeField] private int damageBlockReachBottom = 10;
+    [SerializeField] private int damageBlockSpike       = 15;
+    [SerializeField] private int damagePoisonPerSec     = 5;
+
+    [Header("スキル・エナジー設定")]
+    [SerializeField] private float energyPerBlock = 1f;
+
+    [Header("コンボ・妨害設定")]
+    [SerializeField] private int comboThreshold = 15;
+
+    [Header("強制リスポーン設定")]
+    [SerializeField] private int damageForceRespawn = 5;  // S/K でボールを強制リスポーンした時のHPペナルティ
+
+    [Header("ヒットストップ設定（フレーム数）")]
+    [SerializeField] private int interferenceTriggerFrames = 10;
+    [SerializeField] private int roundEndFrames            = 30;
+    [SerializeField] private int matchEndFrames            = 60;
+
+    [Header("HP帯別パラメータ（thresholdPercent 降順で設定）")]
+    [SerializeField] private HPStateBand[] hpStateBands;
 
     [Header("アリーナ参照")]
     [SerializeField] private ArenaController arena1;
     [SerializeField] private ArenaController arena2;
 
-    // HPシステム（プレイヤーごと）
     private HPSystem p1HP;
     private HPSystem p2HP;
 
-    // その他の状態
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
     private int p1DestroyedCount, p2DestroyedCount;
@@ -29,14 +63,12 @@ public class GameManager : MonoBehaviour
     public enum GameState
     {
         WaitingToStart,
+        SkillSelect,
         Playing,
         RoundOver,
         MatchOver
     }
     private GameState currentState = GameState.WaitingToStart;
-
-    // 外部からプロファイルにアクセスするためのプロパティ
-    public GameBalanceProfile Profile => profile;
 
     // =====================================================
     // Unity ライフサイクル
@@ -51,69 +83,63 @@ public class GameManager : MonoBehaviour
         }
         Instance = this;
 
-        // HPシステム初期化（profile から maxHP を読む）
-        int maxHP = profile != null ? profile.hp.maxHP : 500;
         p1HP = new HPSystem(maxHP);
         p2HP = new HPSystem(maxHP);
     }
 
     void Start()
     {
-        // TODO: Phase A-3 でタイトル画面・即リスタート機構に置き換える
-        StartNewMatch();
+        StartSkillSelect(isNewMatch: true);
     }
 
     // =====================================================
     // 試合・ラウンド制御
     // =====================================================
 
-    // 試合開始：すべての状態をリセット
-    public void StartNewMatch()
+    private void StartSkillSelect(bool isNewMatch)
     {
-        p1RoundWins = 0;
-        p2RoundWins = 0;
-        p1Score = 0;
-        p2Score = 0;
+        if (isNewMatch)
+        {
+            p1RoundWins = 0;
+            p2RoundWins = 0;
+            p1Score     = 0;
+            p2Score     = 0;
+        }
         p1DestroyedCount = 0;
         p2DestroyedCount = 0;
 
-        int maxHP = profile != null ? profile.hp.maxHP : 500;
         p1HP.SetMaxHP(maxHP, refill: true);
         p2HP.SetMaxHP(maxHP, refill: true);
 
-        Time.timeScale = 1f;
-        currentState = GameState.Playing;
-        // 初回はシーンに最初から配置されているため、アリーナリセットは呼ばない
+        arena1?.GetSkillController()?.ResetEnergy();
+        arena2?.GetSkillController()?.ResetEnergy();
+
+        Time.timeScale = 0f;
+        currentState = GameState.SkillSelect;
     }
 
-    // 再戦: スコア・勝利数をリセットしてアリーナも再配置（StartNewMatch は初回起動専用）
-    public void StartRematch()
+    public void BeginMatch()
     {
-        p1RoundWins = 0;
-        p2RoundWins = 0;
-        p1Score = 0;
-        p2Score = 0;
-        p1DestroyedCount = 0;
-        p2DestroyedCount = 0;
+        if (currentState != GameState.SkillSelect) return;
 
-        int maxHP = profile != null ? profile.hp.maxHP : 500;
-        p1HP.SetMaxHP(maxHP, refill: true);
-        p2HP.SetMaxHP(maxHP, refill: true);
-
-        Time.timeScale = 1f;
         currentState = GameState.Playing;
+        Time.timeScale = 1f;
 
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
     }
 
-    // 次のラウンドを開始：アリーナをクリーンアップして再配置
+    public void StartRematch() => StartSkillSelect(isNewMatch: true);
+
     public void StartNextRound()
     {
         p1HP.Reset();
         p2HP.Reset();
         p1DestroyedCount = 0;
         p2DestroyedCount = 0;
+
+        arena1?.GetSkillController()?.ResetEnergy();
+        arena2?.GetSkillController()?.ResetEnergy();
 
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
@@ -129,35 +155,35 @@ public class GameManager : MonoBehaviour
     public void OnBallDropped(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
-        int dmg = profile != null ? profile.hp.damageBallDrop : 20;
-        ApplyDamage(playerIndex, dmg);
+        ApplyDamage(playerIndex, damageBallDrop);
     }
 
-    // 1個以上のブロックが底に到達した時に呼ばれる
     public void OnBlocksReachedBottom(int playerIndex, int count = 1)
     {
         if (currentState != GameState.Playing) return;
-        int perBlock = profile != null ? profile.hp.damageBlockReachBottom : 10;
-        ApplyDamage(playerIndex, perBlock * count);
+        ApplyDamage(playerIndex, damageBlockReachBottom * count);
+    }
+
+    // S/K による強制リスポーン（LaunchAimer から呼ばれる）
+    public void OnForceRespawn(int playerIndex)
+    {
+        if (currentState != GameState.Playing) return;
+        ApplyDamage(playerIndex, damageForceRespawn);
     }
 
     public void OnSpikeHit(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
-        int dmg = profile != null ? profile.hp.damageBlockSpike : 30;
-        ApplyDamage(playerIndex, dmg);
+        ApplyDamage(playerIndex, damageBlockSpike);
     }
 
     public void OnPoisonTick(int playerIndex, float deltaTime)
     {
         if (currentState != GameState.Playing) return;
-        int dmgPerSec = profile != null ? profile.hp.damagePoisonPerSec : 5;
-        // 秒間ダメージを deltaTime で按分（整数四捨五入）
-        int dmg = Mathf.RoundToInt(dmgPerSec * deltaTime);
+        int dmg = Mathf.RoundToInt(damagePoisonPerSec * deltaTime);
         if (dmg > 0) ApplyDamage(playerIndex, dmg);
     }
 
-    // ダメージ適用の共通処理。HP0 になったらラウンド終了
     private void ApplyDamage(int playerIndex, int amount)
     {
         HPSystem hp = playerIndex == 1 ? p1HP : p2HP;
@@ -168,24 +194,23 @@ public class GameManager : MonoBehaviour
 
     public void AddScore(int playerIndex, int amount)
     {
-        // HP帯のスコア倍率を適用
-        float mul = GetCurrentBand(playerIndex).scoreMul;
+        float mul    = GetCurrentBand(playerIndex).scoreMul;
         int   gained = Mathf.RoundToInt(amount * mul);
         if (playerIndex == 1) p1Score += gained;
         else                  p2Score += gained;
     }
 
-    // ブロック破壊数をカウント。閾値を超えたら相手に妨害を送る
     public void RegisterBlockDestroyed(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
 
-        int threshold = profile != null ? profile.combo.interferenceTriggerCombo : 5;
+        float rateMul = GetCurrentBand(playerIndex).gaugeRateMul;
+        GetArena(playerIndex)?.GetSkillController()?.AddEnergy(energyPerBlock * rateMul);
 
         if (playerIndex == 1)
         {
             p1DestroyedCount++;
-            if (p1DestroyedCount >= threshold)
+            if (p1DestroyedCount >= comboThreshold)
             {
                 p1DestroyedCount = 0;
                 SendSabotageTo(2);
@@ -194,7 +219,7 @@ public class GameManager : MonoBehaviour
         else
         {
             p2DestroyedCount++;
-            if (p2DestroyedCount >= threshold)
+            if (p2DestroyedCount >= comboThreshold)
             {
                 p2DestroyedCount = 0;
                 SendSabotageTo(1);
@@ -202,17 +227,13 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // 指定プレイヤーのアリーナに妨害行を追加
     private void SendSabotageTo(int targetPlayerIndex)
     {
         ArenaController target = targetPlayerIndex == 1 ? arena1 : arena2;
         if (target == null) return;
 
-        BlockSpawner spawner = target.GetSpawner();
-        if (spawner != null) spawner.ReceiveSabotageRow();
-
-        int frames = profile != null ? profile.hitStop.interferenceTriggerFrames : 10;
-        target.TriggerHitStop(frames);
+        target.GetSpawner()?.ReceiveSabotageRow();
+        target.TriggerHitStop(interferenceTriggerFrames);
 
         Debug.Log($"P{targetPlayerIndex} に妨害行を送信！");
     }
@@ -231,19 +252,21 @@ public class GameManager : MonoBehaviour
         if (p1RoundWins >= roundsToWin || p2RoundWins >= roundsToWin)
         {
             currentState = GameState.MatchOver;
-            int frames = profile != null ? profile.hitStop.matchEndFrames : 60;
-            arena1?.TriggerHitStop(frames, strong: true);
-            arena2?.TriggerHitStop(frames, strong: true);
-            // HitStop が終わってから timeScale=0 にする（coroutine は unscaledDeltaTime を使うので問題なし）
-            StartCoroutine(MatchOverCoroutine(frames));
+            // 勝者はフリーズのみ、敗者にのみカメラシェイクを適用する
+            ArenaController matchWinnerArena = winner == 1 ? arena1 : arena2;
+            ArenaController matchLoserArena  = winner == 1 ? arena2 : arena1;
+            matchLoserArena?.TriggerHitStop(matchEndFrames,  strong: true, shake: true);
+            matchWinnerArena?.TriggerHitStop(matchEndFrames, strong: true, shake: false);
+            StartCoroutine(MatchOverCoroutine(matchEndFrames));
             Debug.Log($"試合終了！勝者: P{winner}");
         }
         else
         {
             currentState = GameState.RoundOver;
-            int frames = profile != null ? profile.hitStop.roundEndFrames : 30;
-            arena1?.TriggerHitStop(frames, strong: true);
-            arena2?.TriggerHitStop(frames, strong: true);
+            ArenaController loserArena  = winner == 1 ? arena2 : arena1;
+            ArenaController winnerArena = winner == 1 ? arena1 : arena2;
+            loserArena?.TriggerHitStop(roundEndFrames,  strong: true,  shake: true);
+            winnerArena?.TriggerHitStop(roundEndFrames, strong: false, shake: false);
             StartCoroutine(NextRoundCoroutine());
         }
     }
@@ -264,20 +287,36 @@ public class GameManager : MonoBehaviour
     // 外部からの情報取得（UIなどが使う）
     // =====================================================
 
-    public int   GetHP(int playerIndex)           => playerIndex == 1 ? p1HP.CurrentHP : p2HP.CurrentHP;
-    public int   GetMaxHP(int playerIndex)        => playerIndex == 1 ? p1HP.MaxHP    : p2HP.MaxHP;
-    public float GetHPRatio(int playerIndex)      => playerIndex == 1 ? p1HP.Ratio    : p2HP.Ratio;
-    public int   GetScore(int playerIndex)        => playerIndex == 1 ? p1Score       : p2Score;
-    public int   GetRoundWins(int playerIndex)    => playerIndex == 1 ? p1RoundWins   : p2RoundWins;
-    public int   GetCombo(int playerIndex)        => playerIndex == 1 ? p1DestroyedCount : p2DestroyedCount;
-    public int   GetComboThreshold()              => profile != null ? profile.combo.interferenceTriggerCombo : 5;
-    public GameState GetCurrentState()            => currentState;
+    public ArenaController GetArena(int playerIndex)        => playerIndex == 1 ? arena1 : arena2;
+    public float  GetEnergyRatio(int playerIndex)           => GetArena(playerIndex)?.GetSkillController()?.EnergyRatio ?? 0f;
+    public string GetEquippedSkillName(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.SkillName    ?? "---";
 
-    // 現在のHP帯に応じた動的パラメータ参照
+    public void Heal(int playerIndex, int amount)
+    {
+        if (currentState != GameState.Playing) return;
+        HPSystem hp = playerIndex == 1 ? p1HP : p2HP;
+        hp.Heal(amount);
+    }
+
+    public int   GetHP(int playerIndex)        => playerIndex == 1 ? p1HP.CurrentHP : p2HP.CurrentHP;
+    public int   GetMaxHP(int playerIndex)     => playerIndex == 1 ? p1HP.MaxHP     : p2HP.MaxHP;
+    public float GetHPRatio(int playerIndex)   => playerIndex == 1 ? p1HP.Ratio     : p2HP.Ratio;
+    public int   GetScore(int playerIndex)     => playerIndex == 1 ? p1Score        : p2Score;
+    public int   GetRoundWins(int playerIndex) => playerIndex == 1 ? p1RoundWins    : p2RoundWins;
+    public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1DestroyedCount : p2DestroyedCount;
+    public int   GetComboThreshold()           => comboThreshold;
+    public GameState GetCurrentState()         => currentState;
+
+    // 現在のHP割合に応じた HPStateBand を返す（配列が空なら等倍のデフォルトを返す）
     public HPStateBand GetCurrentBand(int playerIndex)
     {
-        if (profile == null) return new HPStateBand();
+        if (hpStateBands == null || hpStateBands.Length == 0) return new HPStateBand();
         float ratio = GetHPRatio(playerIndex);
-        return profile.GetBandForRatio(ratio);
+        for (int i = 0; i < hpStateBands.Length; i++)
+        {
+            if (ratio >= hpStateBands[i].thresholdPercent)
+                return hpStateBands[i];
+        }
+        return hpStateBands[hpStateBands.Length - 1];
     }
 }

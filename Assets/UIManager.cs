@@ -27,6 +27,12 @@ public class UIManager : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float midThreshold = 0.7f;
     [Range(0f, 1f)] [SerializeField] private float lowThreshold = 0.3f;
 
+    [Header("エナジーゲージ UI")]
+    [SerializeField] private Image           p1EnergyFill;
+    [SerializeField] private Image           p2EnergyFill;
+    [SerializeField] private TextMeshProUGUI p1SkillText;
+    [SerializeField] private TextMeshProUGUI p2SkillText;
+
     [Header("試合状態 UI")]
     [SerializeField] private TextMeshProUGUI statusText;
 
@@ -36,6 +42,7 @@ public class UIManager : MonoBehaviour
 
         UpdatePlayerStats(1, p1ScoreText, p1HPText, p1HPFill, p1ComboText, p1RoundWinsText);
         UpdatePlayerStats(2, p2ScoreText, p2HPText, p2HPFill, p2ComboText, p2RoundWinsText);
+        UpdateEnergyUI();
         UpdateStatusText();
     }
 
@@ -60,6 +67,15 @@ public class UIManager : MonoBehaviour
         }
         if (combo  != null) combo.text  = $"Combo {gm.GetCombo(playerIndex)}/{gm.GetComboThreshold()}";
         if (rounds != null) rounds.text = $"Wins: {gm.GetRoundWins(playerIndex)}";
+    }
+
+    private void UpdateEnergyUI()
+    {
+        var gm = GameManager.Instance;
+        if (p1EnergyFill != null) p1EnergyFill.fillAmount = gm.GetEnergyRatio(1);
+        if (p2EnergyFill != null) p2EnergyFill.fillAmount = gm.GetEnergyRatio(2);
+        if (p1SkillText  != null) p1SkillText.text  = gm.GetEquippedSkillName(1);
+        if (p2SkillText  != null) p2SkillText.text  = gm.GetEquippedSkillName(2);
     }
 
     private Color GetHPColor(float ratio)
