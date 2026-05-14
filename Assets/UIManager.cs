@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -35,6 +36,15 @@ public class UIManager : MonoBehaviour
 
     [Header("試合状態 UI")]
     [SerializeField] private TextMeshProUGUI statusText;
+
+    [Header("妨害通知オーバーレイ")]
+    [SerializeField] private CanvasGroup     p1InterferenceOverlay;
+    [SerializeField] private TextMeshProUGUI p1InterferenceLabel;
+    [SerializeField] private CanvasGroup     p2InterferenceOverlay;
+    [SerializeField] private TextMeshProUGUI p2InterferenceLabel;
+
+    private Coroutine p1OverlayRoutine;
+    private Coroutine p2OverlayRoutine;
 
     void Update()
     {
@@ -76,6 +86,32 @@ public class UIManager : MonoBehaviour
         if (p2EnergyFill != null) p2EnergyFill.fillAmount = gm.GetEnergyRatio(2);
         if (p1SkillText  != null) p1SkillText.text  = gm.GetEquippedSkillName(1);
         if (p2SkillText  != null) p2SkillText.text  = gm.GetEquippedSkillName(2);
+    }
+
+    public void ShowInterferenceOverlay(int playerIndex, string label)
+    {
+        CanvasGroup      cg  = playerIndex == 1 ? p1InterferenceOverlay : p2InterferenceOverlay;
+        TextMeshProUGUI  txt = playerIndex == 1 ? p1InterferenceLabel   : p2InterferenceLabel;
+        if (cg == null) return;
+
+        if (playerIndex == 1)
+        {
+            if (p1OverlayRoutine != null) StopCoroutine(p1OverlayRoutine);
+            p1OverlayRoutine = StartCoroutine(OverlayRoutine(cg, txt, label));
+        }
+        else
+        {
+            if (p2OverlayRoutine != null) StopCoroutine(p2OverlayRoutine);
+            p2OverlayRoutine = StartCoroutine(OverlayRoutine(cg, txt, label));
+        }
+    }
+
+    private IEnumerator OverlayRoutine(CanvasGroup cg, TextMeshProUGUI txt, string label)
+    {
+        if (txt != null) txt.text = $"妨害！\n{label}";
+        cg.alpha = 1f;
+        yield return new WaitForSecondsRealtime(1.5f);
+        cg.alpha = 0f;
     }
 
     private Color GetHPColor(float ratio)

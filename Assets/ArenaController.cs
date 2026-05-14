@@ -106,6 +106,11 @@ public class ArenaController : MonoBehaviour
 
         if (ball != null)
             ball.PrepareRespawn(GetBallSpawnLocalPos());
+
+        // 残存 ZonePoison をクリア
+        Transform arenaRoot = transform.parent ?? transform;
+        foreach (var zone in arenaRoot.GetComponentsInChildren<ZonePoison>())
+            Object.Destroy(zone.gameObject);
     }
 
     // パドルのローカル位置から動的にボール初期位置を計算する
@@ -115,5 +120,53 @@ public class ArenaController : MonoBehaviour
         PlayerController pc = arenaRoot.GetComponentInChildren<PlayerController>();
         float paddleY = pc != null ? pc.transform.localPosition.y : -3.7f;
         return new Vector3(0f, paddleY + ballSpawnOffsetY, 0f);
+    }
+
+    // パドルのワールド Y 座標を返す
+    public float GetPaddleWorldY()
+    {
+        Transform arenaRoot = transform.parent ?? transform;
+        PlayerController pc = arenaRoot.GetComponentInChildren<PlayerController>();
+        float localY = pc != null ? pc.transform.localPosition.y : -8f;
+        return arenaRoot.position.y + localY;
+    }
+
+    // ZonePoison を指定ワールド座標から落下生成する
+    public void SpawnZonePoison(Vector3 worldPos)
+    {
+        Transform arenaRoot = transform.parent ?? transform;
+
+        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = "ZonePoison";
+        go.transform.SetParent(arenaRoot, worldPositionStays: true);
+        go.transform.position   = worldPos;
+        go.transform.localScale = Vector3.one * 0.9f;
+
+        Object.Destroy(go.GetComponent<Rigidbody>());
+        go.GetComponent<Collider>().isTrigger = true;
+        go.GetComponent<Renderer>().material.color = new Color(0.5f, 0f, 0.8f, 0.7f);
+
+        go.AddComponent<ZonePoison>().Setup(playerIndex, GetPaddleWorldY() + 0.5f);
+    }
+
+    // InterferencePoison 用：アリーナ上部ランダム位置から ZonePoison を直接落下させる
+    public Vector3 GetRandomFloorWorldPos()
+    {
+        Transform arenaRoot = transform.parent ?? transform;
+        float x = arenaRoot.position.x + Random.Range(-arenaHalfWidth * 0.8f, arenaHalfWidth * 0.8f);
+        return new Vector3(x, arenaRoot.position.y + 6f, arenaRoot.position.z);
+    }
+
+    // InterferenceHarden: BlockSpawner 経由で Normal ブロックを Hard 化
+    public void HardenBlocks()
+    {
+        spawner?.HardenRandomBlocks();
+    }
+
+    // 妨害受け取り通知を UIManager 経由で表示する
+    public void ShowInterferenceOverlay(string label)
+    {
+        UIManager ui = Object.FindFirstObjectByType<UIManager>();
+        ui?.ShowInterferenceOverlay(playerIndex, label);
     }
 }

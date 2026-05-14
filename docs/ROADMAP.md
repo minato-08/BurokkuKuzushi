@@ -96,19 +96,17 @@
 
 ## Phase E: 妨害多様化
 
-- [ ] `BlockDefinition` ScriptableObject 化（既存 enum から移行）
-- [ ] `InterferencePayload` 機構実装
-- [ ] 妨害種別の実装:
-  - [ ] `InterferenceHarden`
-  - [ ] `InterferenceSpike`
-  - [ ] `InterferencePoison`
-  - [ ] `InterferenceSlow`
-- [ ] 新ブロック / Zone 実装:
-  - [ ] `BlockSpike`
-  - [ ] `BlockHardened`
-  - [ ] `ZonePoison`
-  - [ ] `ZoneSlow`
-- [ ] 妨害送付時の通知演出（受け取り側にオーラ or スクリーンオーバーレイ）
+- [x] `InterferenceType` enum (AddRow / Harden / Spike / Poison) + 重み付きランダム dispatch に `SendSabotageTo()` を刷新
+- [x] `InterferenceHarden` — BlockSpawner.HardenRandomBlocks() で既存 Normal を Hard 化（HP 3）
+- [x] `InterferenceSpike` — Spike 行を送付（BlockSpawner.ReceiveSpikeRow()）
+- [x] `InterferencePoison` — ZonePoison を直接生成（ArenaController.SpawnZonePoison()）
+- [x] `BlockType.Spike` — 接触で OnSpikeHit、破壊で ZonePoison 生成
+- [x] `ZonePoison` — 落下して着地後パドル接触 HP ダメージ（duration 秒で消滅）
+- [x] 妨害送付時の通知演出（スクリーンオーバーレイ 1.5 秒フラッシュ）— Setup HP UI で自動生成
+- [ ] `ZoneSlow` — ボール減速エリア（後回し）
+- [ ] `InterferenceSlow`（後回し）
+- [ ] `BlockHardened` — Hard との視覚的区別（後回し）
+- [ ] 妨害送付時のブロックオーラ演出（Phase F へ）
 
 ---
 
@@ -154,4 +152,4 @@
 - **完了**: Phase B（メトロノーム発射 + 強制リスポーン + 時間加速）
 - **完了**: Phase C（アイテム）
 - **完了**: Phase D（スキル）
-- **次フェーズ**: Phase E（妨害多様化）
+- **進行中**: Phase E（妨害多様化コア実装済み、ZoneSlow / BlockHardened 視覚区別が残り）

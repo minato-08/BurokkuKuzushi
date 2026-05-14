@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 public class BlockSpawner : MonoBehaviour, IFreezable
 {
@@ -24,9 +25,16 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Range(0f, 1f)] [SerializeField] private float hardBlockChance      = 0.2f;
     [SerializeField] private int hardBlockHp = 2;
 
-    [Header("妨害行設定")]
+    [Header("妨害行設定（Hard/Absorb）")]
     [Range(0f, 1f)] [SerializeField] private float sabotageHardRatio = 0.5f;
     [SerializeField] private int sabotageBlockHp = 2;
+
+    [Header("妨害行設定（Spike）")]
+    [SerializeField] private int spikeBlockHp = 1;
+
+    [Header("妨害 Harden 設定")]
+    [SerializeField] private int hardenCount    = 3;
+    [SerializeField] private int hardenTargetHp = 3;
 
     [Header("ブロックDeadZone到達時ヒットストップ")]
     [SerializeField] private int  blockDeadZoneHitFrames = 5;
@@ -35,7 +43,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     private List<GameObject> allBlocks = new List<GameObject>();
     private float spawnTimer = 0f;
     private int   pendingSabotageRows = 0;
+    private int   pendingSpikeRows    = 0;
     private bool  frozen = false;
+
+    private enum RowType { Normal, Sabotage, Spike }
 
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
@@ -78,14 +89,19 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (pendingSabotageRows > 0 && IsTopClear())
         {
             pendingSabotageRows--;
-            SpawnRow(isSabotage: true);
+            SpawnRow(RowType.Sabotage);
+        }
+        else if (pendingSpikeRows > 0 && IsTopClear())
+        {
+            pendingSpikeRows--;
+            SpawnRow(RowType.Spike);
         }
 
         DescendBlocks();
         CheckBottomReached();
     }
 
-    private void SpawnRow(bool isSabotage = false)
+    private void SpawnRow(RowType rowType = RowType.Normal)
     {
         if (blockPrefab == null)
         {
@@ -108,8 +124,12 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             Block blockScript = block.GetComponent<Block>();
             if (blockScript == null) continue;
 
-            if (isSabotage) ApplySabotageRowSettings(blockScript);
-            else            ApplyNormalRowSettings(blockScript);
+            switch (rowType)
+            {
+                case RowType.Sabotage: ApplySabotageRowSettings(blockScript); break;
+                case RowType.Spike:    ApplySpikeRowSettings(blockScript);    break;
+                default:               ApplyNormalRowSettings(blockScript);   break;
+            }
 
             allBlocks.Add(block);
         }
@@ -135,6 +155,12 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             ? BlockType.Hard
             : BlockType.Absorb;
         blockScript.hp = sabotageBlockHp;
+    }
+
+    private void ApplySpikeRowSettings(Block blockScript)
+    {
+        blockScript.blockType = BlockType.Spike;
+        blockScript.hp        = spikeBlockHp;
     }
 
     private void DescendBlocks()
@@ -179,9 +205,21 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         }
     }
 
-    public void ReceiveSabotageRow()
+    public void ReceiveSabotageRow() => pendingSabotageRows++;
+    public void ReceiveSpikeRow()    => pendingSpikeRows++;
+
+    public void HardenRandomBlocks()
     {
-        pendingSabotageRows++;
+        Block[] candidates = allBlocks
+            .Where(b => b != null)
+            .Select(b => b.GetComponent<Block>())
+            .Where(b => b != null && b.blockType == BlockType.Normal)
+            .OrderBy(_ => Random.value)
+            .Take(hardenCount)
+            .ToArray();
+
+        foreach (Block b in candidates)
+            b.HardenToHp(hardenTargetHp);
     }
 
     private bool IsTopClear()
@@ -202,8 +240,9 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             if (block != null) Destroy(block);
         }
         allBlocks.Clear();
-        spawnTimer = 0f;
+        spawnTimer          = 0f;
         pendingSabotageRows = 0;
+        pendingSpikeRows    = 0;
         SpawnRow();
     }
 

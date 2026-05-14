@@ -6,7 +6,8 @@ public enum BlockType
     Normal,    // 通常：1撃で破壊
     Hard,      // 硬い：複数撃必要
     Absorb,    // 吸収：当たるとボール減速
-    Explosive  // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Explosive, // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Spike      // 棘：ボール接触でHP減少、破壊時にZonePoisonを生成（妨害）
 }
 
 public class Block : MonoBehaviour
@@ -74,6 +75,10 @@ public class Block : MonoBehaviour
             }
         }
 
+        // スパイクブロック：ボール接触でプレイヤーにHPダメージ
+        if (blockType == BlockType.Spike && ball != null)
+            GameManager.Instance?.OnSpikeHit(ball.playerIndex);
+
         // ボールの属性に応じたダメージ量を取得
         int damage = ball != null ? ball.GetDamage() : 1;
         TakeDamage(damage, ball);
@@ -125,8 +130,24 @@ public class Block : MonoBehaviour
             GetArena()?.TriggerHitStop(Mathf.RoundToInt(explosiveHitFrames * mul), shake: true);
         }
 
+        // スパイクブロック：毒エリアを生成してアイテムドロップなし
+        if (blockType == BlockType.Spike)
+        {
+            GetArena()?.SpawnZonePoison(transform.position);
+            Destroy(gameObject);
+            return;
+        }
+
         if (ball != null) TryDropItem(ball);
         Destroy(gameObject);
+    }
+
+    // InterferenceHarden から呼ばれる: ブロックを Hard に変換してHPを直接設定する
+    public void HardenToHp(int targetHp)
+    {
+        blockType = BlockType.Hard;
+        hp        = targetHp;
+        currentHp = targetHp;
     }
 
     private void TryDropItem(BallScript ball)

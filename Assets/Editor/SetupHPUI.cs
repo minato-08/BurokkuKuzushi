@@ -104,23 +104,40 @@ public static class SetupHPUI
             anchor: new Vector2(0.5f,1f), pivot: new Vector2(0.5f,1f),
             pos: new Vector2(0,-8), size: new Vector2(300,36), fontSize: 24, font: latinFont);
 
+        // ── 妨害通知オーバーレイ（左半分=P1、右半分=P2） ──────────
+        var p1Overlay      = EnsureOverlayPanel(centerUI, "P1InterferenceOverlay",
+            anchorMin: new Vector2(0f, 0f), anchorMax: new Vector2(0.5f, 1f));
+        var p1OverlayLabel = EnsureOverlayText(p1Overlay.gameObject, "P1InterferenceLabel", latinFont);
+
+        var p2Overlay      = EnsureOverlayPanel(centerUI, "P2InterferenceOverlay",
+            anchorMin: new Vector2(0.5f, 0f), anchorMax: new Vector2(1f, 1f));
+        var p2OverlayLabel = EnsureOverlayText(p2Overlay.gameObject, "P2InterferenceLabel", latinFont);
+
+        // オーバーレイは最前面に（最後の兄弟として配置）
+        p1Overlay.transform.SetAsLastSibling();
+        p2Overlay.transform.SetAsLastSibling();
+
         // ── UIManager にバインド ────────────────────────────────────
         SerializedObject so = new SerializedObject(ui);
-        Bind(so, "p1ScoreText",      p1Score);
-        Bind(so, "p2ScoreText",      p2Score);
-        Bind(so, "p1HPText",         p1HPText);
-        Bind(so, "p2HPText",         p2HPText);
-        Bind(so, "p1HPFill",         p1HPFill);
-        Bind(so, "p2HPFill",         p2HPFill);
-        Bind(so, "p1ComboText",      p1Combo);
-        Bind(so, "p2ComboText",      p2Combo);
-        Bind(so, "p1RoundWinsText",  p1Wins);
-        Bind(so, "p2RoundWinsText",  p2Wins);
-        Bind(so, "p1EnergyFill",     p1EnergyFill);
-        Bind(so, "p2EnergyFill",     p2EnergyFill);
-        Bind(so, "p1SkillText",      p1SkillText);
-        Bind(so, "p2SkillText",      p2SkillText);
-        Bind(so, "statusText",       status);
+        Bind(so, "p1ScoreText",             p1Score);
+        Bind(so, "p2ScoreText",             p2Score);
+        Bind(so, "p1HPText",                p1HPText);
+        Bind(so, "p2HPText",                p2HPText);
+        Bind(so, "p1HPFill",                p1HPFill);
+        Bind(so, "p2HPFill",                p2HPFill);
+        Bind(so, "p1ComboText",             p1Combo);
+        Bind(so, "p2ComboText",             p2Combo);
+        Bind(so, "p1RoundWinsText",         p1Wins);
+        Bind(so, "p2RoundWinsText",         p2Wins);
+        Bind(so, "p1EnergyFill",            p1EnergyFill);
+        Bind(so, "p2EnergyFill",            p2EnergyFill);
+        Bind(so, "p1SkillText",             p1SkillText);
+        Bind(so, "p2SkillText",             p2SkillText);
+        Bind(so, "statusText",              status);
+        Bind(so, "p1InterferenceOverlay",   p1Overlay.GetComponent<CanvasGroup>());
+        Bind(so, "p1InterferenceLabel",     p1OverlayLabel);
+        Bind(so, "p2InterferenceOverlay",   p2Overlay.GetComponent<CanvasGroup>());
+        Bind(so, "p2InterferenceLabel",     p2OverlayLabel);
         so.ApplyModifiedPropertiesWithoutUndo();
 
         EditorUtility.SetDirty(ui);
@@ -191,6 +208,65 @@ public static class SetupHPUI
         SerializedProperty p = so.FindProperty(prop);
         if (p != null) p.objectReferenceValue = value;
         else Debug.LogWarning($"[SetupHPUI] UIManager に '{prop}' が見つかりません。");
+    }
+
+    // 妨害通知用: 画面半分を覆う半透明パネル（CanvasGroup 付き、初期 alpha=0）
+    private static CanvasGroup EnsureOverlayPanel(GameObject parent, string name,
+        Vector2 anchorMin, Vector2 anchorMax)
+    {
+        Transform ex = parent.transform.Find(name);
+        GameObject go = ex != null ? ex.gameObject : new GameObject(name);
+        if (ex == null) go.transform.SetParent(parent.transform, false);
+
+        CanvasGroup cg = go.GetComponent<CanvasGroup>();
+        if (cg == null) cg = go.AddComponent<CanvasGroup>();
+        cg.alpha          = 0f;
+        cg.interactable   = false;
+        cg.blocksRaycasts = false;
+
+        // 背景 Image
+        if (go.GetComponent<CanvasRenderer>() == null) go.AddComponent<CanvasRenderer>();
+        Image img = go.GetComponent<Image>();
+        if (img == null) img = go.AddComponent<Image>();
+        img.color         = new Color(1f, 0.1f, 0.1f, 0.4f);
+        img.raycastTarget = false;
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        if (rt == null) rt = go.AddComponent<RectTransform>();
+        rt.anchorMin        = anchorMin;
+        rt.anchorMax        = anchorMax;
+        rt.pivot            = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta        = Vector2.zero;
+
+        return cg;
+    }
+
+    // 妨害通知用テキスト（オーバーレイパネルの子、中央配置）
+    private static TextMeshProUGUI EnsureOverlayText(GameObject overlayPanel,
+        string name, TMP_FontAsset font)
+    {
+        Transform ex = overlayPanel.transform.Find(name);
+        GameObject go = ex != null ? ex.gameObject : new GameObject(name);
+        if (ex == null) go.transform.SetParent(overlayPanel.transform, false);
+
+        TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
+        if (tmp == null) tmp = go.AddComponent<TextMeshProUGUI>();
+        if (font != null) tmp.font = font;
+        tmp.fontSize  = 28;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color     = Color.white;
+        tmp.text      = "";
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        if (rt == null) rt = go.AddComponent<RectTransform>();
+        rt.anchorMin        = Vector2.zero;
+        rt.anchorMax        = Vector2.one;
+        rt.pivot            = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta        = Vector2.zero;
+
+        return tmp;
     }
 
     private static TMP_FontAsset FindLatinFont()

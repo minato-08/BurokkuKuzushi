@@ -175,8 +175,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `BlockSpawner.cs`
 - タイマーで行を生成、毎フレーム降下、底判定
-- 妨害行はキューに積んで、スポーン位置が空いてから生成（重なり防止）
+- 妨害行（`pendingSabotageRows`）と Spike 行（`pendingSpikeRows`）をキューで管理。`IsTopClear()` になり次第スポーン
 - `blockDeadZoneY`（旧 `bottomY`）を超えたブロックを削除し `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知。同時に `TriggerHitStop` でカメラシェイク
+- `ReceiveSabotageRow()` / `ReceiveSpikeRow()` — GameManager から呼ばれる
+- `HardenRandomBlocks()` — LINQ で Normal ブロックをランダムに `hardenCount` 個選び `HardenToHp(hardenTargetHp)` で Hard 化
 - `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
 
 ### `BallScript.cs`
@@ -205,14 +207,21 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `ballSpawnOffsetY` と PlayerController.localPosition.y から動的にリスポーン位置を算出
 - ArenaController.ballSpawnOffsetY と同じ値にすること
 
+### `ZonePoison.cs`
+- Phase E で新設。BlockSpike 破壊時または InterferencePoison で生成される毒エリア
+- `Setup(playerIndex, targetWorldY)` でパドル Y とオーナー設定 → 落下して着地後 `duration` 秒間持続
+- 着地後は OverlapSphere でパドル接触を毎フレーム検出し `GameManager.OnPoisonTick()` を呼ぶ
+- `Destroy(gameObject, duration)` で自動消滅。`ArenaController.ResetForNewRound()` でも即時削除
+
 ### `Block.cs`
-- `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを増加）
+- `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを増加）/ `Spike`（接触で `OnSpikeHit`、破壊で `SpawnZonePoison`）
 - `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須
 - Normal/Hard/Absorb 衝突時: `normalHitFrames / hardHitFrames / absorbHitFrames`（デフォルト 0）に `ball.GetHitStopMultiplier()` を乗算してヒットストップ
 - Explosive 破壊時: `explosiveHitFrames`（デフォルト 6）に `ball.GetAttributeMultiplier()` を乗算してヒットストップ（速度閾値によらず発動）
 - `blockType` / `hp` はパブリックフィールド。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
+- `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定
 - `GetArena()`: `transform.parent?.parent?.GetComponentInChildren<ArenaController>()` — Block → BlockSpawner → Arena root の順で辿る
-- 破壊時に `TryDropItem()` を呼んで確率でアイテムをドロップ
+- 破壊時に `TryDropItem()` を呼んで確率でアイテムをドロップ（Spike は除く）
 
 ### `EffectDefinition.cs`
 - アイテム・スキル効果の抽象基底クラス（`Apply(playerIndex, arena)` メソッド）
@@ -249,6 +258,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `CenterUI` にアタッチ、毎フレーム GameManager をポーリングして更新
 - HP バー色: 緑（≥70%）→ 黄（≥30%）→ 赤（<30%）
 - `RoundOver` のみ `statusText` を表示（MatchOver は MatchResultUI が担当）
+- `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン）。Setup HP UI で P1/P2InterferenceOverlay をバインドする
 
 ### Editor スクリプト (`Assets/Editor/`)
 - `SetupHPUI.cs`: `BurokkuKuzushi > Setup HP UI`（冪等）

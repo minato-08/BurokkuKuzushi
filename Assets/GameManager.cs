@@ -49,6 +49,12 @@ public class GameManager : MonoBehaviour
     [Header("HP帯別パラメータ（thresholdPercent 降順で設定）")]
     [SerializeField] private HPStateBand[] hpStateBands;
 
+    [Header("妨害種別の重み（0=無効）")]
+    [SerializeField] private int interferenceWeightAddRow = 2;
+    [SerializeField] private int interferenceWeightHarden = 2;
+    [SerializeField] private int interferenceWeightSpike  = 1;
+    [SerializeField] private int interferenceWeightPoison = 1;
+
     [Header("アリーナ参照")]
     [SerializeField] private ArenaController arena1;
     [SerializeField] private ArenaController arena2;
@@ -68,6 +74,8 @@ public class GameManager : MonoBehaviour
         RoundOver,
         MatchOver
     }
+
+    public enum InterferenceType { AddRow, Harden, Spike, Poison }
     private GameState currentState = GameState.WaitingToStart;
 
     // =====================================================
@@ -232,11 +240,56 @@ public class GameManager : MonoBehaviour
         ArenaController target = targetPlayerIndex == 1 ? arena1 : arena2;
         if (target == null) return;
 
-        target.GetSpawner()?.ReceiveSabotageRow();
+        InterferenceType type = SelectInterferenceType();
+        ApplyInterference(target, type);
         target.TriggerHitStop(interferenceTriggerFrames);
+        target.ShowInterferenceOverlay(GetInterferenceLabel(type));
 
-        Debug.Log($"P{targetPlayerIndex} に妨害行を送信！");
+        Debug.Log($"P{targetPlayerIndex} に妨害送信: {type}");
     }
+
+    private InterferenceType SelectInterferenceType()
+    {
+        int total = interferenceWeightAddRow + interferenceWeightHarden
+                  + interferenceWeightSpike  + interferenceWeightPoison;
+        if (total <= 0) return InterferenceType.AddRow;
+
+        int r = Random.Range(0, total);
+        if (r < interferenceWeightAddRow) return InterferenceType.AddRow;
+        r -= interferenceWeightAddRow;
+        if (r < interferenceWeightHarden) return InterferenceType.Harden;
+        r -= interferenceWeightHarden;
+        if (r < interferenceWeightSpike)  return InterferenceType.Spike;
+        return InterferenceType.Poison;
+    }
+
+    private void ApplyInterference(ArenaController target, InterferenceType type)
+    {
+        switch (type)
+        {
+            case InterferenceType.AddRow:
+                target.GetSpawner()?.ReceiveSabotageRow();
+                break;
+            case InterferenceType.Harden:
+                target.HardenBlocks();
+                break;
+            case InterferenceType.Spike:
+                target.GetSpawner()?.ReceiveSpikeRow();
+                break;
+            case InterferenceType.Poison:
+                target.SpawnZonePoison(target.GetRandomFloorWorldPos());
+                break;
+        }
+    }
+
+    private static string GetInterferenceLabel(InterferenceType type) => type switch
+    {
+        InterferenceType.AddRow  => "妨害行",
+        InterferenceType.Harden  => "ブロック硬化",
+        InterferenceType.Spike   => "スパイク",
+        InterferenceType.Poison  => "毒エリア",
+        _ => type.ToString()
+    };
 
     // =====================================================
     // ラウンド・試合終了
