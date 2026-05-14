@@ -1141,15 +1141,17 @@ MonoBehaviour:
   blockWidth: 1.5666666
   blockGap: 0.1
   blockHeight: 0.7
-  spawnY: 4.5
-  bottomY: -4.5
-  spawnInterval: 10
-  descentSpeed: 0.1
+  spawnY: 7
+  blockDeadZoneY: -5
+  spawnInterval: 6
+  descentSpeed: 0.3
   explosiveBlockChance: 0.1
   hardBlockChance: 0.2
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
+  blockDeadZoneHitFrames: 5
+  blockDeadZoneHitShake: 1
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -1941,15 +1943,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallScript
   speed: 10
-  initialLocalDirection: {x: 1, y: -7, z: 0}
+  initialLocalDirection: {x: 0, y: -7, z: 0.5}
   relaunchAngleSpread: 0.5
   minAxisRatio: 0.2
+  timeAccelRate: 0.05
+  timeAccelMax: 2
+  boundX: 7
+  boundYTop: 11
+  boundYBottom: -13
   attribute: 0
   normalDamage: 1
   iceDamage: 2
   heavyDamage: 3
   fireRadius: 1.5
   thunderRadius: 2.5
+  hitStopSpeedThreshold: 1.5
+  hitStopHeavyMul: 1.5
+  hitStopFireMul: 1.2
+  hitStopThunderMul: 1.1
+  hitStopIceMul: 1.2
+  wallBounceFrames: 0
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   fireColor: {r: 1, g: 0.3, b: 0.1, a: 1}
   thunderColor: {r: 1, g: 0.9, b: 0.2, a: 1}
@@ -1957,8 +1970,6 @@ MonoBehaviour:
   heavyColor: {r: 0.6, g: 0.3, b: 0.8, a: 1}
   playerIndex: 2
   isExtraBall: 0
-  stuckTimeoutSec: 5
-  stuckSpeedMul: 1.1
 --- !u!54 &897915113
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2626,6 +2637,7 @@ MonoBehaviour:
   metronomeAngleRange: 60
   metronomePeriodSec: 1
   autoLaunchSec: 3
+  minAutoLaunchSec: 0.5
 --- !u!4 &1024040564
 Transform:
   m_ObjectHideFlags: 0
@@ -2947,6 +2959,7 @@ MonoBehaviour:
   xLimit: 4.7
   paddleLocalY: -8
   paddleLocalZ: 0.5
+  paddleBounceFrames: 0
 --- !u!54 &1185632019
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3779,15 +3792,17 @@ MonoBehaviour:
   blockWidth: 1.5666666
   blockGap: 0.1
   blockHeight: 0.7
-  spawnY: 4.5
-  bottomY: -4.5
-  spawnInterval: 10
-  descentSpeed: 0.1
+  spawnY: 7
+  blockDeadZoneY: -5
+  spawnInterval: 6
+  descentSpeed: 0.3
   explosiveBlockChance: 0.1
   hardBlockChance: 0.2
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
+  blockDeadZoneHitFrames: 5
+  blockDeadZoneHitShake: 1
 --- !u!1 &1342564222
 GameObject:
   m_ObjectHideFlags: 0
@@ -4576,6 +4591,7 @@ MonoBehaviour:
   metronomeAngleRange: 60
   metronomePeriodSec: 1
   autoLaunchSec: 3
+  minAutoLaunchSec: 0.5
 --- !u!4 &1429326907
 Transform:
   m_ObjectHideFlags: 0
@@ -5041,6 +5057,7 @@ MonoBehaviour:
   xLimit: 4.7
   paddleLocalY: -8
   paddleLocalZ: 0.5
+  paddleBounceFrames: 0
 --- !u!54 &1592312631
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -5300,15 +5317,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallScript
   speed: 10
-  initialLocalDirection: {x: 1, y: -7, z: 0}
+  initialLocalDirection: {x: 0, y: -7, z: 0.5}
   relaunchAngleSpread: 0.5
   minAxisRatio: 0.2
+  timeAccelRate: 0.05
+  timeAccelMax: 2
+  boundX: 7
+  boundYTop: 11
+  boundYBottom: -13
   attribute: 0
   normalDamage: 1
   iceDamage: 2
   heavyDamage: 3
   fireRadius: 1.5
   thunderRadius: 2.5
+  hitStopSpeedThreshold: 1.5
+  hitStopHeavyMul: 1.5
+  hitStopFireMul: 1.2
+  hitStopThunderMul: 1.1
+  hitStopIceMul: 1.2
+  wallBounceFrames: 0
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   fireColor: {r: 1, g: 0.3, b: 0.1, a: 1}
   thunderColor: {r: 1, g: 0.9, b: 0.2, a: 1}
@@ -5316,8 +5344,6 @@ MonoBehaviour:
   heavyColor: {r: 0.6, g: 0.3, b: 0.8, a: 1}
   playerIndex: 1
   isExtraBall: 0
-  stuckTimeoutSec: 5
-  stuckSpeedMul: 1.1
 --- !u!1 &1630547083
 GameObject:
   m_ObjectHideFlags: 0
@@ -6250,6 +6276,7 @@ MonoBehaviour:
   damagePoisonPerSec: 5
   energyPerBlock: 1
   comboThreshold: 15
+  damageForceRespawn: 5
   interferenceTriggerFrames: 10
   roundEndFrames: 30
   matchEndFrames: 60
