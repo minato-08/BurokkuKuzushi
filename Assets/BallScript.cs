@@ -143,6 +143,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
     public void Relaunch()
     {
+        frozen = false; // 凍結状態をクリア（再戦時や落下後のリスポーンで確実にリセット）
         float randomX = Random.Range(-relaunchAngleSpread, relaunchAngleSpread);
         Launch(new Vector3(randomX, 1f, 0f));
     }

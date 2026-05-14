@@ -74,24 +74,15 @@ public class UIManager : MonoBehaviour
         if (statusText == null) return;
 
         var state = GameManager.Instance.GetCurrentState();
-        switch (state)
+        // MatchOver の表示は MatchResultUI が担当するためここでは非表示
+        if (state == GameManager.GameState.RoundOver)
         {
-            case GameManager.GameState.RoundOver:
-                statusText.gameObject.SetActive(true);
-                statusText.text = "Round Over!";
-                break;
-
-            case GameManager.GameState.MatchOver:
-                statusText.gameObject.SetActive(true);
-                int p1W = GameManager.Instance.GetRoundWins(1);
-                int p2W = GameManager.Instance.GetRoundWins(2);
-                int winner = p1W > p2W ? 1 : 2;
-                statusText.text = $"P{winner} WINS!";
-                break;
-
-            default:
-                statusText.gameObject.SetActive(false);
-                break;
+            statusText.gameObject.SetActive(true);
+            statusText.text = "Round Over!";
+        }
+        else
+        {
+            statusText.gameObject.SetActive(false);
         }
     }
 }

@@ -167,14 +167,23 @@ ArenaController.Awake()
 - `blockType` / `hp` はパブリックフィールド（`SerializeField` ではない）。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
 - スコア値（`normalScore` / `hardScore`）は現時点でハードコード（Profile 未対応）
 
+### `MatchResultUI.cs`
+- `CenterUI` にアタッチ。`GameState.MatchOver` を検出してパネルを表示
+- A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
+- 再戦: `GameManager.StartRematch()` — アリーナリセット + timeScale=1 を一括処理
+- メニュー: `SceneManager.LoadScene()` でシーンリロード（タイトル画面は Phase G+ 予定）
+- `SetupMatchResultUI.cs` で UI を自動生成・バインド（冪等）
+
 ### `UIManager.cs`
 - `CenterUI` にアタッチ、毎フレーム GameManager をポーリングして更新
 - HP バー色: 緑（≥70%）→ 黄（≥30%）→ 赤（<30%）
+- `RoundOver` のみ `statusText` を表示（MatchOver は MatchResultUI が担当）
 
 ### Editor スクリプト (`Assets/Editor/`)
 - `SetupGameBalanceProfile.cs`: `BurokkuKuzushi > Setup GameBalanceProfile`
 - `SetupHPUI.cs`: `BurokkuKuzushi > Setup HP UI`（冪等）
 - `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— Camera1/Camera2 を ArenaController にバインド
+- `SetupMatchResultUI.cs`: `BurokkuKuzushi > Setup MatchResult UI`（冪等）— MatchResultPanel を生成・MatchResultUI にバインド
 - `SetupUIManager.cs` / `SetupSplitScreen.cs`: 旧スクリプト、現在は不要
 
 ---

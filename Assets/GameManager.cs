@@ -86,6 +86,27 @@ public class GameManager : MonoBehaviour
         // 初回はシーンに最初から配置されているため、アリーナリセットは呼ばない
     }
 
+    // 再戦: スコア・勝利数をリセットしてアリーナも再配置（StartNewMatch は初回起動専用）
+    public void StartRematch()
+    {
+        p1RoundWins = 0;
+        p2RoundWins = 0;
+        p1Score = 0;
+        p2Score = 0;
+        p1DestroyedCount = 0;
+        p2DestroyedCount = 0;
+
+        int maxHP = profile != null ? profile.hp.maxHP : 500;
+        p1HP.SetMaxHP(maxHP, refill: true);
+        p2HP.SetMaxHP(maxHP, refill: true);
+
+        Time.timeScale = 1f;
+        currentState = GameState.Playing;
+
+        if (arena1 != null) arena1.ResetForNewRound();
+        if (arena2 != null) arena2.ResetForNewRound();
+    }
+
     // 次のラウンドを開始：アリーナをクリーンアップして再配置
     public void StartNextRound()
     {
