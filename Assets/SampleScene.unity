@@ -1150,6 +1150,9 @@ MonoBehaviour:
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
+  spikeBlockHp: 1
+  hardenCount: 3
+  hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
   blockDeadZoneHitShake: 1
 --- !u!1 &330585543
@@ -3801,6 +3804,9 @@ MonoBehaviour:
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
+  spikeBlockHp: 1
+  hardenCount: 3
+  hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
   blockDeadZoneHitShake: 1
 --- !u!1 &1342564222
@@ -6063,6 +6069,10 @@ MonoBehaviour:
   p1SkillText: {fileID: 285453535}
   p2SkillText: {fileID: 1357080690}
   statusText: {fileID: 740959086}
+  p1InterferenceOverlay: {fileID: 0}
+  p1InterferenceLabel: {fileID: 0}
+  p2InterferenceOverlay: {fileID: 0}
+  p2InterferenceLabel: {fileID: 0}
 --- !u!114 &1934063271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6281,6 +6291,10 @@ MonoBehaviour:
   roundEndFrames: 30
   matchEndFrames: 60
   hpStateBands: []
+  interferenceWeightAddRow: 2
+  interferenceWeightHarden: 2
+  interferenceWeightSpike: 0
+  interferenceWeightPoison: 1
   arena1: {fileID: 1342564224}
   arena2: {fileID: 1085258024}
 --- !u!4 &2074190969
