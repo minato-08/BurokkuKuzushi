@@ -1,6 +1,6 @@
 # BurokkuKuzushi 開発ロードマップ
 
-最終更新: 2026-05-15
+最終更新: 2026-05-15（Phase E 完了・Pierce 実装）
 
 このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
 
@@ -72,7 +72,7 @@
   - [x] 属性付与系（Fire / Ice / Thunder / Heavy）
   - [x] パドル強化系（Enlarge）
   - [x] ボール速度系（SpeedUp / Hyper）
-  - [ ] ボール強化系（Pierce）← Phase D 以降
+  - [x] ボール強化系（Pierce）— BallAttribute.Pierce 貫通（Heavy と同機構、ヒットストップなし）
   - [x] 回復系（Heal）
   - [x] 不利系（Shrink / Hyper）
 
@@ -96,16 +96,17 @@
 
 ## Phase E: 妨害多様化
 
-- [x] `InterferenceType` enum (AddRow / Harden / Spike / Poison) + 重み付きランダム dispatch に `SendSabotageTo()` を刷新
+- [x] `InterferenceType` enum (AddRow / Harden / Spike / Poison / Slow) + 重み付きランダム dispatch
 - [x] `InterferenceHarden` — BlockSpawner.HardenRandomBlocks() で既存 Normal を Hard 化（HP 3）
 - [x] `InterferenceSpike` — Spike 行を送付（BlockSpawner.ReceiveSpikeRow()）
 - [x] `InterferencePoison` — ZonePoison を直接生成（ArenaController.SpawnZonePoison()）
+- [x] `InterferenceSlow` — ZoneSlow を直接生成（ArenaController.SpawnZoneSlow()）
 - [x] `BlockType.Spike` — 接触で OnSpikeHit、破壊で ZonePoison 生成
 - [x] `ZonePoison` — 落下して着地後パドル接触 HP ダメージ（duration 秒で消滅）
+- [x] `ZoneSlow` — 落下してアリーナ中央付近に着地。内部ボールを slowFactor 倍に減速（duration 秒）
+- [x] `BlockHardened` — 妨害 Harden で変換されたブロックは金色で通常 Hard と視覚的に区別
+- [x] ブロック種別カラー全実装（Normal=水色 / Hard=橙 / Absorb=青紫 / Explosive=赤 / Spike=濃紫）
 - [x] 妨害送付時の通知演出（スクリーンオーバーレイ 1.5 秒フラッシュ）— Setup HP UI で自動生成
-- [ ] `ZoneSlow` — ボール減速エリア（後回し）
-- [ ] `InterferenceSlow`（後回し）
-- [ ] `BlockHardened` — Hard との視覚的区別（後回し）
 - [ ] 妨害送付時のブロックオーラ演出（Phase F へ）
 
 ---
@@ -152,4 +153,5 @@
 - **完了**: Phase B（メトロノーム発射 + 強制リスポーン + 時間加速）
 - **完了**: Phase C（アイテム）
 - **完了**: Phase D（スキル）
-- **進行中**: Phase E（妨害多様化コア実装済み、ZoneSlow / BlockHardened 視覚区別が残り）
+- **完了**: Phase E（妨害多様化フル実装 — ZoneSlow / BlockHardened 視覚区別 / Pierce アイテム含む）
+- **次**: Phase F（演出強化）または Phase G+（拡張要素）

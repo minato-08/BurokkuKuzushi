@@ -2,10 +2,10 @@ using UnityEngine;
 
 public enum ItemType
 {
-    Fire, Ice, Thunder, Heavy,  // Ball attribute
-    Enlarge, SpeedUp,           // Good items
-    Shrink, Hyper,              // Bad items
-    Heal                        // Recovery
+    Fire, Ice, Thunder, Heavy, Pierce, // Ball attribute
+    Enlarge, SpeedUp,                  // Good items
+    Shrink, Hyper,                     // Bad items
+    Heal                               // Recovery
 }
 
 public static class ItemDefinition
@@ -16,6 +16,7 @@ public static class ItemDefinition
         ItemType.Ice     => new Color(0.4f, 0.8f, 1f),
         ItemType.Thunder => new Color(1f, 0.9f, 0.2f),
         ItemType.Heavy   => new Color(0.6f, 0.3f, 0.8f),
+        ItemType.Pierce  => new Color(0.6f, 1.0f, 1.0f),
         ItemType.Enlarge => new Color(0.2f, 0.9f, 0.2f),
         ItemType.SpeedUp => new Color(0.2f, 0.7f, 1f),
         ItemType.Shrink  => new Color(0.9f, 0.1f, 0.1f),
@@ -30,6 +31,7 @@ public static class ItemDefinition
         ItemType.Ice     => "ICE",
         ItemType.Thunder => "THUNDER",
         ItemType.Heavy   => "HEAVY",
+        ItemType.Pierce  => "PIERCE",
         ItemType.Enlarge => "ENLARGE",
         ItemType.SpeedUp => "SPEED UP",
         ItemType.Shrink  => "SHRINK",
@@ -102,6 +104,7 @@ public class ItemDrop : MonoBehaviour
         ItemType.Ice     => new EffectBallAttribute { Attr = BallAttribute.Ice,     Duration = attributeDuration },
         ItemType.Thunder => new EffectBallAttribute { Attr = BallAttribute.Thunder, Duration = attributeDuration },
         ItemType.Heavy   => new EffectBallAttribute { Attr = BallAttribute.Heavy,   Duration = attributeDuration },
+        ItemType.Pierce  => new EffectBallAttribute { Attr = BallAttribute.Pierce,  Duration = attributeDuration },
         ItemType.Enlarge => new EffectPaddleScale   { Multiplier = enlargeMultiplier, Duration = paddleDuration },
         ItemType.Shrink  => new EffectPaddleScale   { Multiplier = shrinkMultiplier,  Duration = paddleDuration },
         ItemType.SpeedUp => new EffectBallSpeed     { Multiplier = speedUpMultiplier, Duration = speedDuration  },

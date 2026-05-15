@@ -90,20 +90,13 @@ public class UIManager : MonoBehaviour
 
     public void ShowInterferenceOverlay(int playerIndex, string label)
     {
-        CanvasGroup      cg  = playerIndex == 1 ? p1InterferenceOverlay : p2InterferenceOverlay;
-        TextMeshProUGUI  txt = playerIndex == 1 ? p1InterferenceLabel   : p2InterferenceLabel;
+        CanvasGroup     cg  = playerIndex == 1 ? p1InterferenceOverlay : p2InterferenceOverlay;
+        TextMeshProUGUI txt = playerIndex == 1 ? p1InterferenceLabel   : p2InterferenceLabel;
         if (cg == null) return;
 
-        if (playerIndex == 1)
-        {
-            if (p1OverlayRoutine != null) StopCoroutine(p1OverlayRoutine);
-            p1OverlayRoutine = StartCoroutine(OverlayRoutine(cg, txt, label));
-        }
-        else
-        {
-            if (p2OverlayRoutine != null) StopCoroutine(p2OverlayRoutine);
-            p2OverlayRoutine = StartCoroutine(OverlayRoutine(cg, txt, label));
-        }
+        ref Coroutine slot = ref (playerIndex == 1 ? ref p1OverlayRoutine : ref p2OverlayRoutine);
+        if (slot != null) StopCoroutine(slot);
+        slot = StartCoroutine(OverlayRoutine(cg, txt, label));
     }
 
     private IEnumerator OverlayRoutine(CanvasGroup cg, TextMeshProUGUI txt, string label)

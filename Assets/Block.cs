@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// ブロックの種類を定義するenum
 public enum BlockType
 {
     Normal,    // 通常：1撃で破壊
@@ -37,11 +36,39 @@ public class Block : MonoBehaviour
     [Header("アイテムドロップ設定")]
     [SerializeField] private float baseDropChance = 0.15f;
 
+    [Header("ブロック色設定")]
+    [SerializeField] private Color normalColor    = new Color(0.6f, 0.8f, 1.0f);  // 水色
+    [SerializeField] private Color hardColor      = new Color(1.0f, 0.5f, 0.1f);  // オレンジ
+    [SerializeField] private Color absorbColor    = new Color(0.5f, 0.4f, 0.9f);  // 青紫
+    [SerializeField] private Color explosiveColor = new Color(1.0f, 0.2f, 0.1f);  // 赤
+    [SerializeField] private Color spikeColor     = new Color(0.5f, 0.0f, 0.5f);  // 濃紫
+    [SerializeField] private Color hardenedColor  = new Color(1.0f, 0.8f, 0.0f);  // 金色（妨害Harden専用）
+
     private int currentHp;
+    private Renderer blockRenderer;
+
+    void Awake()
+    {
+        blockRenderer = GetComponent<Renderer>();
+    }
 
     void Start()
     {
         currentHp = hp;
+        RefreshColor();
+    }
+
+    private void RefreshColor()
+    {
+        if (blockRenderer == null) return;
+        blockRenderer.material.color = blockType switch
+        {
+            BlockType.Hard      => hardColor,
+            BlockType.Absorb    => absorbColor,
+            BlockType.Explosive => explosiveColor,
+            BlockType.Spike     => spikeColor,
+            _                   => normalColor
+        };
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -75,7 +102,6 @@ public class Block : MonoBehaviour
             }
         }
 
-        // スパイクブロック：ボール接触でプレイヤーにHPダメージ
         if (blockType == BlockType.Spike && ball != null)
             GameManager.Instance?.OnSpikeHit(ball.playerIndex);
 
@@ -130,7 +156,6 @@ public class Block : MonoBehaviour
             GetArena()?.TriggerHitStop(Mathf.RoundToInt(explosiveHitFrames * mul), shake: true);
         }
 
-        // スパイクブロック：毒エリアを生成してアイテムドロップなし
         if (blockType == BlockType.Spike)
         {
             GetArena()?.SpawnZonePoison(transform.position);
@@ -142,12 +167,14 @@ public class Block : MonoBehaviour
         Destroy(gameObject);
     }
 
-    // InterferenceHarden から呼ばれる: ブロックを Hard に変換してHPを直接設定する
     public void HardenToHp(int targetHp)
     {
         blockType = BlockType.Hard;
         hp        = targetHp;
         currentHp = targetHp;
+        // 妨害 Harden で変換されたブロックは金色で通常 Hard と区別する
+        if (blockRenderer != null)
+            blockRenderer.material.color = hardenedColor;
     }
 
     private void TryDropItem(BallScript ball)
@@ -168,8 +195,8 @@ public class Block : MonoBehaviour
 
     private static ItemType SelectRandomItemType(float goodItemBias)
     {
-        var good = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal };
-        var all  = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal, ItemType.Shrink, ItemType.Hyper };
+        var good = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal };
+        var all  = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal, ItemType.Shrink, ItemType.Hyper };
         if (goodItemBias > 0f && Random.value < goodItemBias)
             return good[Random.Range(0, good.Length)];
         return all[Random.Range(0, all.Length)];

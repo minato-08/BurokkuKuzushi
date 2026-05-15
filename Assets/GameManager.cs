@@ -54,6 +54,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int interferenceWeightHarden = 2;
     [SerializeField] private int interferenceWeightSpike  = 1;
     [SerializeField] private int interferenceWeightPoison = 1;
+    [SerializeField] private int interferenceWeightSlow   = 1;
 
     [Header("アリーナ参照")]
     [SerializeField] private ArenaController arena1;
@@ -75,7 +76,7 @@ public class GameManager : MonoBehaviour
         MatchOver
     }
 
-    public enum InterferenceType { AddRow, Harden, Spike, Poison }
+    public enum InterferenceType { AddRow, Harden, Spike, Poison, Slow }
     private GameState currentState = GameState.WaitingToStart;
 
     // =====================================================
@@ -251,7 +252,8 @@ public class GameManager : MonoBehaviour
     private InterferenceType SelectInterferenceType()
     {
         int total = interferenceWeightAddRow + interferenceWeightHarden
-                  + interferenceWeightSpike  + interferenceWeightPoison;
+                  + interferenceWeightSpike  + interferenceWeightPoison
+                  + interferenceWeightSlow;
         if (total <= 0) return InterferenceType.AddRow;
 
         int r = Random.Range(0, total);
@@ -260,7 +262,9 @@ public class GameManager : MonoBehaviour
         if (r < interferenceWeightHarden) return InterferenceType.Harden;
         r -= interferenceWeightHarden;
         if (r < interferenceWeightSpike)  return InterferenceType.Spike;
-        return InterferenceType.Poison;
+        r -= interferenceWeightSpike;
+        if (r < interferenceWeightPoison) return InterferenceType.Poison;
+        return InterferenceType.Slow;
     }
 
     private void ApplyInterference(ArenaController target, InterferenceType type)
@@ -279,6 +283,9 @@ public class GameManager : MonoBehaviour
             case InterferenceType.Poison:
                 target.SpawnZonePoison(target.GetRandomFloorWorldPos());
                 break;
+            case InterferenceType.Slow:
+                target.SpawnZoneSlow(target.GetRandomFloorWorldPos());
+                break;
         }
     }
 
@@ -288,6 +295,7 @@ public class GameManager : MonoBehaviour
         InterferenceType.Harden  => "ブロック硬化",
         InterferenceType.Spike   => "スパイク",
         InterferenceType.Poison  => "毒エリア",
+        InterferenceType.Slow    => "速度低下",
         _ => type.ToString()
     };
 

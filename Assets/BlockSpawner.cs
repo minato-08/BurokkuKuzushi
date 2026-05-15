@@ -40,7 +40,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [SerializeField] private int  blockDeadZoneHitFrames = 5;
     [SerializeField] private bool blockDeadZoneHitShake  = true;
 
-    private List<GameObject> allBlocks = new List<GameObject>();
+    private List<Block> allBlocks = new List<Block>();
     private float spawnTimer = 0f;
     private int   pendingSabotageRows = 0;
     private int   pendingSpikeRows    = 0;
@@ -118,10 +118,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             float x = startX + i * spacing;
             Vector3 localPos = new Vector3(x, spawnY, 0f);
 
-            GameObject block = Instantiate(blockPrefab, transform);
-            block.transform.localPosition = localPos;
+            GameObject blockGO = Instantiate(blockPrefab, transform);
+            blockGO.transform.localPosition = localPos;
 
-            Block blockScript = block.GetComponent<Block>();
+            Block blockScript = blockGO.GetComponent<Block>();
             if (blockScript == null) continue;
 
             switch (rowType)
@@ -131,7 +131,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
                 default:               ApplyNormalRowSettings(blockScript);   break;
             }
 
-            allBlocks.Add(block);
+            allBlocks.Add(blockScript);
         }
     }
 
@@ -183,17 +183,17 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         int reachedCount = 0;
         for (int i = allBlocks.Count - 1; i >= 0; i--)
         {
-            GameObject blockObj = allBlocks[i];
-            if (blockObj == null)
+            Block block = allBlocks[i];
+            if (block == null)
             {
                 allBlocks.RemoveAt(i);
                 continue;
             }
 
-            if (blockObj.transform.localPosition.y <= blockDeadZoneY)
+            if (block.transform.localPosition.y <= blockDeadZoneY)
             {
                 reachedCount++;
-                Destroy(blockObj);
+                Destroy(block.gameObject);
                 allBlocks.RemoveAt(i);
             }
         }
@@ -211,8 +211,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     public void HardenRandomBlocks()
     {
         Block[] candidates = allBlocks
-            .Where(b => b != null)
-            .Select(b => b.GetComponent<Block>())
             .Where(b => b != null && b.blockType == BlockType.Normal)
             .OrderBy(_ => Random.value)
             .Take(hardenCount)
@@ -237,7 +235,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     {
         foreach (var block in allBlocks)
         {
-            if (block != null) Destroy(block);
+            if (block != null) Destroy(block.gameObject);
         }
         allBlocks.Clear();
         spawnTimer          = 0f;

@@ -4,13 +4,15 @@ using UnityEngine;
 // アリーナ上から落下し、パドル付近で停止。接触中のパドルに毎秒 HP ダメージを与える。
 public class ZonePoison : MonoBehaviour
 {
-    [SerializeField] private float fallSpeed       = 6f;
-    [SerializeField] private float duration        = 10f;
+    [SerializeField] private float fallSpeed       = 10f;
+    [SerializeField] private float duration        = 5f;
     [SerializeField] private float detectionRadius = 1.0f;
 
     private int   playerIndex;
     private float targetWorldY;
     private bool  landed;
+
+    private readonly Collider[] _overlapBuffer = new Collider[4];
 
     public void Setup(int playerIndex, float targetWorldY)
     {
@@ -36,10 +38,10 @@ public class ZonePoison : MonoBehaviour
 
         if (GameManager.Instance?.GetCurrentState() != GameManager.GameState.Playing) return;
 
-        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRadius);
-        foreach (var col in hits)
+        int count = Physics.OverlapSphereNonAlloc(transform.position, detectionRadius, _overlapBuffer);
+        for (int i = 0; i < count; i++)
         {
-            if (col.GetComponent<PlayerController>() != null)
+            if (_overlapBuffer[i].GetComponent<PlayerController>() != null)
             {
                 GameManager.Instance.OnPoisonTick(playerIndex, Time.deltaTime);
                 break;

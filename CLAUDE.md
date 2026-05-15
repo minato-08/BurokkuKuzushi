@@ -157,11 +157,15 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `ArenaController.cs`
 - `arenaHalfWidth / arenaHalfHeight` は `SpawnItem()` の底面 Y 計算にのみ使用（子コンポーネントへの配布なし）
-- `ballSpawnOffsetY` → `GetBallSpawnLocalPos()` が実行時に PlayerController の localPosition.y を読んで動的に算出
+- `ballSpawnOffsetY` → `GetBallSpawnLocalPos()` が実行時に `cachedPlayer.localPosition.y` を読んで動的に算出
+- `cachedPlayer` / `cachedUIManager` を `Awake` でキャッシュ（`GetComponentInChildren` / `FindFirstObjectByType` の都度呼び出しを回避）
+- `ArenaRoot` プロパティ (`transform.parent != null ? transform.parent : transform`) に統一
 - `arenaCamera` を Inspector でバインド（Setup HitStop で自動設定）→ `HitStopController` に渡す
 - `TriggerHitStop(frames, strong, shake)` を公開 — Block / BallScript / GameManager はこれを呼ぶ
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
+- `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
+- `ResetForNewRound()` は ZonePoison / ZoneSlow 両方をクリア
 
 ### `LaunchAimer.cs`
 - `ArenaController` の子 GameObject にアタッチ（Setup LaunchAimer で自動生成）
@@ -182,18 +186,19 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
 
 ### `BallScript.cs`
-- `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（貫通）
-- 速度の2層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果） = 実効速度
+- `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（貫通+高ダメ）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）
+- 速度の3層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow） = 実効速度
+- `slowZoneMul`: ZoneSlow が毎フレーム書き込む public フィールド。ZoneSlow が OnDestroy / 検出失敗時に 1 に戻す。PrepareRespawn でもリセット
 - `FixedUpdate` で毎フレーム実効速度に正規化。時間加速はメインボールのみ（`isExtraBall=false`）。`arenaDwellTime` はリスポーンでリセット
 - `OnCollisionEnter` で衝突直後に角度補正（`ClampAngle`）→ 壁沿いループ防止
 - `OnCollisionEnter` で壁バウンス検出（Block / PlayerController が GetComponent で見つからない衝突 = 壁）。`GetHitStopMultiplier()` が 0 より大なら `TriggerHitStop(wallBounceFrames * mul, shake:true)`
-- `lastVelocity` は `FixedUpdate` でのみ更新（Heavy属性の貫通処理が衝突前速度を復元するために使用）
+- `lastVelocity` は `FixedUpdate` でのみ更新（Heavy/Pierce 属性の貫通処理が衝突前速度を復元するために使用）
 - `Launch()`: `transform.parent.TransformDirection()` でローカル→ワールド変換
 - ボール GameObject に `"BallTag"` Unity タグが必須（`Block` / `DeadZone` どちらも `CompareTag("BallTag")` で判定）
 - `PrepareRespawn(localPos)`: コライダー無効化 + `IsWaitingToLaunch=true`。コルーチン停止・速度状態リセットも行う
 - `LaunchInDirection(localDir)`: コライダー再有効化 + 発射。LaunchAimer から呼ばれる
 - `GetHitStopMultiplier()`: `naturalSpeed/baseSpeed` が `hitStopSpeedThreshold` 未満なら 0、以上なら 0→1 にスケール。ブロック衝突・壁バウンスのフレーム数に乗算する
-- `GetAttributeMultiplier()`: 属性倍率のみ（>= 1.0）。Explosive 破壊など速度閾値によらず掛けたい場合に使用
+- `GetAttributeMultiplier()`: 属性倍率のみ（>= 1.0）。Explosive 破壊など速度閾値によらず掛けたい場合に使用。Pierce は 0f（ヒットストップなし）
 - `SetAttributeTemporary(attr, duration)`: アイテム効果で属性を一時変更（コルーチン、重ね掛け上書き）
 - `SetSpeedTemporary(multiplier, duration)`: アイテム効果でボール速度を一時変更（`speedMultiplier` コルーチン、重ね掛け上書き）
 - 境界チェック: `FixedUpdate` でアリーナ外に出た場合、メインボールはペナルティなしリスポーン、追加ボールは Destroy
@@ -210,16 +215,24 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `ZonePoison.cs`
 - Phase E で新設。BlockSpike 破壊時または InterferencePoison で生成される毒エリア
 - `Setup(playerIndex, targetWorldY)` でパドル Y とオーナー設定 → 落下して着地後 `duration` 秒間持続
-- 着地後は OverlapSphere でパドル接触を毎フレーム検出し `GameManager.OnPoisonTick()` を呼ぶ
+- 着地後は `OverlapSphereNonAlloc`（事前確保バッファ）でパドル接触を毎フレーム検出し `GameManager.OnPoisonTick()` を呼ぶ
 - `Destroy(gameObject, duration)` で自動消滅。`ArenaController.ResetForNewRound()` でも即時削除
+
+### `ZoneSlow.cs`
+- Phase E で新設。InterferenceSlow で生成されるボール減速エリア
+- `Setup(targetWorldY)` でアリーナ中央付近の着地 Y を設定 → 落下して着地後 `duration` 秒間持続
+- 着地後は `OverlapSphereNonAlloc` でボール検出。内部ボールに `ball.slowZoneMul = slowFactor` を毎フレーム設定
+- 前フレームで減速したボールをフレーム先頭でリセット → ゾーン離脱を自動検出
+- `OnDestroy()` で `slowZoneMul` を確実に 1 に戻す（ResetForNewRound による即時破棄対応）
 
 ### `Block.cs`
 - `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを増加）/ `Spike`（接触で `OnSpikeHit`、破壊で `SpawnZonePoison`）
+- ブロック種別カラーを `Awake` でキャッシュした `Renderer` に `Start()` で適用（BlockSpawner が blockType を設定した後に実行される）
+- `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定。Renderer を金色（`hardenedColor`）に更新して通常 Hard と視覚的に区別
 - `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須
 - Normal/Hard/Absorb 衝突時: `normalHitFrames / hardHitFrames / absorbHitFrames`（デフォルト 0）に `ball.GetHitStopMultiplier()` を乗算してヒットストップ
 - Explosive 破壊時: `explosiveHitFrames`（デフォルト 6）に `ball.GetAttributeMultiplier()` を乗算してヒットストップ（速度閾値によらず発動）
 - `blockType` / `hp` はパブリックフィールド。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
-- `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定
 - `GetArena()`: `transform.parent?.parent?.GetComponentInChildren<ArenaController>()` — Block → BlockSpawner → Arena root の順で辿る
 - 破壊時に `TryDropItem()` を呼んで確率でアイテムをドロップ（Spike は除く）
 
@@ -228,7 +241,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - 実装クラス: `EffectBallAttribute` / `EffectPaddleScale` / `EffectBallSpeed` / `EffectHeal`
 
 ### `ItemDrop.cs`
-- `ItemType` enum: `Fire / Ice / Thunder / Heavy / Enlarge / SpeedUp / Shrink / Hyper / Heal`
+- `ItemType` enum: `Fire / Ice / Thunder / Heavy / Pierce / Enlarge / SpeedUp / Shrink / Hyper / Heal`
 - `ItemDefinition` static クラス: `GetColor(type)` / `GetName(type)` を提供
 - `ItemDrop` MonoBehaviour: `Setup()` で初期化、`Update()` で落下 + `Physics.OverlapSphere` によるパドル接触判定
 - kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出

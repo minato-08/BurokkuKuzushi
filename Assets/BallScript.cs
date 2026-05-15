@@ -6,7 +6,8 @@ public enum BallAttribute
     Fire,
     Thunder,
     Ice,
-    Heavy
+    Heavy,
+    Pierce  // 貫通: ブロックを反射なしで通り抜ける
 }
 
 public class BallScript : MonoBehaviour, IFreezable
@@ -37,6 +38,7 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private int normalDamage = 1;
     [SerializeField] private int iceDamage    = 2;
     [SerializeField] private int heavyDamage  = 3;
+    [SerializeField] private int pierceDamage = 1;
     [SerializeField] private float fireRadius    = 1.5f;
     [SerializeField] private float thunderRadius = 2.5f;
 
@@ -56,6 +58,7 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private Color thunderColor = new Color(1.0f, 0.9f, 0.2f);
     [SerializeField] private Color iceColor     = new Color(0.4f, 0.8f, 1.0f);
     [SerializeField] private Color heavyColor   = new Color(0.6f, 0.3f, 0.8f);
+    [SerializeField] private Color pierceColor  = new Color(0.6f, 1.0f, 1.0f);
 
     [Header("プレイヤー紐付け")]
     [SerializeField] public int playerIndex = 1;
@@ -71,11 +74,14 @@ public class BallScript : MonoBehaviour, IFreezable
     // 速度の2層管理:
     //   naturalSpeed  = baseSpeed + 時間加速（メインボールのみ連続更新）
     //   speedMultiplier = アイテム効果（SpeedUp/Hyper コルーチンで一時変更）
-    //   実効速度 = naturalSpeed * speedMultiplier
+    //   slowZoneMul   = ZoneSlow が毎フレーム書き込む（ゾーン離脱時に ZoneSlow が 1 に戻す）
+    //   実効速度 = naturalSpeed * speedMultiplier * slowZoneMul
     private float baseSpeed;
     private float naturalSpeed;
     private float speedMultiplier = 1f;
     private float arenaDwellTime  = 0f;  // リスポーンでリセットするアリーナ滞在時間
+
+    public float slowZoneMul = 1f;  // ZoneSlow から書き換える。リスポーン時に 1 にリセット
 
     private Coroutine attributeRoutine;
     private Coroutine speedRoutine;
@@ -125,7 +131,7 @@ public class BallScript : MonoBehaviour, IFreezable
                                      baseSpeed + timeAccelRate * arenaDwellTime);
         }
 
-        float effectiveSpeed = naturalSpeed * speedMultiplier;
+        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
         if (rb.linearVelocity != Vector3.zero)
         {
             rb.linearVelocity = rb.linearVelocity.normalized * effectiveSpeed;
@@ -152,11 +158,11 @@ public class BallScript : MonoBehaviour, IFreezable
     }
 
     // 衝突直後（反射後）に角度を補正する
-    // lastVelocity は更新しない → Heavy属性の「衝突前速度を復元」処理を守るため
+    // lastVelocity は更新しない → Heavy/Pierce 属性の「衝突前速度を復元」処理を守るため
     private void OnCollisionEnter(Collision collision)
     {
         if (rb.linearVelocity.sqrMagnitude < 0.01f) return;
-        float effectiveSpeed = naturalSpeed * speedMultiplier;
+        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
         rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * effectiveSpeed;
 
         // 壁バウンスヒットストップ（Block・PlayerController 以外への衝突 = 壁）
@@ -190,6 +196,7 @@ public class BallScript : MonoBehaviour, IFreezable
         speedMultiplier = 1f;
         naturalSpeed    = baseSpeed;
         arenaDwellTime  = 0f;
+        slowZoneMul     = 1f;
         IsWaitingToLaunch = true;
 
         attribute = BallAttribute.Normal;
@@ -266,6 +273,7 @@ public class BallScript : MonoBehaviour, IFreezable
             BallAttribute.Fire    => hitStopFireMul,
             BallAttribute.Thunder => hitStopThunderMul,
             BallAttribute.Ice     => hitStopIceMul,
+            BallAttribute.Pierce  => 0f,   // 貫通中はヒットストップなし
             _ => 1f
         };
     }
@@ -274,8 +282,9 @@ public class BallScript : MonoBehaviour, IFreezable
     {
         return attribute switch
         {
-            BallAttribute.Ice   => iceDamage,
-            BallAttribute.Heavy => heavyDamage,
+            BallAttribute.Ice    => iceDamage,
+            BallAttribute.Heavy  => heavyDamage,
+            BallAttribute.Pierce => pierceDamage,
             _ => normalDamage
         };
     }
@@ -285,6 +294,8 @@ public class BallScript : MonoBehaviour, IFreezable
         switch (attribute)
         {
             case BallAttribute.Heavy:
+            case BallAttribute.Pierce:
+                // 衝突前の速度ベクトルを復元して貫通
                 rb.linearVelocity = lastVelocity;
                 break;
             case BallAttribute.Fire:
@@ -316,6 +327,7 @@ public class BallScript : MonoBehaviour, IFreezable
             BallAttribute.Thunder => thunderColor,
             BallAttribute.Ice     => iceColor,
             BallAttribute.Heavy   => heavyColor,
+            BallAttribute.Pierce  => pierceColor,
             _ => normalColor
         };
         Renderer renderer = GetComponent<Renderer>();
