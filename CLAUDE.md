@@ -32,7 +32,7 @@
 1. `BurokkuKuzushi > Setup HP UI` を実行
    - CenterUI 配下の UI 要素を検出・生成し、UIManager に参照をバインド
 2. `BurokkuKuzushi > Setup HitStop` を実行
-   - Arena1 / Arena2 の子に `HitStopController` GameObject を生成し、カメラ参照をバインド
+   - Arena1 / Arena2 の子に `HitStopController` GameObject を生成（シェイク対象は ArenaController.Awake が自動バインド）
 3. `BurokkuKuzushi > Setup LaunchAimer` を実行
    - Arena1 / Arena2 の子に `LaunchAimer` GameObject を生成し、ArenaController にバインド
 4. `BurokkuKuzushi > Setup MatchResult UI` を実行
@@ -134,7 +134,6 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - HP帯に応じた動的パラメータ参照: `GetCurrentBand(playerIndex)` → `HPStateBand`
 - `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
 - `GetCombo(playerIndex)` は「次の妨害送付までのブロック破壊カウント」を返す（`p1DestroyedCount`）
-- `OnForceRespawn(playerIndex)`: S/K 強制リスポーン時のHP減算窓口（`damageForceRespawn`）
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
 
 ### `HPSystem.cs`
@@ -152,15 +151,18 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `HitStopController.cs`
 - `ArenaController` の子 GameObject にアタッチ（Setup HitStop で自動生成）
 - `RegisterFreezable(IFreezable)` で管理対象を登録（ArenaController.Awake で呼ばれる）
-- `TriggerHitStop(frames, strong)`: 対象を freeze → カメラシェイク → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
+- `TriggerHitStop(frames, strong)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
+- 単カメラ運用に合わせ、カメラではなくアリーナ Transform 自体（`ArenaRoot`）を揺らす方式。アリーナごとに独立してシェイク可能
+- `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ArenaRoot` を渡す）
 - `strong=true` で強シェイク（ラウンド/マッチ決着時）
+- Freeze 中はボール `linearVelocity=0`、Player は kinematic、Block は Rigidbody なし → 親 Transform 駆動の移動でも物理的攪乱なし
 
 ### `ArenaController.cs`
 - `arenaHalfWidth / arenaHalfHeight` は `SpawnItem()` の底面 Y 計算にのみ使用（子コンポーネントへの配布なし）
 - `ballSpawnOffsetY` → `GetBallSpawnLocalPos()` が実行時に `cachedPlayer.localPosition.y` を読んで動的に算出
 - `cachedPlayer` / `cachedUIManager` を `Awake` でキャッシュ（`GetComponentInChildren` / `FindFirstObjectByType` の都度呼び出しを回避）
 - `ArenaRoot` プロパティ (`transform.parent != null ? transform.parent : transform`) に統一
-- `arenaCamera` を Inspector でバインド（Setup HitStop で自動設定）→ `HitStopController` に渡す
+- Awake で `hitStop.SetShakeTarget(ArenaRoot)` を呼んでシェイク対象をバインド（カメラ参照は持たない）
 - `TriggerHitStop(frames, strong, shake)` を公開 — Block / BallScript / GameManager はこれを呼ぶ
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
@@ -173,8 +175,6 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `ball.IsWaitingToLaunch` を監視し、true になるとメトロノーム発動
 - sin 波で ±`metronomeAngleRange`° を `metronomePeriodSec` 周期で往復
 - 1P: S キー / 2P: K キーで確定発射 → `ball.LaunchInDirection(localDir)` を呼ぶ
-- ボール飛行中に発射キーを押すと強制リスポーン（`GameManager.OnForceRespawn` でHP減算 → `ball.PrepareRespawn`）
-- 自動発射タイマーはブロック最下段位置に応じて短縮（`autoLaunchSec` → `minAutoLaunchSec` に線形補間）
 - LineRenderer でリアルタイムに発射角インジケーターを描画（ワールド座標）
 
 ### `BlockSpawner.cs`
@@ -275,7 +275,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### Editor スクリプト (`Assets/Editor/`)
 - `SetupHPUI.cs`: `BurokkuKuzushi > Setup HP UI`（冪等）
-- `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— Camera1/Camera2 を ArenaController にバインド
+- `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— 各 ArenaController の子に HitStopController GameObject を生成
 - `SetupMatchResultUI.cs`: `BurokkuKuzushi > Setup MatchResult UI`（冪等）
 - `SetupLaunchAimer.cs`: `BurokkuKuzushi > Setup LaunchAimer`（冪等）
 - `SetupSkillSelectUI.cs`: `BurokkuKuzushi > Setup Skill Select UI`（冪等）

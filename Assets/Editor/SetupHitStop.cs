@@ -13,9 +13,6 @@ public static class SetupHitStop
             return;
         }
 
-        Camera cam1 = GameObject.Find("Camera1")?.GetComponent<Camera>();
-        Camera cam2 = GameObject.Find("Camera2")?.GetComponent<Camera>();
-
         foreach (var arena in arenas)
         {
             // HitStopController を子に生成（冪等）
@@ -28,27 +25,8 @@ public static class SetupHitStop
                 Debug.Log($"[SetupHitStop] {arena.name} に HitStopController を生成しました。");
             }
 
-            // ArenaController.arenaCamera SerializeField をカメラ参照で埋める
-            Camera cam = arena.playerIndex == 1 ? cam1 : cam2;
-            if (cam != null)
-            {
-                SerializedObject so = new SerializedObject(arena);
-                SerializedProperty prop = so.FindProperty("arenaCamera");
-                if (prop != null)
-                {
-                    prop.objectReferenceValue = cam;
-                    so.ApplyModifiedProperties();
-                    Debug.Log($"[SetupHitStop] {arena.name}.arenaCamera → {cam.name}");
-                }
-                else
-                {
-                    Debug.LogWarning($"[SetupHitStop] ArenaController に 'arenaCamera' フィールドが見つかりません。");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"[SetupHitStop] playerIndex={arena.playerIndex} 用のカメラが見つかりません。");
-            }
+            // シェイク対象は ArenaController.Awake() が ArenaRoot を自動バインドするので
+            // Editor 側での追加バインドは不要
 
             EditorUtility.SetDirty(arena);
         }

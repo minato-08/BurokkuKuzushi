@@ -12,16 +12,16 @@ public static class ItemDefinition
 {
     public static Color GetColor(ItemType type) => type switch
     {
-        ItemType.Fire    => new Color(1f, 0.3f, 0.1f),
-        ItemType.Ice     => new Color(0.4f, 0.8f, 1f),
-        ItemType.Thunder => new Color(1f, 0.9f, 0.2f),
-        ItemType.Heavy   => new Color(0.6f, 0.3f, 0.8f),
-        ItemType.Pierce  => new Color(0.6f, 1.0f, 1.0f),
-        ItemType.Enlarge => new Color(0.2f, 0.9f, 0.2f),
-        ItemType.SpeedUp => new Color(0.2f, 0.7f, 1f),
-        ItemType.Shrink  => new Color(0.9f, 0.1f, 0.1f),
-        ItemType.Hyper   => new Color(1f, 0.5f, 0f),
-        ItemType.Heal    => new Color(1f, 0.4f, 0.7f),
+        ItemType.Fire    => new Color(1.000f, 0.478f, 0.239f), // #ff7a3d
+        ItemType.Ice     => new Color(0.306f, 0.765f, 1.000f), // #4ec3ff
+        ItemType.Thunder => new Color(1.000f, 0.847f, 0.290f), // #ffd84a
+        ItemType.Heavy   => new Color(0.706f, 0.643f, 1.000f), // #b4a4ff lavender
+        ItemType.Pierce  => new Color(0.635f, 1.000f, 0.878f), // #a2ffdf
+        ItemType.Enlarge => new Color(0.482f, 0.878f, 0.482f), // #7be07b ok green
+        ItemType.SpeedUp => new Color(0.306f, 0.765f, 1.000f), // #4ec3ff (blue like ice)
+        ItemType.Shrink  => new Color(1.000f, 0.231f, 0.361f), // #ff3b5c warn red
+        ItemType.Hyper   => new Color(1.000f, 0.847f, 0.290f), // #ffd84a accent yellow
+        ItemType.Heal    => new Color(0.482f, 0.878f, 0.482f), // #7be07b ok green
         _                => Color.white
     };
 

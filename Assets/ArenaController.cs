@@ -17,9 +17,6 @@ public class ArenaController : MonoBehaviour
     [Header("ボール初期位置オフセット（パドル上端からの距離）")]
     [SerializeField] private float ballSpawnOffsetY = 1f;
 
-    [Header("カメラ・ヒットストップ")]
-    [SerializeField] private Camera arenaCamera;
-
     [Header("メトロノーム発射")]
     [SerializeField] private LaunchAimer launchAimer;
     private HitStopController hitStop;
@@ -90,7 +87,8 @@ public class ArenaController : MonoBehaviour
         hitStop = GetComponentInChildren<HitStopController>();
         if (hitStop != null)
         {
-            hitStop.SetCamera(arenaCamera);
+            // 単カメラ運用に合わせ、シェイク対象はアリーナ Transform 自体
+            hitStop.SetShakeTarget(ArenaRoot);
             if (ball         != null) hitStop.RegisterFreezable(ball);
             if (spawner      != null) hitStop.RegisterFreezable(spawner);
             if (cachedPlayer != null) hitStop.RegisterFreezable(cachedPlayer);
@@ -136,7 +134,7 @@ public class ArenaController : MonoBehaviour
 
         Object.Destroy(go.GetComponent<Rigidbody>());
         go.GetComponent<Collider>().isTrigger = true;
-        go.GetComponent<Renderer>().material.color = new Color(0.5f, 0f, 0.8f, 0.7f);
+        go.GetComponent<Renderer>().material.color = new Color(0.635f, 1.0f, 0.357f, 0.65f); // #a2ff5b 毒々しい緑
 
         go.AddComponent<ZonePoison>().Setup(playerIndex, GetPaddleWorldY() + 0.5f);
     }

@@ -37,12 +37,12 @@ public class Block : MonoBehaviour
     [SerializeField] private float baseDropChance = 0.15f;
 
     [Header("ブロック色設定")]
-    [SerializeField] private Color normalColor    = new Color(0.6f, 0.8f, 1.0f);  // 水色
-    [SerializeField] private Color hardColor      = new Color(1.0f, 0.5f, 0.1f);  // オレンジ
-    [SerializeField] private Color absorbColor    = new Color(0.5f, 0.4f, 0.9f);  // 青紫
-    [SerializeField] private Color explosiveColor = new Color(1.0f, 0.2f, 0.1f);  // 赤
-    [SerializeField] private Color spikeColor     = new Color(0.5f, 0.0f, 0.5f);  // 濃紫
-    [SerializeField] private Color hardenedColor  = new Color(1.0f, 0.8f, 0.0f);  // 金色（妨害Harden専用）
+    [SerializeField] private Color normalColor    = new Color(0.490f, 0.639f, 1.000f); // #7da3ff 青
+    [SerializeField] private Color hardColor      = new Color(0.753f, 0.769f, 0.816f); // #c0c4d0 グレー
+    [SerializeField] private Color absorbColor    = new Color(0.616f, 0.427f, 1.000f); // #9d6dff 紫
+    [SerializeField] private Color explosiveColor = new Color(1.000f, 0.690f, 0.290f); // #ffb04a オレンジ
+    [SerializeField] private Color spikeColor     = new Color(1.000f, 0.333f, 0.467f); // #ff5577 ピンク赤
+    [SerializeField] private Color hardenedColor  = new Color(0.478f, 0.251f, 0.251f); // #7a4040 ダーク赤
 
     private int currentHp;
     private Renderer blockRenderer;

@@ -54,17 +54,22 @@ public class BallScript : MonoBehaviour, IFreezable
 
     [Header("属性別カラー")]
     [SerializeField] private Color normalColor  = Color.white;
-    [SerializeField] private Color fireColor    = new Color(1.0f, 0.3f, 0.1f);
-    [SerializeField] private Color thunderColor = new Color(1.0f, 0.9f, 0.2f);
-    [SerializeField] private Color iceColor     = new Color(0.4f, 0.8f, 1.0f);
-    [SerializeField] private Color heavyColor   = new Color(0.6f, 0.3f, 0.8f);
-    [SerializeField] private Color pierceColor  = new Color(0.6f, 1.0f, 1.0f);
+    [SerializeField] private Color fireColor    = new Color(1.0f, 0.478f, 0.239f); // #ff7a3d
+    [SerializeField] private Color thunderColor = new Color(1.0f, 0.847f, 0.290f); // #ffd84a
+    [SerializeField] private Color iceColor     = new Color(0.306f, 0.765f, 1.0f); // #4ec3ff
+    [SerializeField] private Color heavyColor   = new Color(0.706f, 0.643f, 1.0f); // #b4a4ff lavender
+    [SerializeField] private Color pierceColor  = new Color(0.635f, 1.0f, 0.878f); // #a2ffdf
+
+    [Header("軌跡設定")]
+    [SerializeField] private float trailTime       = 0.18f;
+    [SerializeField] private float trailStartWidth = 0.22f;
 
     [Header("プレイヤー紐付け")]
     [SerializeField] public int playerIndex = 1;
 
     private Rigidbody rb;
     private Vector3 lastVelocity;
+    private TrailRenderer trail;
 
     private bool frozen = false;
     private Vector3 frozenVelocity;
@@ -113,6 +118,18 @@ public class BallScript : MonoBehaviour, IFreezable
 
         baseSpeed    = speed;
         naturalSpeed = baseSpeed;
+
+        trail = gameObject.AddComponent<TrailRenderer>();
+        trail.time             = trailTime;
+        trail.startWidth       = trailStartWidth;
+        trail.endWidth         = 0f;
+        trail.minVertexDistance = 0.05f;
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows    = false;
+        Shader trailShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                          ?? Shader.Find("Sprites/Default");
+        if (trailShader != null) trail.material = new Material(trailShader);
+
         ApplyAttributeColor();
 
         if (isExtraBall) return;
@@ -201,6 +218,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
         attribute = BallAttribute.Normal;
         ApplyAttributeColor();
+        if (trail != null) { trail.emitting = false; trail.Clear(); }
 
         transform.localPosition = localPos;
         rb.linearVelocity = Vector3.zero;
@@ -213,6 +231,7 @@ public class BallScript : MonoBehaviour, IFreezable
         GetComponent<Collider>().enabled = true;
         IsWaitingToLaunch = false;
         frozen = false;
+        if (trail != null) { trail.Clear(); trail.emitting = true; }
         Launch(localDir);
     }
 
@@ -332,6 +351,22 @@ public class BallScript : MonoBehaviour, IFreezable
         };
         Renderer renderer = GetComponent<Renderer>();
         if (renderer != null) renderer.material.color = color;
+
+        if (trail != null)
+        {
+            Gradient g = new Gradient();
+            g.SetKeys(
+                new GradientColorKey[] {
+                    new GradientColorKey(color, 0f),
+                    new GradientColorKey(color, 1f)
+                },
+                new GradientAlphaKey[] {
+                    new GradientAlphaKey(0.85f, 0f),
+                    new GradientAlphaKey(0f,    1f)
+                }
+            );
+            trail.colorGradient = g;
+        }
     }
 
     private void Launch(Vector3 localDirection)

@@ -22,9 +22,9 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI p2RoundWinsText;
 
     [Header("HPバー演出")]
-    [SerializeField] private Color hpColorFull   = new Color(0.4f, 1.0f, 0.4f); // 緑
-    [SerializeField] private Color hpColorMid    = new Color(1.0f, 0.9f, 0.3f); // 黄
-    [SerializeField] private Color hpColorLow    = new Color(1.0f, 0.4f, 0.3f); // 赤
+    [SerializeField] private Color hpColorFull   = new Color(0.910f, 0.902f, 0.875f); // #e8e6df 白寄り
+    [SerializeField] private Color hpColorMid    = new Color(1.000f, 0.847f, 0.290f); // #ffd84a 黄
+    [SerializeField] private Color hpColorLow    = new Color(1.000f, 0.231f, 0.361f); // #ff3b5c 赤
     [Range(0f, 1f)] [SerializeField] private float midThreshold = 0.7f;
     [Range(0f, 1f)] [SerializeField] private float lowThreshold = 0.3f;
 

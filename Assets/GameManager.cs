@@ -39,7 +39,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int comboThreshold = 15;
 
     [Header("強制リスポーン設定")]
-    [SerializeField] private int damageForceRespawn = 5;  // S/K でボールを強制リスポーンした時のHPペナルティ
 
     [Header("ヒットストップ設定（フレーム数）")]
     [SerializeField] private int interferenceTriggerFrames = 10;
@@ -171,13 +170,6 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.Playing) return;
         ApplyDamage(playerIndex, damageBlockReachBottom * count);
-    }
-
-    // S/K による強制リスポーン（LaunchAimer から呼ばれる）
-    public void OnForceRespawn(int playerIndex)
-    {
-        if (currentState != GameState.Playing) return;
-        ApplyDamage(playerIndex, damageForceRespawn);
     }
 
     public void OnSpikeHit(int playerIndex)

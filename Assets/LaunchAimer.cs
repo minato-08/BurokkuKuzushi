@@ -13,20 +13,10 @@ public class LaunchAimer : MonoBehaviour
     [SerializeField] private float metronomeAngleRange = 60f;
     [SerializeField] private float metronomePeriodSec  = 1.0f;
 
-    [Header("自動発射")]
-    [SerializeField] private float autoLaunchSec    = 3f;   // 通常時の自動発射待ち時間
-    [SerializeField] private float minAutoLaunchSec = 0.5f; // ブロック最低位置での最短自動発射時間
-
-    [Header("強制リスポーン")]
-    // 飛行中に発射キー(S/K)を押すとボールをリスポーンさせる。HP ペナルティは GameManager で設定。
-    // このフィールドはメモ用（実際のペナルティ量は GameManager.damageForceRespawn）
-
     private BallScript       ball;
     private int              playerIndex;
-    private ArenaController  arena;
     private bool             isAiming;
     private float            metronomeTime;
-    private float            aimingTime;
     private float            currentAngleDeg;
     private LineRenderer     line;
 
@@ -34,7 +24,6 @@ public class LaunchAimer : MonoBehaviour
     {
         ball        = b;
         playerIndex = pIndex;
-        arena       = a;
     }
 
     void Awake()
@@ -76,12 +65,8 @@ public class LaunchAimer : MonoBehaviour
             return;
         }
 
-        // 飛行中に発射キー → 強制リスポーン（HP ペナルティあり）
         if (!ball.IsWaitingToLaunch)
         {
-            if (GameManager.Instance?.GetCurrentState() == GameManager.GameState.Playing
-                && IsLaunchKeyPressed())
-                ForceRespawn();
             if (isAiming) StopAiming();
             return;
         }
@@ -90,44 +75,17 @@ public class LaunchAimer : MonoBehaviour
         if (!isAiming)
         {
             metronomeTime = 0f;
-            aimingTime    = 0f;
             isAiming      = true;
         }
 
         metronomeTime  += Time.deltaTime;
-        aimingTime     += Time.deltaTime;
         currentAngleDeg = Mathf.Sin(metronomeTime * (2f * Mathf.PI / metronomePeriodSec))
                           * metronomeAngleRange;
 
         UpdateLine();
 
-        if (IsLaunchKeyPressed() || aimingTime >= GetEffectiveAutoLaunchSec())
+        if (IsLaunchKeyPressed())
             Fire();
-    }
-
-    // ブロックが低いほど自動発射時間を短縮する
-    private float GetEffectiveAutoLaunchSec()
-    {
-        BlockSpawner spawner = arena?.GetSpawner();
-        if (spawner == null) return autoLaunchSec;
-
-        float lowestY = spawner.GetLowestBlockY();
-        float spawnY  = spawner.GetSpawnY();
-        float bottomY = spawner.GetBlockDeadZoneY();
-
-        float range = spawnY - bottomY;
-        if (range <= 0f) return autoLaunchSec;
-
-        float danger = Mathf.Clamp01((spawnY - lowestY) / range);
-        return Mathf.Lerp(autoLaunchSec, minAutoLaunchSec, danger);
-    }
-
-    // 飛行中のボールを強制リスポーンする（HP ペナルティあり）
-    private void ForceRespawn()
-    {
-        GameManager.Instance?.OnForceRespawn(playerIndex);
-        Vector3 spawnPos = arena?.GetBallSpawnLocalPos() ?? Vector3.zero;
-        ball.PrepareRespawn(spawnPos);
     }
 
     private void UpdateLine()
