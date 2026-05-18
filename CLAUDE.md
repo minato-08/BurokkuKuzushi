@@ -27,16 +27,14 @@
 
 ## Unity Editor セットアップ
 
-新規にプロジェクトを開いた場合や UI を初期化したい場合：
+新規にプロジェクトを開いた場合：
 
-1. `BurokkuKuzushi > Setup HP UI` を実行
-   - CenterUI 配下の UI 要素を検出・生成し、UIManager に参照をバインド
-2. `BurokkuKuzushi > Setup HitStop` を実行
+1. `BurokkuKuzushi > Setup HitStop` を実行
    - Arena1 / Arena2 の子に `HitStopController` GameObject を生成（シェイク対象は ArenaController.Awake が自動バインド）
-3. `BurokkuKuzushi > Setup LaunchAimer` を実行
+2. `BurokkuKuzushi > Setup LaunchAimer` を実行
    - Arena1 / Arena2 の子に `LaunchAimer` GameObject を生成し、ArenaController にバインド
-4. `BurokkuKuzushi > Setup MatchResult UI` を実行
-   - MatchResultPanel を生成・MatchResultUI にバインド
+
+> ⚠️ `Setup HP UI` / `Setup MatchResult UI` / `Setup Skill Select UI` は**旧 `CenterUI` レイアウト前提のため現状の UI には合わない**。実行すると新しい `_UI/_CameraSpace/` 構造を壊す可能性があるので使わない。新 UI は Figma レイアウトに沿って手動で構築している。
 
 すべてのメニュー操作は冪等（何度実行しても安全）。
 
@@ -44,39 +42,40 @@
 
 ## シーン構成
 
-アクティブシーン: `Assets/Scenes/SampleScene.unity`
+アクティブシーン: `Assets/SampleScene.unity`
 
 ```
 SampleScene
 ├── EventSystem
 ├── GameManager        ← Singleton
-├── CenterUI           ← Canvas (Screen Space Overlay)
-│   ├── P1HPText / P1HPFill / P1Score / P1Combo / P1Wins
-│   ├── P1EnergyFill / P1SkillText
-│   ├── P2HPText / P2HPFill / P2Score / P2Combo / P2Wins
-│   ├── P2EnergyFill / P2SkillText
-│   ├── GameOverText
-│   ├── MatchResultPanel
-│   └── SkillSelectPanel
-├── Arena1             ← ワールド座標 (0, 0, 0)
-│   ├── Camera1        ← Arena1専用カメラ。localPos: (-0.3, 0, -25), FOV 45°
+├── Directional Light
+├── Global Volume      ← URP Post Processing（Bloom 等）
+├── MainCamera         ← 単 Ortho カメラ。world (0, 0, -34.8), ortho size 12.1
+│                        HDR ON / Post Processing ON / TAA High
+├── _UI                ← トップレベル UI フォルダ（後述）
+├── Arena1             ← world (-9.2, 0.66, 0)
 │   ├── TopWall / LeftWall / RightWall
 │   ├── Ball / Player / DeadZone / BlockSpawner
 │   └── ArenaController
 │       ├── HitStopController
 │       └── LaunchAimer
-└── Arena2             ← ワールド座標 (50, 0, 0)
-    ├── Camera2        ← Arena2専用カメラ。localPos: (0.2, 0, -25), FOV 45°, AudioListener なし
-    └── （Arena1と同構成）
+├── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
+└── CenterUI_Old (inactive)  ← 旧 UI バックアップ。最終確認後に削除予定
 ```
 
-- カメラは各 Arena の子として配置されている（ワールド座標ではなくローカル座標で管理）
-- CenterUI は Screen Space Overlay なので両カメラに重なる
+### カメラ構成（単カメラ Ortho 化）
+
+- 旧構成: Arena1/Arena2 にそれぞれ Camera1/Camera2 を子配置、画面分割レンダリング
+- 新構成: **単一 `MainCamera`（Orthographic）**で両アリーナを横並びに収める
+- メリット: ポスプロが単純、UI Canvas が 1 つで済む、Scene 編集楽
+- 影響: HitStop はアリーナ Transform 自体を揺らす方式に変更（`HitStopController.SetShakeTarget`）
 
 ### 現在の主要な Inspector 値
 
 | コンポーネント | パラメータ | 値 |
 |---|---|---|
+| MainCamera | orthographic / size | true / 12.1 |
+| MainCamera | far clip | 100 |
 | PlayerController | speed | 16 |
 | PlayerController | xLimit | 4.7 |
 | PlayerController | paddleLocalY | -8 |
@@ -88,6 +87,68 @@ SampleScene
 | DeadZone | ballSpawnOffsetY | 1.3 |
 | Ball | localScale | (0.36, 0.36, 0.36) |
 | DeadZone | localPos | (0, -11, 0) |
+
+---
+
+## UI Hierarchy 構成
+
+Figma レイアウトに準拠した新構造。3 つの Canvas を `_UI` 配下に階層化。
+
+```
+_UI                                    ← トップレベルフォルダ（Transform のみ）
+├── _CameraSpace                       ← Screen Space - Camera Canvas（MainCamera 参照）
+│   ├── _Base                          ← 背景・装飾・動かない要素
+│   │   ├── Background                 (SpriteRenderer、Figma 出力 BG)
+│   │   ├── P1ArenaFrame               (Bloom 装飾枠 左)
+│   │   ├── P2ArenaFrame               (Bloom 装飾枠 右)
+│   │   ├── P1BlockDeadLine / P2BlockDeadLine
+│   │   └── _BloomyFrames/
+│   │       ├── Bloom Left / Bloom Right
+│   └── _Components                    ← 機能 UI
+│       ├── _SkillSelectPanel          (モーダル、SkillSelectUI が制御)
+│       ├── _MatchResultPanel          (モーダル、MatchResultUI が制御)
+│       ├── _P1Components/             ← P1 HUD（左側）
+│       │   ├── P1PlayerTag / P1KeyBind / P1Separator
+│       │   ├── _P1HpIndicator/
+│       │   │   ├── P1HpFrame / P1HpLabel / P1HpMax (静的)
+│       │   │   └── $P1HpFill / $P1HpValue       (動的)
+│       │   ├── _P1Combo/
+│       │   │   ├── P1ComboLabel / P1ComboMax    (静的)
+│       │   │   └── $P1ComboValue                (動的)
+│       │   ├── _P1Score/
+│       │   │   ├── P1ScoreLabel                 (静的)
+│       │   │   └── $P1ScoreValue                (動的)
+│       │   └── _P1ItemInfo/
+│       │       ├── P1ItemFrame / P1ItemFrameFill / P1ItemIconBg (静的)
+│       │       └── $P1ItemName / $P1ItemDuration (動的)
+│       └── _P2Components/             ← P2 HUD（右側、P1 のミラー）
+└── （その他、Bloom テクスチャ等）
+```
+
+各 Canvas は Scale With Screen Size / 1920x1080 / Match 0.5 で統一。
+
+### UI 命名規則
+
+| プレフィックス | 意味 | 例 |
+|---|---|---|
+| `_PascalCase` | フォルダ親（空 GameObject、組織化のため） | `_Base`, `_P1HpIndicator`, `_P1Components` |
+| `$PascalCase` | 動的要素（コードが `.text` / `.fillAmount` / `.color` 等を書き換える） | `$P1HpValue`, `$P1ScoreValue` |
+| `PascalCase` | 静的要素（一度配置したら触らない） | `P1HpLabel`, `P1ArenaFrame` |
+| `P1` / `P2` | プレイヤー番号プレフィックス（全要素に付与） | `P1HpFill`, `P2ScoreValue` |
+| スペース・スラッシュ・括弧 | **禁則**（`transform.Find()` で破綻するため使わない） | — |
+
+このルールにより、Hierarchy をパッと見て「コードから触る要素」が即わかり、UIManager 再バインド作業の範囲が明確になる。
+
+### UI 連携の現状（未完了）
+
+- `UIManager` / `MatchResultUI` / `SkillSelectUI` は `_UI/_CameraSpace/_Components/_Camera` Canvas にアタッチ済み
+- **SerializeField の再バインドは未実施**（旧 CenterUI 参照のまま）→ Play しても表示更新されない
+- 次工程: 新しい `$P1XXX` / `$P2XXX` 要素を Inspector でドラッグして再バインド
+
+### Bloom 演出
+
+- URP Bloom Threshold = 1.0 想定。`UI/HDRTint`（Image 用）/ `Custom/HDRUnlit`（Sprite/Mesh 用）シェーダーが [HDR] Tint Color を持ち、Intensity > 1 で Bloom Threshold 越えで発光
+- `BreathPulse.cs` コンポーネントで HDR Intensity を Sin 波で脈動させる演出が可能
 
 ---
 
@@ -259,37 +320,55 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - すべて public フィールドでパラメータを保持（Profile 参照なし）
 
 ### `MatchResultUI.cs`
-- `CenterUI` にアタッチ。`GameState.MatchOver` を検出してパネルを表示
+- `_UI/_CameraSpace/_Components/_Camera` Canvas にアタッチ（旧 CenterUI から移行）。`GameState.MatchOver` を検出してパネルを表示
 - A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
 - 再戦: `GameManager.StartRematch()` — スキル選択画面に戻る
+- SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下の要素に再バインド要
 
 ### `SkillSelectUI.cs`
 - 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
 - 1P: A/D でサイクル・S で確定 / 2P: J/L でサイクル・K で確定
+- SerializeField は `_UI/_CameraSpace/_Components/_SkillSelectPanel/...` 配下に再バインド要
 
 ### `UIManager.cs`
-- `CenterUI` にアタッチ、毎フレーム GameManager をポーリングして更新
+- `_UI/_CameraSpace/_Components/_Camera` Canvas にアタッチ（旧 CenterUI から移行）。毎フレーム GameManager をポーリングして更新
 - HP バー色: 緑（≥70%）→ 黄（≥30%）→ 赤（<30%）
 - `RoundOver` のみ `statusText` を表示（MatchOver は MatchResultUI が担当）
-- `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン）。Setup HP UI で P1/P2InterferenceOverlay をバインドする
+- `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン）
+- SerializeField は新 `$P1XXX` / `$P2XXX` 要素に再バインド要（現状未実施）
+
+### `BreathPulse.cs`
+- Material の HDR カラー Intensity を Sin 波で脈動させて Bloom Threshold をまたぐ「呼吸」演出
+- `SpriteRenderer` / `UI.Image` 両対応
+- Inspector で `minIntensity / maxIntensity / cycleSeconds` / `colorPropertyName` を設定
+- Material はインスタンス化される（複数オブジェクトで Material を共有しない）
+
+### シェーダー (`Assets/Shaders/`)
+- `UI/HDRTint` (`UI_HDRTint.shader`): UI Image 用。標準 `UI/Default` に `[HDR]` Tint Color を追加。Stencil / Clip Rect / AlphaClip 完備
+- `Custom/HDRUnlit` (`HDRUnlit.shader`): 3D Mesh / SpriteRenderer 用。HDR Base Color のみのシンプル Unlit。Lit 計算なしで Bloom 発光のみ
+
+### フォント (`Assets/`)
+- `BebasNeue-Regular.ttf` + `BebasNeue-Regular SDF.asset` — 数字表示用（HUD の HP/Score/Combo 等）
+- `JetBrainsMono-{Regular,Bold,ExtraBold}.ttf` + 各 SDF Asset — ラベル・固定文言用
+- TMP Font Asset Creator で Custom Characters 指定で生成
 
 ### Editor スクリプト (`Assets/Editor/`)
-- `SetupHPUI.cs`: `BurokkuKuzushi > Setup HP UI`（冪等）
 - `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— 各 ArenaController の子に HitStopController GameObject を生成
-- `SetupMatchResultUI.cs`: `BurokkuKuzushi > Setup MatchResult UI`（冪等）
 - `SetupLaunchAimer.cs`: `BurokkuKuzushi > Setup LaunchAimer`（冪等）
-- `SetupSkillSelectUI.cs`: `BurokkuKuzushi > Setup Skill Select UI`（冪等）
+- `SetupCameraViewports.cs`: 単カメラ化前の名残（現状未使用、将来削除予定）
+- `SetupHPUI.cs` / `SetupMatchResultUI.cs` / `SetupSkillSelectUI.cs`: **旧 CenterUI 構造前提のため現 UI には不適合**。実行しないこと。新 UI 確定後にリライト or 削除予定
 
 ---
 
 ## ローカル座標系の重要事項
 
-**すべての位置指定はアリーナの親オブジェクトのローカル座標で行う。**
+**ゲーム内の位置指定はアリーナの親オブジェクトのローカル座標で行う。**
 
 - Arena1 / Arena2 の子の `localPosition(0,0,0)` = そのアリーナの中心
 - `BlockSpawner` が生成するブロックは BlockSpawner の子 → ローカル座標で管理
 - `PlayerController` は `transform.localPosition` で移動
-- カメラも Arena の子なので、ワールド座標は Arena のワールド座標 + localPos になる
+- 単カメラ化後はカメラがシーン root にあるため、Arena をオフセットしてもカメラとは独立（旧構成と異なる）
+- HitStop シェイクは `ArenaRoot.localPosition` を直接揺らす（Arena1/2 はシーン直下なので localPosition = world position）
 
 ---
 

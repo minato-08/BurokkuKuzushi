@@ -1,6 +1,6 @@
 # BurokkuKuzushi 仕様書
 
-最終更新: 2026-05-15
+最終更新: 2026-05-19（UI レイアウト Figma 準拠、単カメラ化反映）
 
 ---
 
@@ -298,32 +298,53 @@
 
 ## 6. UI
 
-### 6.1 画面構成
+### 6.1 画面構成（Figma 準拠）
 
 ```
-+-------------------+-------------------+
-|                   |                   |
-|     Arena1        |     Arena2        |
-|     (1P)          |     (2P)          |
-|                   |                   |
-+-------------------+-------------------+
-            (Screen Space Overlay)
-[P1: HP/Score/Combo/Wins][P2: HP/Score/Combo/Wins]
-              [試合状態テキスト]
+┌─────────┬─────────────────┬─────────────────┬─────────┐
+│  P1 HUD │   P1 Arena      │   P2 Arena      │  P2 HUD │
+│         │   (左)          │   (右)          │         │
+│ P1 Tag  │   ┌─────────┐   │   ┌─────────┐   │  P2 Tag │
+│ Keys    │   │ ▢▢▢▢▢▢ │   │   │ ▢▢▢▢▢▢ │   │  Keys   │
+│         │   │ ▢▢▢▢▢▢ │   │   │ ▢▢▢▢▢▢ │   │         │
+│ COMBO   │   │         │   │   │         │   │ COMBO   │
+│  10/15  │   │   ●     │   │   │    ●    │   │  10/15  │
+│         │   │  ━━━━   │   │   │  ━━━━   │   │         │
+│ SCORE   │   │ ─────   │   │   │ ─────   │   │ SCORE   │
+│ 12,340  │   │   ▬     │   │   │   ▬     │   │ 12,340  │
+│         │   └─────────┘   │   └─────────┘   │         │
+│ ITEM    │                 │                 │ ITEM    │
+│ SKILL Q │                 │                 │ SKILL U │
+└─────────┴─────────────────┴─────────────────┴─────────┘
+
+中央には Incoming インジケータ（受け側プレイヤーが食らう予定の妨害量を可視化）
+画面上部に HP バー + ROUND 表示 + ドット式ラウンドカウンタ
 ```
-アリーナの間にUIを挟む構成も検討している。
+
+- 各アリーナを Bloom 装飾枠で囲み（P1=青系 / P2=オレンジ系）プレイヤー識別性を高める
+- HUD は左右端に配置、アリーナ表示領域を最大化
+- 装飾要素・固定ラベル（操作ヒント等）は Figma で書き出した一枚絵を BG として配置、その上に動的要素を重ねる
 
 ### 6.2 各表示要素
 
 | 要素 | 内容 |
 |---|---|
-| HP テキスト | `HP {current} / {max}` |
-| HP バー | 横長 Image、Fill Type = Filled。HP割合に応じてカラー変化（白/黄/赤） |
-| Score テキスト | `{score}` |
-| Combo テキスト | `Combo {current} / {threshold}` |
-| Wins テキスト | `Wins: {roundWins}` |
+| HP バー | 9-slice 角丸 Frame + 内側 Fill（RectTransform Width 制御）。HP 割合に応じてカラー変化（緑/黄/赤） |
+| HP テキスト | `{current}` 大きく Bebas Neue、`/ {max}` 小さく |
+| Score テキスト | `{score}` カンマ区切り（例: `12,340`）、Bebas Neue |
+| Combo テキスト | `{current}` 大、`x /{threshold}` 小、Bebas Neue + JetBrainsMono |
+| ラウンド表示 | 中央上部 `ROUND {N}` + 先取数分のドット（点灯/非点灯で勝利数表示） |
+| Incoming インジケータ | 中央の縦長 2 枠、受ける予定の妨害が積み重なって可視化される |
+| アイテム表示 | 取得中アイテムのアイコン + 名前 + 残り秒数（最後に取った1個のみ表示） |
+| スキル表示 | スキル名 + キー（Q / U）+ READY 状態（ゲージ満タンで光る） |
 | 試合状態テキスト | ラウンド/マッチ終了時のみ表示。`Round Over!` / `P{N} WINS!` |
-| 各種インジケータ | 角度インジケータ、スキルゲージ、アイテム取得通知 |
+| 妨害通知 | 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha） |
+
+### 6.3 視覚演出
+
+- **Bloom 演出**: アリーナ枠・READY 表示・装飾要素等は HDR カラー（Intensity > 1）で着色し、URP Bloom Threshold 越えで発光
+- **Breath アニメーション**: 装飾枠は `BreathPulse` コンポーネントで HDR Intensity を Sin 波で脈動 → 生命感ある発光
+- **フォント方針**: 数字は Bebas Neue（ディスプレイ系）、固定ラベルは JetBrainsMono（モノスペース）で雰囲気統一
 
 ---
 
@@ -382,26 +403,30 @@ public class InterferencePayload {
 SampleScene
 ├── EventSystem
 ├── GameManager        (Singleton, SerializeField で全パラメータ保持)
-├── CenterUI           (Canvas, Screen Space Overlay)
-│   ├── P1HPText / P1HPFill / P1Score / P1Combo / P1Wins / P1EnergyFill / P1SkillText
-│   ├── P2HPText / P2HPFill / P2Score / P2Combo / P2Wins / P2EnergyFill / P2SkillText
-│   ├── GameOverText / MatchResultPanel / SkillSelectPanel
-├── Arena1             (ワールド座標 0,0,0)
-│   ├── Camera1        (Arena1 の子。localPos: (-0.3,0,-25), FOV 45°)
+├── Directional Light
+├── Global Volume      (URP Post Processing: Bloom 等)
+├── MainCamera         (単 Orthographic、world (0,0,-34.8), ortho size 12.1, HDR ON, TAA High)
+├── _UI                (トップレベル UI フォルダ、3 Canvas を集約)
+│   └── _CameraSpace / _Components / _P1Components / _P2Components
+├── Arena1             (world (-9.2, 0.66, 0))
 │   ├── TopWall / LeftWall / RightWall
 │   ├── Ball / Player (パドル) / DeadZone / BlockSpawner
 │   └── ArenaController
 │       ├── HitStopController
 │       └── LaunchAimer
-└── Arena2             (ワールド座標 50,0,0、Arena1 と同構成)
-    └── Camera2        (Arena2 の子。localPos: (0.2,0,-25), FOV 45°, AudioListener なし)
+└── Arena2             (world (9.2, 0.66, 0)、Arena1 と同構成)
 ```
 
-座標は各 Arena の親 GameObject に対するローカル座標で扱う。カメラが Arena の子なので、Arena をオフセットするだけで独立した座標系が得られる。
+- 単 Ortho カメラで両アリーナを横並びに収める（旧 Camera1/Camera2 分割描画を廃止）
+- HitStop シェイクはアリーナ Transform 自体を揺らす方式（`HitStopController.SetShakeTarget(ArenaRoot)`）
+- ゲーム内の位置指定（Player / Ball / Block）は引き続き各 Arena のローカル座標で管理
+- UI 階層の詳細・命名規則は `CLAUDE.md` の「UI Hierarchy 構成」セクション参照
 
 ---
 
 ## 8. 命名規則
+
+### 8.1 コード・アセット
 
 | 対象 | 形式 | 例 |
 |---|---|---|
@@ -411,6 +436,20 @@ SampleScene
 | ファイル名 | クラス名と一致 | `BlockSpawner.cs` |
 
 ファイル名でソートしたときに同種が綺麗に並ぶように、カテゴリを先頭に置く。
+
+### 8.2 UI Hierarchy（GameObject 名）
+
+UI 構造を整理し、コードから触る要素を一目で識別できるようプレフィックス規則を導入。
+
+| プレフィックス | 意味 | 例 |
+|---|---|---|
+| `_PascalCase` | フォルダ親（空 GameObject、組織化のため） | `_Base`, `_P1Components`, `_P1HpIndicator` |
+| `$PascalCase` | 動的要素（コードが `.text` / `.fillAmount` / `.color` 等を書き換える） | `$P1HpValue`, `$P1ScoreValue` |
+| `PascalCase` | 静的要素（一度配置したら触らない） | `P1HpLabel`, `P1ArenaFrame` |
+| `P1` / `P2` | プレイヤー番号プレフィックス | `P1HpFill`, `P2ScoreValue` |
+| **禁則** | スペース・スラッシュ・括弧（`transform.Find()` で破綻するため使わない） | — |
+
+この規則により、Hierarchy をパッと見て「コードから触る要素」が即わかる。UIManager 等の SerializeField 再バインド時の作業範囲が明確になり、P1 → P2 ミラー化も機械的に処理できる。
 
 ---
 

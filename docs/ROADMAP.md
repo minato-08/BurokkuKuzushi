@@ -1,6 +1,6 @@
 # BurokkuKuzushi 開発ロードマップ
 
-最終更新: 2026-05-15（Phase E 完了・Pierce 実装）
+最終更新: 2026-05-19（UI / カメラ / シェーダー基盤刷新 進行中、P2 ミラー構築完了）
 
 このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
 
@@ -111,6 +111,37 @@
 
 ---
 
+## Phase F-Setup: UI / カメラ / シェーダー基盤刷新（進行中）
+
+Phase E 完了後、視覚品質と保守性を上げるため UI 構造全体と描画パイプラインを刷新。
+
+### カメラ・レンダリング
+- [x] 単 Ortho カメラ化（旧 Camera1/Camera2 分割描画 → 単 MainCamera）
+- [x] HitStop シェイクをカメラ → アリーナ Transform に変更（単カメラ対応、独立シェイク維持）
+- [x] HDR + Post Processing 有効化、Bloom 演出基盤
+
+### シェーダー
+- [x] `UI/HDRTint` シェーダー追加（UI Image 用、HDR Tint で Bloom 連動）
+- [x] `Custom/HDRUnlit` シェーダー追加（Sprite / Mesh 用、HDR Base Color のみの Unlit）
+- [x] `BreathPulse` コンポーネント追加（HDR Intensity Sin 波脈動）
+
+### UI 構造
+- [x] 旧 `CenterUI`（Screen Space Overlay フラット配置）を退避
+- [x] 新 `_UI/_CameraSpace/_Components/_P1Components` 階層構造に再編
+- [x] 3 つの Canvas（Camera / Overlay × 2）を `_UI` 配下に集約
+- [x] Canvas Scaler を全 Canvas で Scale With Screen Size / 1920x1080 / Match 0.5 に統一
+- [x] 命名規則統一: `_` フォルダ / `$` 動的要素 / `P1`/`P2` プレフィックス
+- [x] フォント追加: BebasNeue（数字）/ JetBrainsMono（ラベル）
+- [x] UI 素材追加: BG / Bloom Frame / HP Indicator / Item Indicator / Mask 等
+- [x] P2 ミラー構築（`_P2Components` 一括リネーム）
+- [ ] HP Fill バー実装（9-slice + RectTransform Width 制御）
+- [ ] Energy / Incoming インジケータ実装
+- [ ] UIManager / MatchResultUI / SkillSelectUI の SerializeField 再バインド
+- [ ] アクティブアイテム表示の動的データ連携
+- [ ] 旧 `CenterUI_Old` の最終削除
+
+---
+
 ## Phase F: 演出強化
 
 - [ ] 破壊ブロック飛翔演出（Screen Space Overlay アニメーション）
@@ -154,4 +185,7 @@
 - **完了**: Phase C（アイテム）
 - **完了**: Phase D（スキル）
 - **完了**: Phase E（妨害多様化フル実装 — ZoneSlow / BlockHardened 視覚区別 / Pierce アイテム含む）
-- **次**: Phase F（演出強化）または Phase G+（拡張要素）
+- **進行中**: Phase F-Setup（UI / カメラ / シェーダー基盤刷新）
+  - カメラ単 Ortho 化・HitStop シェイク方式変更・HDR シェーダー・UI 階層刷新は完了
+  - HP Fill 実装、Incoming インジケータ、UIManager 再バインドが残作業
+- **次**: Phase F（演出強化）または Phase G+（拡張要素）。発表（2026-06-05 頃）までに UI 連携完了を優先
