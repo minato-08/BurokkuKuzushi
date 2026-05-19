@@ -139,11 +139,37 @@ _UI                                    ← トップレベルフォルダ（Tran
 
 このルールにより、Hierarchy をパッと見て「コードから触る要素」が即わかり、UIManager 再バインド作業の範囲が明確になる。
 
-### UI 連携の現状（未完了）
+### UI 連携の現状
 
-- `UIManager` / `MatchResultUI` / `SkillSelectUI` は `_UI/_CameraSpace/_Components/_Camera` Canvas にアタッチ済み
-- **SerializeField の再バインドは未実施**（旧 CenterUI 参照のまま）→ Play しても表示更新されない
-- 次工程: 新しい `$P1XXX` / `$P2XXX` 要素を Inspector でドラッグして再バインド
+- `_UI/_CameraSpace/_Base` が rootCanvas（Screen Space - Camera / MainCamera 参照）。`UIManager` / `MatchResultUI` / `SkillSelectUI` はここにアタッチ
+- `MatchResultUI` / `SkillSelectUI` は新パネル (`_MatchResultPanel` / `_SkillSelectPanel`) に**バインド済み** → そのまま動く
+- `UIManager` は新 UI 構造に合わせて refactor 済み。SerializeField を 3 区分に整理:
+  - **[必須]** HP / Combo / Score / ActiveItem（新 UI に既存）→ Inspector でバインドが必要
+  - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ（まだ UI 要素が無い）→ 配置後にバインド
+  - **[演出]** 色閾値・スキル READY suffix 等
+- `GameManager` に `RegisterActiveItem(playerIndex, name, duration)` / `GetActiveItemName` / `GetActiveItemRemaining` を追加。`ItemDrop` が効果適用と同時に通知する（最後に取得した 1 個のみ表示・コルーチン上書きと整合）
+
+### 残作業（UI 連携）
+
+`_UI/_CameraSpace/_Base` の **UIManager** Inspector で次をバインド:
+
+| フィールド | バインド先 |
+|---|---|
+| `p1HpFill` | `$P1HpFill`（Image, fillAmount） |
+| `p1HpValue` | `$P1HpValue` |
+| `p1ComboValue` | `$P1ComboValue` |
+| `p1ScoreValue` | `$P1ScoreValue` |
+| `p1ItemInfoRoot` | `_P1ItemInfo`（GameObject、表示/非表示の親） |
+| `p1ItemName` / `p1ItemDuration` | `$P1ItemName` / `$P1ItemDuration` |
+| P2 側 | 上記の P2 ミラー |
+
+[任意] セクションは UI 要素を作ってからバインドする（未バインドでも null セーフで動く）:
+- Energy ゲージ（Image, Vertical Fill）
+- Skill 名表示 TMP（READY 状態で suffix が付く）
+- Round ドット/勝利数 TMP
+- 試合状態テキスト（Round Over バナー）
+- 妨害通知オーバーレイ（CanvasGroup + Label の P1/P2 ペア）
+- アイテムアイコン Image（現状は名前テキストのみ）
 
 ### Bloom 演出
 
@@ -308,6 +334,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出
 - アイテムは AddComponent で生成（Prefab なし）。public フィールドの値がそのまま使われる
 - `ArenaController.SpawnItem(worldPos, type)` から生成。底 Y を超えたら自動 Destroy
+- パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, name, duration)` を呼ぶ。`GetActiveDuration()` がアイテム種別から duration を判定（Heal は 0 で UI 表示しない）
 
 ### `SkillController.cs`
 - ArenaController.Awake() で自動生成・Initialize される
@@ -320,22 +347,24 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - すべて public フィールドでパラメータを保持（Profile 参照なし）
 
 ### `MatchResultUI.cs`
-- `_UI/_CameraSpace/_Components/_Camera` Canvas にアタッチ（旧 CenterUI から移行）。`GameState.MatchOver` を検出してパネルを表示
+- `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
 - A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
 - 再戦: `GameManager.StartRematch()` — スキル選択画面に戻る
-- SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下の要素に再バインド要
+- SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下に**バインド済み**
 
 ### `SkillSelectUI.cs`
 - 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
 - 1P: A/D でサイクル・S で確定 / 2P: J/L でサイクル・K で確定
-- SerializeField は `_UI/_CameraSpace/_Components/_SkillSelectPanel/...` 配下に再バインド要
+- SerializeField は `_UI/_CameraSpace/_Components/_SkillSelectPanel/...` 配下に**バインド済み**
 
 ### `UIManager.cs`
-- `_UI/_CameraSpace/_Components/_Camera` Canvas にアタッチ（旧 CenterUI から移行）。毎フレーム GameManager をポーリングして更新
-- HP バー色: 緑（≥70%）→ 黄（≥30%）→ 赤（<30%）
-- `RoundOver` のみ `statusText` を表示（MatchOver は MatchResultUI が担当）
-- `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン）
-- SerializeField は新 `$P1XXX` / `$P2XXX` 要素に再バインド要（現状未実施）
+- `_UI/_CameraSpace/_Base` Canvas にアタッチ。毎フレーム GameManager をポーリングして更新
+- SerializeField は **[必須] / [任意] / [演出]** の 3 区分に整理（詳細は「UI 連携の現状」セクション）
+- HP バー色: 白（≥70%）→ 黄（≥30%）→ 赤（<30%）
+- アクティブアイテム表示: `GetActiveItemName / GetActiveItemRemaining` を毎フレーム参照し、残り時間 > 0 のとき `p1ItemInfoRoot` を SetActive(true)、`$P1ItemName` `$P1ItemDuration` を更新
+- スキル READY 表示: `EnergyRatio >= 1` のとき `p1SkillName` に suffix（既定 ` · READY`）を付加
+- 任意セクションは未バインドでも null セーフで動作（コンパイル・実行ともに影響なし）
+- `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン、未バインドなら何もしない）
 
 ### `BreathPulse.cs`
 - Material の HDR カラー Intensity を Sin 波で脈動させて Bloom Threshold をまたぐ「呼吸」演出

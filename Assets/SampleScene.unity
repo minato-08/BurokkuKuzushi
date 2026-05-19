@@ -12158,30 +12158,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 666c9bc9a8ca30745a673a91d73bd32b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
-  p1ScoreText: {fileID: 0}
-  p1HPText: {fileID: 0}
-  p1HPFill: {fileID: 0}
-  p1ComboText: {fileID: 0}
-  p1RoundWinsText: {fileID: 0}
-  p2ScoreText: {fileID: 0}
-  p2HPText: {fileID: 0}
-  p2HPFill: {fileID: 0}
-  p2ComboText: {fileID: 0}
-  p2RoundWinsText: {fileID: 0}
-  hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
-  hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
-  hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
-  midThreshold: 0.7
-  lowThreshold: 0.3
+  p1HpFill: {fileID: 1818792568}
+  p1HpValue: {fileID: 1287484415}
+  p1HpMax: {fileID: 1678240051}
+  p1ComboValue: {fileID: 1796885368}
+  p1ComboMax: {fileID: 859505689}
+  p1ScoreValue: {fileID: 15400130}
+  p1ItemInfoRoot: {fileID: 1317806425}
+  p1ItemName: {fileID: 152861154}
+  p1ItemDuration: {fileID: 130088268}
+  p2HpFill: {fileID: 623026083}
+  p2HpValue: {fileID: 195725211}
+  p2HpMax: {fileID: 1990330994}
+  p2ComboValue: {fileID: 522171319}
+  p2ComboMax: {fileID: 386175725}
+  p2ScoreValue: {fileID: 847564331}
+  p2ItemInfoRoot: {fileID: 1347641051}
+  p2ItemName: {fileID: 854548439}
+  p2ItemDuration: {fileID: 1961787395}
   p1EnergyFill: {fileID: 0}
   p2EnergyFill: {fileID: 0}
-  p1SkillText: {fileID: 0}
-  p2SkillText: {fileID: 0}
+  p1SkillName: {fileID: 0}
+  p2SkillName: {fileID: 0}
+  p1RoundWins: {fileID: 0}
+  p2RoundWins: {fileID: 0}
   statusText: {fileID: 0}
   p1InterferenceOverlay: {fileID: 0}
   p1InterferenceLabel: {fileID: 0}
   p2InterferenceOverlay: {fileID: 0}
   p2InterferenceLabel: {fileID: 0}
+  hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
+  hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
+  hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
+  midThreshold: 0.7
+  lowThreshold: 0.3
+  skillReadySuffix: " \xB7 READY"
 --- !u!114 &1934063271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12429,30 +12440,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 666c9bc9a8ca30745a673a91d73bd32b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
-  p1ScoreText: {fileID: 1275908616}
-  p1HPText: {fileID: 1604968821}
-  p1HPFill: {fileID: 790001720}
-  p1ComboText: {fileID: 1206927342}
-  p1RoundWinsText: {fileID: 633785865}
-  p2ScoreText: {fileID: 1456788323}
-  p2HPText: {fileID: 1665235446}
-  p2HPFill: {fileID: 484426109}
-  p2ComboText: {fileID: 1230456519}
-  p2RoundWinsText: {fileID: 198692602}
-  hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
-  hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
-  hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
-  midThreshold: 0.7
-  lowThreshold: 0.3
+  p1HpFill: {fileID: 0}
+  p1HpValue: {fileID: 0}
+  p1HpMax: {fileID: 0}
+  p1ComboValue: {fileID: 0}
+  p1ComboMax: {fileID: 0}
+  p1ScoreValue: {fileID: 0}
+  p1ItemInfoRoot: {fileID: 0}
+  p1ItemName: {fileID: 0}
+  p1ItemDuration: {fileID: 0}
+  p2HpFill: {fileID: 0}
+  p2HpValue: {fileID: 0}
+  p2HpMax: {fileID: 0}
+  p2ComboValue: {fileID: 0}
+  p2ComboMax: {fileID: 0}
+  p2ScoreValue: {fileID: 0}
+  p2ItemInfoRoot: {fileID: 0}
+  p2ItemName: {fileID: 0}
+  p2ItemDuration: {fileID: 0}
   p1EnergyFill: {fileID: 1731402313}
   p2EnergyFill: {fileID: 1871141716}
-  p1SkillText: {fileID: 396012319}
-  p2SkillText: {fileID: 726202392}
+  p1SkillName: {fileID: 0}
+  p2SkillName: {fileID: 0}
+  p1RoundWins: {fileID: 0}
+  p2RoundWins: {fileID: 0}
   statusText: {fileID: 1836890124}
   p1InterferenceOverlay: {fileID: 0}
   p1InterferenceLabel: {fileID: 0}
   p2InterferenceOverlay: {fileID: 0}
   p2InterferenceLabel: {fileID: 0}
+  hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
+  hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
+  hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
+  midThreshold: 0.7
+  lowThreshold: 0.3
+  skillReadySuffix: " \xB7 READY"
 --- !u!114 &1986847350
 MonoBehaviour:
   m_ObjectHideFlags: 0

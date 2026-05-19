@@ -1,6 +1,6 @@
 # BurokkuKuzushi 開発ロードマップ
 
-最終更新: 2026-05-19（UI / カメラ / シェーダー基盤刷新 進行中、P2 ミラー構築完了）
+最終更新: 2026-05-19（UIManager 全バインド完了・アクティブアイテム表示実装）
 
 このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
 
@@ -128,16 +128,24 @@ Phase E 完了後、視覚品質と保守性を上げるため UI 構造全体�
 ### UI 構造
 - [x] 旧 `CenterUI`（Screen Space Overlay フラット配置）を退避
 - [x] 新 `_UI/_CameraSpace/_Components/_P1Components` 階層構造に再編
-- [x] 3 つの Canvas（Camera / Overlay × 2）を `_UI` 配下に集約
 - [x] Canvas Scaler を全 Canvas で Scale With Screen Size / 1920x1080 / Match 0.5 に統一
 - [x] 命名規則統一: `_` フォルダ / `$` 動的要素 / `P1`/`P2` プレフィックス
 - [x] フォント追加: BebasNeue（数字）/ JetBrainsMono（ラベル）
 - [x] UI 素材追加: BG / Bloom Frame / HP Indicator / Item Indicator / Mask 等
 - [x] P2 ミラー構築（`_P2Components` 一括リネーム）
-- [ ] HP Fill バー実装（9-slice + RectTransform Width 制御）
-- [ ] Energy / Incoming インジケータ実装
-- [ ] UIManager / MatchResultUI / SkillSelectUI の SerializeField 再バインド
-- [ ] アクティブアイテム表示の動的データ連携
+
+### スクリプト連携
+- [x] `UIManager` を新 UI 構造に合わせて refactor（[必須]/[任意]/[演出] 3 区分）
+- [x] `MatchResultUI` / `SkillSelectUI` を新パネルにバインド済み
+- [x] `UIManager` 全 [必須] フィールドを `SetupUIManager.cs` で自動バインド（HP/Combo/Score/ActiveItem × P1・P2）
+- [x] スコアのカンマ表示（`ToString("N0")`）
+- [x] `P1HpMax` / `P1ComboMax` 等の静的ラベルを `GameManager` 実値で Start() 時に初期化
+- [x] アクティブアイテム表示の動的データ連携（`GameManager.RegisterActiveItem` + `ItemDrop` 通知）
+- [x] スキル READY 表示（`EnergyRatio >= 1` で suffix 付加）
+- [x] `GameManager` に `RegisterActiveItem` / `GetActiveItemName` / `GetActiveItemRemaining` API 追加
+- [x] `SetupUIManager.cs` Editor スクリプト追加（`BurokkuKuzushi > Setup UIManager Bindings` で冪等実行）
+- [ ] HP Fill バー動作確認（Image Sliced + Horizontal fillAmount）
+- [ ] Energy / Incoming インジケータ実装（UI 要素未作成）
 - [ ] 旧 `CenterUI_Old` の最終削除
 
 ---
@@ -187,5 +195,6 @@ Phase E 完了後、視覚品質と保守性を上げるため UI 構造全体�
 - **完了**: Phase E（妨害多様化フル実装 — ZoneSlow / BlockHardened 視覚区別 / Pierce アイテム含む）
 - **進行中**: Phase F-Setup（UI / カメラ / シェーダー基盤刷新）
   - カメラ単 Ortho 化・HitStop シェイク方式変更・HDR シェーダー・UI 階層刷新は完了
-  - HP Fill 実装、Incoming インジケータ、UIManager 再バインドが残作業
-- **次**: Phase F（演出強化）または Phase G+（拡張要素）。発表（2026-06-05 頃）までに UI 連携完了を優先
+  - UIManager 全バインド・アクティブアイテム表示・スキル READY・スコアカンマ整形が完了
+  - **残作業**: Energy / Incoming インジケータ（UI 要素作成）、CenterUI_Old 削除
+- **次**: Phase F-Setup 残作業を終えたら Phase F（演出強化）。発表（2026-06-05 頃）までに UI 動作を優先

@@ -66,6 +66,10 @@ public class GameManager : MonoBehaviour
     private int p1RoundWins, p2RoundWins;
     private int p1DestroyedCount, p2DestroyedCount;
 
+    // アクティブアイテム表示用（最後に取得した1個のみ、コルーチン上書きと整合）
+    private string p1ActiveItemName, p2ActiveItemName;
+    private float  p1ActiveItemEnd,  p2ActiveItemEnd;
+
     public enum GameState
     {
         WaitingToStart,
@@ -359,6 +363,33 @@ public class GameManager : MonoBehaviour
     public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1DestroyedCount : p2DestroyedCount;
     public int   GetComboThreshold()           => comboThreshold;
     public GameState GetCurrentState()         => currentState;
+
+    // =====================================================
+    // アクティブアイテム（最後に取った1個だけ表示）
+    // =====================================================
+
+    // ItemDrop が効果適用と同時に呼ぶ。duration=0 のアイテム（Heal 等）は表示しない
+    public void RegisterActiveItem(int playerIndex, string itemName, float duration)
+    {
+        if (duration <= 0f) return;
+        float end = Time.time + duration;
+        if (playerIndex == 1) { p1ActiveItemName = itemName; p1ActiveItemEnd = end; }
+        else                  { p2ActiveItemName = itemName; p2ActiveItemEnd = end; }
+    }
+
+    public float GetActiveItemRemaining(int playerIndex)
+    {
+        float end = playerIndex == 1 ? p1ActiveItemEnd : p2ActiveItemEnd;
+        return Mathf.Max(0f, end - Time.time);
+    }
+
+    // 残り 0 のときは null を返す（UI 側で表示/非表示を判定）
+    public string GetActiveItemName(int playerIndex)
+    {
+        return GetActiveItemRemaining(playerIndex) > 0f
+             ? (playerIndex == 1 ? p1ActiveItemName : p2ActiveItemName)
+             : null;
+    }
 
     // 現在のHP割合に応じた HPStateBand を返す（配列が空なら等倍のデフォルトを返す）
     public HPStateBand GetCurrentBand(int playerIndex)

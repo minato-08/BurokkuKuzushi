@@ -3,90 +3,195 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// 中央UIを管理するスクリプト
-// GameManagerの状態を毎フレーム読み取ってテキストを更新する
+// 新 UI Hierarchy (_UI/_CameraSpace/_Components/_P1Components/...) に合わせた UIManager。
+// GameManager を毎フレームポーリングして $P1XXX / $P2XXX 要素を更新する。
+//
+// SerializeField は次の 3 区分:
+//   [必須]      新 UI に既に存在する要素（HP / Combo / Score / ActiveItem）
+//   [任意・将来] まだ UI 要素が作られていないもの（Energy / Skill / Round / 妨害 / Status）
+//                バインドされたときだけ更新される（null セーフ）
+//   [演出]      色閾値などのパラメータ
 public class UIManager : MonoBehaviour
 {
-    [Header("プレイヤー1 UI")]
-    [SerializeField] private TextMeshProUGUI p1ScoreText;
-    [SerializeField] private TextMeshProUGUI p1HPText;       // HP数値表示
-    [SerializeField] private Image           p1HPFill;       // HPバー（Image Type=Filled 想定）
-    [SerializeField] private TextMeshProUGUI p1ComboText;
-    [SerializeField] private TextMeshProUGUI p1RoundWinsText;
+    // =====================================================
+    // 必須セクション（新 UI で既に配置済み）
+    // =====================================================
 
-    [Header("プレイヤー2 UI")]
-    [SerializeField] private TextMeshProUGUI p2ScoreText;
-    [SerializeField] private TextMeshProUGUI p2HPText;
-    [SerializeField] private Image           p2HPFill;
-    [SerializeField] private TextMeshProUGUI p2ComboText;
-    [SerializeField] private TextMeshProUGUI p2RoundWinsText;
+    [Header("[必須] P1 HUD")]
+    [SerializeField] private Image           p1HpFill;        // $P1HpFill (Image Sliced + Horizontal Fill)
+    [SerializeField] private TextMeshProUGUI p1HpValue;       // $P1HpValue  ← 数字のみ
+    [SerializeField] private TextMeshProUGUI p1HpMax;         // P1HpMax    ← "/500" 静的ラベル。Start() で実値に合わせる
+    [SerializeField] private TextMeshProUGUI p1ComboValue;    // $P1ComboValue ← 数字のみ
+    [SerializeField] private TextMeshProUGUI p1ComboMax;      // P1ComboMax ← "× /15" 静的ラベル。Start() で実値に合わせる
+    [SerializeField] private TextMeshProUGUI p1ScoreValue;    // $P1ScoreValue ← "1,000" 形式
+    [SerializeField] private GameObject      p1ItemInfoRoot;  // _P1ItemInfo（アイテム表示時のみ active）
+    [SerializeField] private TextMeshProUGUI p1ItemName;      // $P1ItemName
+    [SerializeField] private TextMeshProUGUI p1ItemDuration;  // $P1ItemDuration
 
-    [Header("HPバー演出")]
-    [SerializeField] private Color hpColorFull   = new Color(0.910f, 0.902f, 0.875f); // #e8e6df 白寄り
-    [SerializeField] private Color hpColorMid    = new Color(1.000f, 0.847f, 0.290f); // #ffd84a 黄
-    [SerializeField] private Color hpColorLow    = new Color(1.000f, 0.231f, 0.361f); // #ff3b5c 赤
-    [Range(0f, 1f)] [SerializeField] private float midThreshold = 0.7f;
-    [Range(0f, 1f)] [SerializeField] private float lowThreshold = 0.3f;
+    [Header("[必須] P2 HUD")]
+    [SerializeField] private Image           p2HpFill;
+    [SerializeField] private TextMeshProUGUI p2HpValue;
+    [SerializeField] private TextMeshProUGUI p2HpMax;
+    [SerializeField] private TextMeshProUGUI p2ComboValue;
+    [SerializeField] private TextMeshProUGUI p2ComboMax;
+    [SerializeField] private TextMeshProUGUI p2ScoreValue;
+    [SerializeField] private GameObject      p2ItemInfoRoot;
+    [SerializeField] private TextMeshProUGUI p2ItemName;
+    [SerializeField] private TextMeshProUGUI p2ItemDuration;
 
-    [Header("エナジーゲージ UI")]
+    // =====================================================
+    // 任意セクション（UI 要素が未配置。あとから追加バインド）
+    // =====================================================
+
+    [Header("[任意] エナジー / スキル / ラウンド")]
     [SerializeField] private Image           p1EnergyFill;
     [SerializeField] private Image           p2EnergyFill;
-    [SerializeField] private TextMeshProUGUI p1SkillText;
-    [SerializeField] private TextMeshProUGUI p2SkillText;
+    [SerializeField] private TextMeshProUGUI p1SkillName;
+    [SerializeField] private TextMeshProUGUI p2SkillName;
+    [SerializeField] private TextMeshProUGUI p1RoundWins;
+    [SerializeField] private TextMeshProUGUI p2RoundWins;
 
-    [Header("試合状態 UI")]
+    [Header("[任意] 試合状態テキスト（Round Over 等）")]
     [SerializeField] private TextMeshProUGUI statusText;
 
-    [Header("妨害通知オーバーレイ")]
+    [Header("[任意] 妨害通知オーバーレイ")]
     [SerializeField] private CanvasGroup     p1InterferenceOverlay;
     [SerializeField] private TextMeshProUGUI p1InterferenceLabel;
     [SerializeField] private CanvasGroup     p2InterferenceOverlay;
     [SerializeField] private TextMeshProUGUI p2InterferenceLabel;
 
+    // =====================================================
+    // 演出パラメータ
+    // =====================================================
+
+    [Header("HP バー色")]
+    [SerializeField] private Color hpColorFull = new Color(0.910f, 0.902f, 0.875f);
+    [SerializeField] private Color hpColorMid  = new Color(1.000f, 0.847f, 0.290f);
+    [SerializeField] private Color hpColorLow  = new Color(1.000f, 0.231f, 0.361f);
+    [Range(0f, 1f)] [SerializeField] private float midThreshold = 0.7f;
+    [Range(0f, 1f)] [SerializeField] private float lowThreshold = 0.3f;
+
+    [Header("スキル READY 表示")]
+    [SerializeField] private string skillReadySuffix = " · READY";
+
     private Coroutine p1OverlayRoutine;
     private Coroutine p2OverlayRoutine;
+
+    // =====================================================
+    // 初期化（静的ラベルを GameManager 実値に合わせる）
+    // =====================================================
+
+    void Start()
+    {
+        if (GameManager.Instance == null) return;
+
+        int maxHP        = GameManager.Instance.GetMaxHP(1); // 両プレイヤー同値
+        int comboMax     = GameManager.Instance.GetComboThreshold();
+
+        if (p1HpMax    != null) p1HpMax.text    = $"/{maxHP}";
+        if (p2HpMax    != null) p2HpMax.text    = $"/{maxHP}";
+        if (p1ComboMax != null) p1ComboMax.text = $"× /{comboMax}";
+        if (p2ComboMax != null) p2ComboMax.text = $"× /{comboMax}";
+    }
+
+    // =====================================================
+    // 更新ループ
+    // =====================================================
 
     void Update()
     {
         if (GameManager.Instance == null) return;
 
-        UpdatePlayerStats(1, p1ScoreText, p1HPText, p1HPFill, p1ComboText, p1RoundWinsText);
-        UpdatePlayerStats(2, p2ScoreText, p2HPText, p2HPFill, p2ComboText, p2RoundWinsText);
-        UpdateEnergyUI();
+        UpdatePlayerHUD(1, p1HpFill, p1HpValue, p1ComboValue, p1ScoreValue,
+                            p1ItemInfoRoot, p1ItemName, p1ItemDuration,
+                            p1EnergyFill, p1SkillName, p1RoundWins);
+        UpdatePlayerHUD(2, p2HpFill, p2HpValue, p2ComboValue, p2ScoreValue,
+                            p2ItemInfoRoot, p2ItemName, p2ItemDuration,
+                            p2EnergyFill, p2SkillName, p2RoundWins);
+
         UpdateStatusText();
     }
 
-    private void UpdatePlayerStats(int playerIndex,
-                                   TextMeshProUGUI score,
-                                   TextMeshProUGUI hpText,
-                                   Image           hpFill,
-                                   TextMeshProUGUI combo,
-                                   TextMeshProUGUI rounds)
+    private void UpdatePlayerHUD(int playerIndex,
+                                 Image hpFill, TextMeshProUGUI hpValue,
+                                 TextMeshProUGUI comboValue, TextMeshProUGUI scoreValue,
+                                 GameObject itemRoot, TextMeshProUGUI itemName, TextMeshProUGUI itemDuration,
+                                 Image energyFill, TextMeshProUGUI skillName, TextMeshProUGUI roundWins)
     {
         var gm = GameManager.Instance;
-        int   currentHP = gm.GetHP(playerIndex);
-        int   maxHP     = gm.GetMaxHP(playerIndex);
-        float ratio     = gm.GetHPRatio(playerIndex);
 
-        if (score  != null) score.text  = $"{gm.GetScore(playerIndex)}";
-        if (hpText != null) hpText.text = $"HP {currentHP} / {maxHP}";
+        // HP
         if (hpFill != null)
         {
+            float ratio = gm.GetHPRatio(playerIndex);
             hpFill.fillAmount = ratio;
             hpFill.color      = GetHPColor(ratio);
         }
-        if (combo  != null) combo.text  = $"Combo {gm.GetCombo(playerIndex)}/{gm.GetComboThreshold()}";
-        if (rounds != null) rounds.text = $"Wins: {gm.GetRoundWins(playerIndex)}";
+        if (hpValue   != null) hpValue.text   = gm.GetHP(playerIndex).ToString();
+        if (comboValue != null) comboValue.text = gm.GetCombo(playerIndex).ToString();
+        if (scoreValue != null) scoreValue.text = gm.GetScore(playerIndex).ToString("N0");
+
+        // Active Item
+        UpdateActiveItem(playerIndex, itemRoot, itemName, itemDuration);
+
+        // 任意セクション
+        if (energyFill != null) energyFill.fillAmount = gm.GetEnergyRatio(playerIndex);
+        if (skillName != null)
+        {
+            string name = gm.GetEquippedSkillName(playerIndex);
+            bool ready = gm.GetEnergyRatio(playerIndex) >= 1f;
+            skillName.text = ready ? name + skillReadySuffix : name;
+        }
+        if (roundWins != null) roundWins.text = gm.GetRoundWins(playerIndex).ToString();
     }
 
-    private void UpdateEnergyUI()
+    private void UpdateActiveItem(int playerIndex,
+                                  GameObject itemRoot,
+                                  TextMeshProUGUI itemName,
+                                  TextMeshProUGUI itemDuration)
     {
         var gm = GameManager.Instance;
-        if (p1EnergyFill != null) p1EnergyFill.fillAmount = gm.GetEnergyRatio(1);
-        if (p2EnergyFill != null) p2EnergyFill.fillAmount = gm.GetEnergyRatio(2);
-        if (p1SkillText  != null) p1SkillText.text  = gm.GetEquippedSkillName(1);
-        if (p2SkillText  != null) p2SkillText.text  = gm.GetEquippedSkillName(2);
+        string name      = gm.GetActiveItemName(playerIndex);
+        float  remaining = gm.GetActiveItemRemaining(playerIndex);
+        bool   active    = name != null && remaining > 0f;
+
+        if (itemRoot != null && itemRoot.activeSelf != active)
+            itemRoot.SetActive(active);
+
+        if (active)
+        {
+            if (itemName     != null) itemName.text     = name;
+            if (itemDuration != null) itemDuration.text = remaining.ToString("0.0") + "s";
+        }
     }
+
+    private void UpdateStatusText()
+    {
+        if (statusText == null) return;
+
+        var state = GameManager.Instance.GetCurrentState();
+        // MatchOver は MatchResultUI が担当
+        if (state == GameManager.GameState.RoundOver)
+        {
+            statusText.gameObject.SetActive(true);
+            statusText.text = "Round Over!";
+        }
+        else
+        {
+            statusText.gameObject.SetActive(false);
+        }
+    }
+
+    private Color GetHPColor(float ratio)
+    {
+        if (ratio <= lowThreshold) return hpColorLow;
+        if (ratio <= midThreshold) return hpColorMid;
+        return hpColorFull;
+    }
+
+    // =====================================================
+    // 妨害オーバーレイ（任意・GameManager から呼ばれる）
+    // =====================================================
 
     public void ShowInterferenceOverlay(int playerIndex, string label)
     {
@@ -105,29 +210,5 @@ public class UIManager : MonoBehaviour
         cg.alpha = 1f;
         yield return new WaitForSecondsRealtime(1.5f);
         cg.alpha = 0f;
-    }
-
-    private Color GetHPColor(float ratio)
-    {
-        if (ratio <= lowThreshold) return hpColorLow;
-        if (ratio <= midThreshold) return hpColorMid;
-        return hpColorFull;
-    }
-
-    private void UpdateStatusText()
-    {
-        if (statusText == null) return;
-
-        var state = GameManager.Instance.GetCurrentState();
-        // MatchOver の表示は MatchResultUI が担当するためここでは非表示
-        if (state == GameManager.GameState.RoundOver)
-        {
-            statusText.gameObject.SetActive(true);
-            statusText.text = "Round Over!";
-        }
-        else
-        {
-            statusText.gameObject.SetActive(false);
-        }
     }
 }

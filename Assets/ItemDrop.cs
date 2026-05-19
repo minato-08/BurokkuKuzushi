@@ -92,11 +92,23 @@ public class ItemDrop : MonoBehaviour
             if (hit.GetComponent<PlayerController>() != null)
             {
                 BuildEffect().Apply(playerIndex, arena);
+                GameManager.Instance?.RegisterActiveItem(
+                    playerIndex, ItemDefinition.GetName(itemType), GetActiveDuration());
                 Destroy(gameObject);
                 return;
             }
         }
     }
+
+    // 効果の持続時間。Heal など瞬時アイテムは 0（=表示しない）
+    private float GetActiveDuration() => itemType switch
+    {
+        ItemType.Fire or ItemType.Ice or ItemType.Thunder
+            or ItemType.Heavy or ItemType.Pierce         => attributeDuration,
+        ItemType.Enlarge or ItemType.Shrink              => paddleDuration,
+        ItemType.SpeedUp or ItemType.Hyper               => speedDuration,
+        _                                                => 0f
+    };
 
     private EffectDefinition BuildEffect() => itemType switch
     {
