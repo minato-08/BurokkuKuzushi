@@ -4,11 +4,16 @@
 
 | ドキュメント | 内容 |
 |---|---|
-| [`docs/DESIGN.md`](./docs/DESIGN.md) | ゲーム設計仕様書 |
-| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | 開発フェーズ計画・進捗 |
-| 本ファイル | 実装の現状、シーン構成、座標系、既知の問題 |
+| [`docs/DESIGN.md`](./docs/DESIGN.md) | ゲーム設計仕様書（**最新仕様の真実**） |
+| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | 開発フェーズ計画・進捗・発表逆算スケジュール |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | 実装アーキテクチャ詳細・依存関係 |
+| [`docs/BALANCE.md`](./docs/BALANCE.md) | バランス哲学・パラメータ調整ガイド |
+| [`docs/LEARNING.md`](./docs/LEARNING.md) | C# / Unity 学習ロードマップ |
+| 本ファイル | コード実装の現状、シーン構成、座標系、既知の問題 |
 
 **仕様変更が必要になった場合は、まず `docs/DESIGN.md` を更新してから実装に着手すること。**
+
+**重要**: DESIGN.md とコード実装が乖離している箇所は、本ファイルで `⚠️ 仕様とコードの乖離` と明示する。CLAUDE.md は「現在のコードがどうなっているか」、DESIGN.md は「目標仕様」の二層で運用する。
 
 ---
 
@@ -222,6 +227,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
 - `GetCombo(playerIndex)` は「次の妨害送付までのブロック破壊カウント」を返す（`p1DestroyedCount`）
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
+
+> ⚠️ **仕様とコードの乖離（2026-05-20）**: DESIGN.md 5.7 では「コンボ自動妨害を撤廃し攻撃アイテム経由に移行」と定義済みだが、上記の `p1DestroyedCount` / `SendSabotageTo` 実装はまだ旧モデルのまま。Phase F-Combat（ROADMAP.md 参照）で削除予定。実装着手時は `GameManager.SendInterference(targetPi, payload)` 経路に統一する。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）

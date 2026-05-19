@@ -1,6 +1,6 @@
 # BurokkuKuzushi アーキテクチャ資料
 
-最終更新: 2026-05-15
+最終更新: 2026-05-20（単 Ortho カメラ・新 UI 階層・攻撃アイテム経由妨害モデルへ刷新）
 
 このドキュメントはコードを読まなくても実装の全体像を把握できることを目的とする。  
 ゲームルール・仕様は [`DESIGN.md`](./DESIGN.md)、開発進捗は [`ROADMAP.md`](./ROADMAP.md) を参照。
@@ -17,7 +17,7 @@
 6. [各スクリプト詳細](#6-各スクリプト詳細)
 7. [主要データフロー](#7-主要データフロー)
 8. [ヒットストップシステム](#8-ヒットストップシステム)
-9. [ボール速度の3層管理](#9-ボール速度の3層管理)
+9. [ボール速度の4層管理](#9-ボール速度の4層管理)
 10. [アイテム・スキルの共通設計](#10-アイテムスキルの共通設計)
 11. [妨害システム](#11-妨害システム)
 12. [座標系と2アリーナ分離](#12-座標系と2アリーナ分離)
@@ -42,44 +42,58 @@
 
 ## 2. シーン構造
 
-アクティブシーン: `Assets/Scenes/SampleScene.unity`
+アクティブシーン: `Assets/SampleScene.unity`
 
 ```
 SampleScene
 ├── EventSystem
 ├── GameManager                    ← Singleton。全ゲームロジックの唯一の窓口
-├── CenterUI  (Canvas)             ← Screen Space Overlay。両カメラに重なる
-│   ├── P1HPText / P1HPFill
-│   ├── P1Score / P1Combo / P1Wins
-│   ├── P1EnergyFill / P1SkillText
-│   ├── P2HPText / P2HPFill
-│   ├── P2Score / P2Combo / P2Wins
-│   ├── P2EnergyFill / P2SkillText
-│   ├── GameOverText
-│   ├── MatchResultPanel           ← MatchResultUI がアタッチ
-│   ├── SkillSelectPanel           ← SkillSelectUI がアタッチ
-│   ├── P1InterferenceOverlay      ← 妨害通知フラッシュ（CanvasGroup）
-│   └── P2InterferenceOverlay
+├── Directional Light
+├── Global Volume                  ← URP Post Processing（Bloom 等）
+├── MainCamera                     ← 単 Orthographic カメラ。world (0, 0, -34.8), ortho size 12.1
+│                                    HDR ON / Post Processing ON / TAA High
+├── _UI                            ← トップレベル UI フォルダ（Transform のみ）
+│   └── _CameraSpace               ← Screen Space - Camera Canvas（MainCamera 参照）
+│       ├── _Base                  ← UIManager / MatchResultUI / SkillSelectUI がアタッチ
+│       │   ├── Background / P1ArenaFrame / P2ArenaFrame …  静的装飾
+│       │   └── _BloomyFrames/
+│       ├── _Components
+│       │   ├── _SkillSelectPanel  ← SkillSelectUI が制御
+│       │   ├── _MatchResultPanel  ← MatchResultUI が制御
+│       │   ├── _P1Components/     ← P1 HUD（HP/Combo/Score/ItemInfo）
+│       │   └── _P2Components/     ← P2 HUD（ミラー）
+│       └── _Overlays              ← 妨害通知 / 罠通知用 CanvasGroup（Phase F）
 │
-├── Arena1  (world pos: 0, 0, 0)   ← 1Pのアリーナ
-│   ├── Camera1                    ← Arena1の子。localPos(-0.3, 0, -25) FOV 45°
+├── Arena1  (world pos: -9.2, 0.66, 0)  ← 1Pのアリーナ
 │   ├── TopWall / LeftWall / RightWall
-│   ├── Ball                       ← BallScript, Rigidbody, Collider, "BallTag"タグ必須
+│   ├── Ball                       ← BallScript, Rigidbody (CCD), Collider, "BallTag" タグ必須
 │   ├── Player                     ← PlayerController, Rigidbody(isKinematic)
 │   ├── DeadZone                   ← localPos(0, -11, 0)。落下検知トリガー
 │   ├── BlockSpawner               ← ブロックを子として動的生成・管理
-│   └── ArenaController            ← Arena内の司令塔（ArenaControllerは Arena1の子）
+│   └── ArenaController            ← Arena内の司令塔（Arena1 の子）
 │       ├── HitStopController      ← Setup HitStop で自動生成
 │       └── LaunchAimer            ← Setup LaunchAimer で自動生成
 │
-└── Arena2  (world pos: 50, 0, 0)  ← 2Pのアリーナ（Arena1と完全に同構成）
-    ├── Camera2                    ← localPos(0.2, 0, -25) FOV 45°。AudioListener なし
-    └── （Arena1と同構成）
+├── Arena2  (world pos: 9.2, 0.66, 0)   ← 2Pのアリーナ（Arena1 の鏡像）
+│   └── （Arena1 と同構成）
+└── CenterUI_Old (inactive)            ← 旧 UI バックアップ。Phase F-Setup 最終確認後に削除
 ```
 
-### なぜ Arena2 は X=50 にオフセットするのか
+### 旧構造との違い（2026-05 単 Ortho カメラ化）
 
-カメラが Arena の**子**として配置されているため、Arena ごとオフセットするだけで完全に独立した3D空間が成立する。Arena1 と Arena2 のオブジェクトは同一シーン内に共存しているが、それぞれのカメラが独自の Viewport を持つため、プレイヤーからは相手のアリーナは見えない。この設計により、座標変換・シーン分割・特殊ローディングなしで2画面を実現している。
+| 観点 | 旧構造 | 新構造 |
+|---|---|---|
+| カメラ | Arena1/Arena2 の子に Camera1/Camera2 + Viewport 分割 | シーン直下に MainCamera (Ortho) 1 つ |
+| アリーナ間距離 | Arena2 を X=50 にオフセット | Arena1/2 を X=±9.2 に近接配置（同一視野） |
+| ポストプロセス | 各カメラに個別 Volume | Global Volume 1 つで両アリーナ統一 |
+| HitStop シェイク対象 | カメラ Transform | ArenaRoot Transform（`HitStopController.SetShakeTarget`） |
+| UI | CenterUI (Screen Space Overlay) | `_UI/_CameraSpace` (Screen Space - Camera) |
+
+**移行理由**: ポスプロが単純化、UI Canvas が 1 つで済む、Scene Editor で全アリーナを一望できる、Bloom など Volume を試合全体に統一できる。HitStop の片アリーナ独立シェイクは「カメラを揺らす」から「アリーナを揺らす」に変えて維持。
+
+### Arena2 を X=+9.2 に配置する理由（新構造）
+
+MainCamera は単 Ortho で両アリーナをまとめて捉える。Arena1/Arena2 のローカル座標は完全に対称（X 軸反転を除く）で、コードは全て ArenaRoot 基準のローカル座標で動作する。アリーナ間隔は ortho size 12.1 と画面アスペクト比から「壁を含めて両方が画面内に収まる最小オフセット」として 9.2 を採用している。
 
 ---
 
@@ -227,36 +241,46 @@ SkillSelectUI → GameManager.Instance / SkillController
 
 ゲーム全体の唯一の審判。Singleton。
 
-**保持するデータ:**
+**保持するデータ（プレイヤー状態は配列 2 要素、Idx(playerIndex) = playerIndex - 1）:**
 ```
-HPSystem p1HP, p2HP
-int p1Score, p2Score
-int p1RoundWins, p2RoundWins
-int p1DestroyedCount, p2DestroyedCount  ← 次の妨害送付までのカウント
-GameState currentState
+HPSystem    hp[2]
+int         score[2]
+int         roundWins[2]
+int         combo[2]            ← 現在の連続破壊数（5.8 コンボ・スコア）
+float       comboTimer[2]       ← 最後のブロック破壊からの経過秒。comboTimeout 超過で combo=0
+int         maxCombo[2]         ← ラウンド中の最大コンボ（リザルト表示用）
+GameState   currentState
+string      activeItemName[2]   ← UI のアクティブアイテム表示用
+float       activeItemEnd[2]
 ```
+
+**削除済みフィールド** (2026-05-20 攻撃アイテム経由モデル移行):
+- `destroyedCount[2]` (妨害送付カウンタ) — 自動送付廃止により不要
+- `comboThreshold` (15) — 自動送付の閾値、不要
 
 **HP帯別パラメータ（HPStateBand[]）:**  
 Inspector で `thresholdPercent` 降順の配列を設定する。`GetCurrentBand(playerIndex)` が現在HPに応じたバンドを線形探索で返す。配列が空なら全倍率1.0のデフォルトを返す。
 
 ```
-HP 100-70%: gaugeRateMul=1.0 / itemDropMul=1.0 / scoreMul=1.0
-HP  70-30%: gaugeRateMul=1.3 / itemDropMul=1.2
-HP  30-10%: gaugeRateMul=1.6 / itemDropMul=1.5 / goodItemBias有効
-HP  10%以下: panicMode=true → SkillPanic_BlockClear 解禁
+HP 100-70%: gaugeRateMul=1.0 / itemDropMul=1.0 / scoreMul=1.0 / dropBiasBuff=0
+HP  70-30%: gaugeRateMul=1.3 / itemDropMul=1.2 / scoreMul=1.0 / dropBiasBuff=+20%
+HP  30-10%: gaugeRateMul=1.6 / itemDropMul=1.5 / scoreMul=1.5 / dropBiasBuff=+40%
+HP  10%以下: gaugeRateMul=1.8 / itemDropMul=1.7 / scoreMul=1.5 / dropBiasBuff=+50% / panicMode=true
 ```
 
 **主要メソッド:**
 | メソッド | 呼び出し元 | 処理 |
 |---|---|---|
-| `OnBallDropped(pi)` | DeadZone | damageBallDrop を ApplyDamage |
+| `OnBallDropped(pi)` | DeadZone | damageBallDrop を ApplyDamage + combo=0 |
 | `OnBlocksReachedBottom(pi, count)` | BlockSpawner | damageBlockReachBottom × count |
 | `OnSpikeHit(pi)` | Block | damageBlockSpike を ApplyDamage |
 | `OnPoisonTick(pi, dt)` | ZonePoison | damagePoisonPerSec × dt を ApplyDamage |
 | `OnForceRespawn(pi)` | LaunchAimer | damageForceRespawn を ApplyDamage |
-| `RegisterBlockDestroyed(pi)` | Block | コンボ++、閾値でSendSabotageTo |
-| `Heal(pi, amount)` | EffectHeal経由 | HPSystem.Heal |
-| `AddScore(pi, amount)` | Block | scoreMul を乗算して加算 |
+| `RegisterBlockDestroyed(pi)` | Block | combo++、comboTimer リセット、maxCombo 更新（妨害送付はしない） |
+| `Heal(pi, amount)` | EffectHeal 経由 | HPSystem.Heal |
+| `AddScore(pi, baseScore)` | Block | `baseScore × scoreMul × scoreComboMul(combo)` を加算 |
+| `AddEnergy(pi, base)` | Block | `base × gaugeRateMul × gaugeComboMul(combo)` を SkillController に渡す |
+| `SendInterference(targetPi, payload)` | ItemDrop / SkillAttack_* | 攻撃アイテム取得 / 攻撃スキル発動時に呼ばれる唯一の妨害送付窓口 |
 
 ---
 
@@ -314,16 +338,17 @@ hitStop         = GetComponentInChildren<HitStopController>();
 
 `IFreezable` 実装。ヒットストップ中は `rb.linearVelocity = Vector3.zero`。
 
-**速度の3層管理:**
+**速度の4層管理:**
 ```
-naturalSpeed  = baseSpeed + 時間加速（isExtraBall=false のメインボールのみ）
-                Mathf.Min(baseSpeed × timeAccelMax, baseSpeed + timeAccelRate × arenaDwellTime)
+naturalSpeed   = baseSpeed + 時間加速（isExtraBall=false のメインボールのみ）
+                 Mathf.Min(baseSpeed × timeAccelMax, baseSpeed + timeAccelRate × arenaDwellTime)
 speedMultiplier = アイテム効果（SetSpeedTemporary コルーチン。1.0 がデフォルト）
-slowZoneMul   = ZoneSlow が毎フレーム書き込む（ZoneSlow がゾーン離脱/Destroy 時に 1 に戻す）
+slowZoneMul    = ZoneSlow が毎フレーム書き込む（ZoneSlow が OnDestroy / 離脱時に 1 に戻す）
+absorbSlowMul  = Absorb ブロック衝突の一時減速（ApplyAbsorbHit コルーチン）
 
-実効速度 = naturalSpeed × speedMultiplier × slowZoneMul
+実効速度 = naturalSpeed × speedMultiplier × slowZoneMul × absorbSlowMul
 ```
-`FixedUpdate` で毎フレーム `rb.linearVelocity = 正規化 × 実効速度` に強制補正する。
+`FixedUpdate` で毎フレーム `rb.linearVelocity = 正規化 × 実効速度` に強制補正する。`absorbSlowMul` を `speedMultiplier` と分離した理由: Absorb 衝突直後の数フレームだけ減速したい挙動と、アイテム由来の数秒間スパイクを別チャネルにすることで互いに上書きしないようにするため。
 
 **属性別の動作:**
 | 属性 | GetDamage | GetAttributeMultiplier | OnHitBlock |
@@ -651,7 +676,7 @@ public abstract class SkillDefinition
 
 ### UIManager
 
-`CenterUI` にアタッチ。`Update()` で毎フレーム `GameManager.Instance` をポーリングして表示更新（プッシュ型ではなくプル型）。
+`_UI/_CameraSpace/_Base` Canvas にアタッチ。`Update()` で毎フレーム `GameManager.Instance` をポーリングして表示更新（プッシュ型ではなくプル型）。SerializeField は `[必須]/[任意]/[演出]` の 3 区分（CLAUDE.md 参照）。バインド先は新 UI 階層 `_P1Components` / `_P2Components` 配下の `$P1HpFill` / `$P1HpValue` / `$P1ComboValue` / `$P1ScoreValue` / `$P1ItemName` 等。
 
 **ShowInterferenceOverlay（妨害通知）:**
 ```csharp
@@ -667,28 +692,48 @@ slot = StartCoroutine(OverlayRoutine(cg, txt, label));
 
 ## 7. 主要データフロー
 
-### ブロック破壊 → 妨害送付
+### ブロック破壊 → スコア・コンボ・アイテムドロップ（妨害送付は分離）
 
 ```
 Ball.OnCollisionEnter(Block)
   └→ block.TakeDamage(ball.GetDamage(), ball)
         └→ currentHp <= 0 → block.OnDestroyed(ball)
-              ├→ GameManager.AddScore(playerIndex, score)
-              └→ GameManager.RegisterBlockDestroyed(playerIndex)
-                    └→ p1DestroyedCount++
-                          └→ >= comboThreshold
-                                └→ SendSabotageTo(2)
-                                      └→ SelectInterferenceType() → 重み付き抽選
-                                      └→ ApplyInterference(arena2, type)
-                                            ├→ AddRow: spawner.ReceiveSabotageRow()
-                                            ├→ Harden: arena.HardenBlocks()
-                                            ├→ Spike:  spawner.ReceiveSpikeRow()
-                                            ├→ Poison: arena.SpawnZonePoison(randomPos)
-                                            └→ Slow:   arena.SpawnZoneSlow(randomPos)
-                                      └→ arena2.TriggerHitStop(10)
-                                      └→ arena2.ShowInterferenceOverlay(label)
-                                            └→ UIManager.ShowInterferenceOverlay(2, label)
+              ├→ GameManager.AddScore(playerIndex, baseScore)        ← scoreMul × scoreComboMul
+              ├→ GameManager.RegisterBlockDestroyed(playerIndex)
+              │     ├→ combo[pi]++ / comboTimer[pi] = 0
+              │     ├→ maxCombo[pi] = max(maxCombo[pi], combo[pi])
+              │     └→ SkillController.AddEnergy(base × gaugeRateMul × gaugeComboMul)
+              └→ Block.TryDropItem(ball)
+                    └→ dropChance = baseDropChance × itemDropMul × itemDropComboMul
+                          └→ ArenaController.SpawnItem(blockPos, ItemType)
+                                ↑ buff/attack/trap 系統別に抽選（5.5.2 参照）
+
+GameManager.Update（毎フレーム TickCombo）
+  └→ comboTimer[pi] += Time.deltaTime
+        └→ comboTimer[pi] >= comboTimeout (3.0s) → combo[pi] = 0
 ```
+
+### 攻撃アイテム取得 → 妨害送付（新モデル）
+
+```
+ItemDrop.Update (毎フレーム落下 + パドル接触ポーリング)
+  └→ OverlapSphere でパドル検出
+        └→ ItemType が攻撃系（AttackHarden/Spike/AddRow/Poison/Slow/…）の場合:
+              ├→ payload = BuildAttackPayload(itemType, sourcePlayerIndex)
+              ├→ GameManager.Instance.SendInterference(opponentPlayerIndex, payload)
+              │     └→ ApplyInterference(targetArena, payload)
+              │           ├→ Harden: targetArena.GetSpawner().HardenRandomBlocks(payload.intensity)
+              │           ├→ Spike:  targetArena.GetSpawner().ReceiveSpikeRow()
+              │           ├→ AddRow: targetArena.GetSpawner().ReceiveSabotageRow()
+              │           ├→ Poison: targetArena.SpawnZonePoison(GetRandomFloorWorldPos(), payload.duration)
+              │           ├→ Slow:   targetArena.SpawnZoneSlow(GetRandomFloorWorldPos(), payload.duration)
+              │           └→ DirectAttack: targetArena.SpawnTelegraphedShot(payload)
+              │     └→ targetArena.TriggerHitStop(interferenceTriggerFrames=10, shake:false)
+              │     └→ targetArena.ShowInterferenceOverlay(payload.type 名)
+              └→ ItemDrop GameObject Destroy
+```
+
+攻撃スキル（SkillAttack_*）も同じ `SendInterference` を経由するため、ApplyInterference 以降は共通フローで処理される。「妨害は唯一 `SendInterference` から発火する」がモデルの不変式。
 
 ### ボール落下 → ラウンド終了
 
@@ -778,7 +823,7 @@ naturalSpeed / baseSpeed < hitStopSpeedThreshold (1.5) → 0 を返す（発動�
 
 ---
 
-## 9. ボール速度の3層管理
+## 9. ボール速度の4層管理
 
 ```
 Layer 1: naturalSpeed
@@ -788,7 +833,7 @@ Layer 1: naturalSpeed
 
 Layer 2: speedMultiplier
   = 1.0 (デフォルト)
-  → SetSpeedTemporary コルーチンで一時変更（SpeedUp/Hyper アイテム）
+  → SetSpeedTemporary コルーチン（BuffSpeedUp / TrapBall_Hyperspeed）で一時変更
   → リスポーンで 1.0 にリセット
 
 Layer 3: slowZoneMul
@@ -797,10 +842,20 @@ Layer 3: slowZoneMul
   → リスポーンで 1.0 にリセット
   → ZoneSlow の OnDestroy でも 1.0 にリセット
 
-実効速度 = naturalSpeed × speedMultiplier × slowZoneMul
+Layer 4: absorbSlowMul
+  = 1.0 (デフォルト)
+  → Absorb ブロック衝突時に ApplyAbsorbHit(multiplier, duration) コルーチンで一時減速
+  → コルーチン完了で 1.0 に戻る
+  → リスポーンで 1.0 にリセット
+
+実効速度 = naturalSpeed × speedMultiplier × slowZoneMul × absorbSlowMul
 ```
 
-Layer 2 と Layer 3 を分離した理由: 両方を同じフィールドで管理するとアイテム効果とゾーン効果が競合する。例えばアイテムで 1.4 倍になっている状態で ZoneSlow に入ると、その乗算がアイテム効果を上書きしてしまう。
+**なぜ 4 層が必要か**:
+- Layer 2 と Layer 3 を分離: アイテム由来の継続効果（数秒〜10秒）とゾーン由来の毎フレーム上書きを衝突させないため。同じフィールドにすると、`SpeedUp` 中に `ZoneSlow` に入った瞬間アイテム効果が上書き消失する。
+- Layer 3 と Layer 4 を分離: ZoneSlow は「ゾーン内にいる間」継続、Absorb 減速は「衝突直後の数フレーム」のみ。両者は同時発生しうる。同じチャネルにすると Absorb が ZoneSlow を上書きして「ゾーンを出た判定」と誤認識する。
+
+層を増やすコストはわずか（FixedUpdate の乗算 1 個）。代わりに各効果ソースが独立して書き換え可能になる利点が大きい。
 
 ---
 
@@ -824,41 +879,58 @@ Layer 2 と Layer 3 を分離した理由: 両方を同じフィールドで管�
 
 ---
 
-## 11. 妨害システム
+## 11. 妨害システム（攻撃アイテム経由モデル）
 
-### 妨害の発動条件
+### 発動経路は能動操作の 2 ルートのみ
 
 ```
-Block破壊 → GameManager.RegisterBlockDestroyed(playerIndex)
-  → p_DestroyedCount++
-  → >= comboThreshold(15) → p_DestroyedCount = 0, SendSabotageTo(相手)
+攻撃アイテム取得 ─┐
+                  ├→ InterferencePayload を生成 → GameManager.SendInterference(targetPi, payload)
+攻撃スキル発動  ─┘
 ```
 
-コンボカウントは `GameManager.GetCombo(pi)` で取得可能（UIManager が表示に使う）。
+**コンボや破壊数で自動的に妨害が飛ぶ経路は存在しない**（2026-05-20 以前の旧モデルから移行）。コンボは自己強化（スコア・エナジー倍率）にのみ作用する。
 
-### 妨害種別の重み付き抽選
+### 系統別ドロップ抽選（Block.TryDropItem 内）
 
 ```csharp
-int total = AddRow(2) + Harden(2) + Spike(1) + Poison(1) + Slow(1) = 7
-r = Random.Range(0, 7)
-r < 2 → AddRow
-r < 4 → Harden
-r < 5 → Spike
-r < 6 → Poison
-else  → Slow
+// 1. 系統選択: buff / attack / trap
+float r1 = Random.value;
+ItemCategory cat = SelectCategory(dropChanceBuff + dropBiasBuff,
+                                  dropChanceAttack,
+                                  dropChanceTrap, r1);
+
+// 2. 系統内アイテム選択
+ItemType type = cat switch {
+    Buff   => RandomFrom(BuffPool),
+    Attack => RandomFrom(AttackPool),
+    Trap   => RandomFrom(TrapPool),
+};
 ```
 
-重みは GameManager の SerializeField で変更可能。0 にすると無効化。
+HP帯バンドの `dropBiasBuff` は劣勢側に強化アイテムを優先させる。`dropChanceBuff:Attack:Trap = 6:3:1` がデフォルト。
 
 ### 各妨害の実装
 
-| 妨害 | 実装 | 効果 |
+| 妨害 | 実装窓口 | 効果 |
 |---|---|---|
-| AddRow | `spawner.ReceiveSabotageRow()` | pendingSabotageRows++ → 次の IsTopClear タイミングで Hard/Absorb 行スポーン |
-| Harden | `spawner.HardenRandomBlocks()` | Normal ブロックを hardenCount 個 Hard 化（金色・HP3） |
+| AddRow | `spawner.ReceiveSabotageRow()` | pendingSabotageRows++ → 次の IsTopClear で Hard/Absorb 行スポーン |
+| Harden | `spawner.HardenRandomBlocks(count)` | Normal ブロックを `hardenCount`(=3) 個 Hard 化（金色・HP3） |
 | Spike | `spawner.ReceiveSpikeRow()` | pendingSpikeRows++ → Spike 行スポーン |
-| Poison | `arena.SpawnZonePoison(randomPos)` | 紫球が落下 → パドル付近で停止 → 接触で毎秒ダメージ |
-| Slow | `arena.SpawnZoneSlow(randomPos)` | シアン球が落下 → アリーナ中央で停止 → 内部ボールを slowFactor 倍に減速 |
+| Poison | `arena.SpawnZonePoison(pos, duration)` | 紫球が落下 → パドル付近で停止 → 接触で毎秒ダメージ |
+| Slow | `arena.SpawnZoneSlow(pos, duration)` | シアン球が落下 → アリーナ中央で停止 → 内部ボールを slowFactor 倍に減速 |
+| DirectAttack (Phase G+) | `arena.SpawnTelegraphedShot(payload)` | 上空に予告マーカー → 5s 後 40 ダメージ着弾 |
+
+### 受信側の即時演出
+
+`GameManager.ApplyInterference` の最後で:
+
+```
+targetArena.TriggerHitStop(interferenceTriggerFrames=10, shake:false)
+targetArena.ShowInterferenceOverlay(label) → UIManager.ShowInterferenceOverlay
+```
+
+赤フラッシュ + ラベル表示 + 短いヒットストップで「何が来たか」を即認知させる。シェイクはしない（攻撃側が能動なのでお互い演出の鬱陶しさを最小化）。
 
 ---
 
@@ -868,10 +940,10 @@ else  → Slow
 
 **すべての位置指定はアリーナの親 GameObject（Arena1/Arena2）のローカル座標で行う。**
 
-- `Arena1.position = (0, 0, 0)` → Arena1の子の localPos(0,0,0) がワールドの原点
-- `Arena2.position = (50, 0, 0)` → Arena2の子の localPos(0,0,0) がワールドの (50,0,0)
+- `Arena1.position = (-9.2, 0.66, 0)` → Arena1 の子の localPos(0,0,0) がワールドの (-9.2, 0.66, 0)
+- `Arena2.position = ( 9.2, 0.66, 0)` → Arena2 の子の localPos(0,0,0) がワールドの ( 9.2, 0.66, 0)
 - BlockSpawner、PlayerController、BallScript は localPosition で動作する
-- カメラも Arena の子なので `Camera1.worldPos = Arena1.worldPos + Camera1.localPos`
+- カメラはシーン直下の MainCamera（単 Orthographic）。Arena の子ではないため Arena をオフセットしても画面に映る範囲は変わらない。HitStop シェイクは ArenaRoot.localPosition を直接動かす方式（`HitStopController.SetShakeTarget`）
 
 ### ArenaController の位置問題
 
@@ -952,14 +1024,22 @@ Block スクリプトへの参照を直接持つことで、`HardenRandomBlocks(
 
 `Assets/Editor/` 配下のスクリプトは Unity メニュー `BurokkuKuzushi >` から実行する。すべて冪等（何度実行しても同じ結果）。
 
-| メニュー | スクリプト | 実行タイミング |
-|---|---|---|
-| Setup HP UI | `SetupHPUI.cs` | UI要素の生成・UIManager へのバインド |
-| Setup HitStop | `SetupHitStop.cs` | HitStopController の生成・カメラバインド |
-| Setup LaunchAimer | `SetupLaunchAimer.cs` | LaunchAimer の生成・ArenaController バインド |
-| Setup MatchResult UI | `SetupMatchResultUI.cs` | MatchResultPanel の生成・バインド |
+| メニュー | スクリプト | 用途 | 推奨実行 |
+|---|---|---|---|
+| Setup HitStop | `SetupHitStop.cs` | HitStopController の生成・ArenaRoot バインド | 新規クローン直後 |
+| Setup LaunchAimer | `SetupLaunchAimer.cs` | LaunchAimer の生成・ArenaController バインド | 新規クローン直後 |
+| Setup UIManager Bindings | `SetupUIManager.cs` | 新 UI Hierarchy へ UIManager SerializeField を自動バインド | UI 再構築後 |
 
-新規にプロジェクトをクローンした場合や UI を再構築したい場合はこの順序で実行する（順序依存なし）。
+### 旧スクリプトの扱い（2026-05 削除済み）
+
+| 旧スクリプト | 削除理由 |
+|---|---|
+| `SetupHPUI.cs` | 旧 `CenterUI`（Screen Space Overlay）前提のため新 UI と非互換 |
+| `SetupMatchResultUI.cs` | 同上。新 `_MatchResultPanel` は Figma レイアウトで手動構築 |
+| `SetupSkillSelectUI.cs` | 同上 |
+| `SetupCameraViewports.cs` | Camera1/Camera2 分割描画前提のため単 Ortho 化で不要 |
+
+新規にプロジェクトをクローンした場合は `Setup HitStop` → `Setup LaunchAimer` の順で実行（UI は Figma レイアウトに沿って手動配置済み、Setup UIManager Bindings で SerializeField を一括バインド）。
 
 ---
 
@@ -967,7 +1047,8 @@ Block スクリプトへの参照を直接持つことで、`HardenRandomBlocks(
 
 ```
 GameManager ←── 全コンポーネントから通知を受ける（OnXxx系メソッド）
-           ────→ ArenaController に指示（SendSabotageTo → ApplyInterference）
+           ────→ ArenaController に指示（SendInterference → ApplyInterference）
+                  ↑ 攻撃アイテム取得 / 攻撃スキル発動 経由のみ。コンボ自動発火は無い
 
 ArenaController
   ←── GameManager / Block / BallScript から TriggerHitStop 要求
@@ -975,11 +1056,12 @@ ArenaController
   ────→ BlockSpawner (ReceiveSabotageRow / ReceiveSpikeRow / HardenRandomBlocks)
   ────→ UIManager (ShowInterferenceOverlay)
   ────→ ZonePoison / ZoneSlow 生成
-  ────→ ItemDrop 生成
+  ────→ ItemDrop 生成（buff / attack / trap 系統別）
 
 Ball ←──→ Block (OnCollisionEnter: 相互)
 Ball ────→ GameManager (暗黙的: Block.OnDestroyed 経由)
 Ball ←──   ZoneSlow (slowZoneMul 書き込み)
+Ball ←──   Block (Absorb 衝突時 absorbSlowMul 書き込み)
 Ball ←──   LaunchAimer (PrepareRespawn / LaunchInDirection)
 
 Block ────→ GameManager.RegisterBlockDestroyed / AddScore / OnSpikeHit
@@ -988,7 +1070,9 @@ Block ────→ ArenaController.TriggerHitStop / SpawnZonePoison / SpawnIt
 ZonePoison ────→ GameManager.OnPoisonTick
 ZoneSlow   ────→ BallScript.slowZoneMul
 
-ItemDrop   ────→ EffectDefinition.Apply → ball / player / GameManager
+ItemDrop (buff/trap) ────→ EffectDefinition.Apply → ball / player / GameManager
+ItemDrop (attack)    ────→ GameManager.SendInterference(opponent, payload)
+SkillAttack_*        ────→ GameManager.SendInterference(opponent, payload)
 
 UIManager  ←── GameManager (毎フレームポーリング)
 ```

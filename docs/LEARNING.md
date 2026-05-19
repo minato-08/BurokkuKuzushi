@@ -647,32 +647,60 @@ public class Block : MonoBehaviour
 }
 ```
 
-**やっていること（このプロジェクト）：**
+**やっていること（このプロジェクト・2026-05-20 仕様刷新後）：**
 ```csharp
 // Block は「壊れた」という事実だけを通知する
 public class Block : MonoBehaviour
 {
     void OnDestroyed()
     {
+        GameManager.Instance.AddScore(ball.playerIndex, baseScore);
         GameManager.Instance.RegisterBlockDestroyed(ball.playerIndex);
-        // 「誰に何を送るか」は GameManager が決める
+        // 「誰に何を送るか」は GameManager が決める（ここではコンボ更新のみ）
+        TryDropItem(ball);  // アイテムドロップは確率抽選
     }
 }
 
-// GameManager が全ての判断をする
+// GameManager は自陣の状態だけ管理（妨害送付はしない）
 public class GameManager : MonoBehaviour
 {
     public void RegisterBlockDestroyed(int playerIndex)
     {
-        p1DestroyedCount++;
-        if (p1DestroyedCount >= comboThreshold)
+        int i = Idx(playerIndex);
+        combo[i]++;
+        comboTimer[i] = 0f;
+        maxCombo[i] = Mathf.Max(maxCombo[i], combo[i]);
+        // 妨害送付はここでは行わない（攻撃アイテム経由モデル）
+    }
+
+    // 妨害送付の唯一の窓口（攻撃アイテム取得 / 攻撃スキル発動から呼ぶ）
+    public void SendInterference(int targetPlayerIndex, InterferencePayload payload)
+    {
+        ApplyInterference(GetArena(targetPlayerIndex), payload);
+    }
+}
+
+// ItemDrop が攻撃アイテムを取得した瞬間に妨害が飛ぶ
+public class ItemDrop : MonoBehaviour
+{
+    void OnCaughtByPaddle(int paddleOwnerPi)
+    {
+        if (IsAttackItem(itemType))
         {
-            p1DestroyedCount = 0;
-            SendSabotageTo(2);  // 相手への妨害を決める
+            var payload = BuildAttackPayload(itemType, paddleOwnerPi);
+            GameManager.Instance.SendInterference(Opponent(paddleOwnerPi), payload);
         }
+        else
+        {
+            // 強化 / 罠は EffectDefinition.Apply で自陣に作用
+            BuildEffect().Apply(paddleOwnerPi, arena);
+        }
+        Destroy(gameObject);
     }
 }
 ```
+
+> 旧仕様（2026-05-20 以前）では `RegisterBlockDestroyed` がコンボ閾値を見て自動的に `SendSabotageTo(2)` を呼んでいた。コードを刷新する Phase F-Combat 完了までは旧経路が残っている可能性があるため、最新仕様は `DESIGN.md` 5.7 を参照。
 
 ---
 
