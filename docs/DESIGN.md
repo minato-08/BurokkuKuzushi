@@ -85,6 +85,21 @@
 - 同じキーで再開（トグル）。
 - 実装フェーズ: F-Title（最小実装。SE はフェードアウト、ポーズ中は BGM も止める）。
 
+#### 状態別ポーズ挙動
+
+| GameState | ポーズ可否 | 理由 / 補足 | BGM/SE | 再開挙動 |
+|---|---|---|---|---|
+| `SkillSelect` | 不可 | 既に timeScale=0 で UI 待機状態。ポーズキーは無視 | BGM 通常再生中 | — |
+| `Countdown`（3-2-1-GO!） | 可 | カウントダウン途中で席を立てるように。timeScale=0 でカウントダウンも停止 | カウントダウン声を中断（再開時に同じ数字から再生）| 中断した数字から再開 |
+| `Playing` | 可 | 通常のポーズ。ボール・ブロック降下・コンボタイマー全停止 | BGM は AudioSource.Pause()（再開時にポーズ点から再生）、SE は新規再生をブロック | BGM が pause point から再開 |
+| `HitStop` 中 | 可 | HitStop は IFreezable によるフリーズなので timeScale=0 と独立。ポーズキーを押すと HitStop コルーチンも一時停止（WaitForSecondsRealtime のため）| 同上 | HitStop 残り時間も復元 |
+| `RoundOver`（決着演出 30 フレーム中） | 不可 | 短時間の決着演出（0.5s）はポーズより演出完走を優先 | 勝利 SE 再生中 | — |
+| `RoundIntermission`（2 秒結果表示中）| 可 | 結果表示は十分長いので途中停止可能 | 短い勝利 BGM を停止 | 残り時間から再開 |
+| `MatchOver`（結果画面） | 不可 | 既に timeScale=0 で UI 待機状態 | 結果 BGM | — |
+
+> **BGM 再開規則**: ポーズは `AudioSource.Pause()` を使い、再開時に `AudioSource.UnPause()` で同じ位置から再生する（曲頭から再スタートしない）。タイトル戻し時のみ Stop → 別シーン BGM へ切替。
+> **HitStop 中のポーズ**: HitStop は `WaitForSecondsRealtime` ベースで動作するが、`Time.timeScale=0` ではタイマーは進む。これを防ぐためポーズ時は HitStop コルーチンを Pause（`yield return null` で timeScale を待機）する設計を `HitStopController` に追加する（Phase F-Title 実装）。
+
 > ここは実際の操作感に合わせて変更する可能性あり
 ---
 
@@ -1126,9 +1141,49 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 
 - ミキサーは `Audio/MasterMixer.mixer`（新規）に Master / BGM / SE / Voice の 4 グループ。
 - 音量設定は設定画面（11.4）から 0〜100 で調整。`PlayerPrefs` に `vol.master / vol.bgm / vol.se` で保存。
-- 同時発音衝突対策として、ブロック衝突 SE は 50ms クールダウン（連打抑制）。
+- 同時発音衝突対策として、ブロック衝突 SE は 50ms クールダウン（連打抑制）。1 アリーナごとに `lastBlockSeTime` を保持し、`Time.unscaledTime - lastBlockSeTime < 0.05f` なら無視する。
 - SE ピッチ可変は `AudioSource.pitch` の動的書き換え。
 - Phase F-Audio で音源を導入。生成優先順位: ブロック衝突 → ボール反射 → アイテム取得 → スキル → 妨害 → ラウンド遷移。
+
+### 10.4 コードトリガーマッピング
+
+各 SE がどこで発火するかを明示する。Phase F-Audio 実装時の参照テーブル。
+
+| SE | 発火コード位置 | 補足 |
+|---|---|---|
+| `se_ball_bounce_wall` | `BallScript.OnCollisionEnter`（Block/PlayerController の GetComponent が両方 null = 壁）| pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2 |
+| `se_ball_bounce_paddle` | `PlayerController.OnCollisionEnter`（ball タグ）| 固定 pitch |
+| `se_block_hit_normal` | `Block.OnCollisionEnter`（blockType=Normal で hp > 0）| 50ms クールダウン |
+| `se_block_hit_hard` | 同上（blockType=Hard）| ピッチ -2 半音 |
+| `se_block_hit_absorb` | 同上（blockType=Absorb）| 低音「ボフッ」 |
+| `se_block_destroy` | `Block.OnDestroyed`（破壊確定時）| Explosive は別 SE |
+| `se_block_explode` | `Block.OnDestroyed` の Explosive 系統 | HitStop と同期 |
+| `se_block_spike_hit` | `Block.OnSpikeHit`（パドル接触）| 痛々しい金属音 |
+| `se_zone_poison_tick` | `ZonePoison.Update` がダメージ tick した瞬間（1秒ごと）| ループではなく単発を 1Hz |
+| `se_item_drop_spawn` | `ArenaController.SpawnItem` 実行時 | 軽い「ポロン」 |
+| `se_item_pickup_buff` | `ItemDrop.Update` パドル接触検出（系統=Buff）| 上昇アルペジオ |
+| `se_item_pickup_attack` | 同上（系統=Attack）| 攻撃者側で再生（防御者には届く前に） |
+| `se_item_pickup_trap` | 同上（系統=Trap）| 「アッ」のスリップ音 |
+| `se_skill_ready` | `EnergySystem.OnEnergyFull` イベント（Phase F-Audio で追加）| キーン |
+| `se_skill_activate` | `SkillController.Activate()` 開始時 | スキル種別ごとに微妙な差 |
+| `se_interference_recv` | `GameManager.ApplyInterference` 内 | 種別ごとにラベル発音 |
+| `se_countdown_beep` | `GameManager.CountdownRoutine` の 3/2/1 ループ | GO! は別 SE |
+| `se_countdown_go` | 同 GO! 表示と同フレーム | より高音 |
+| `se_round_win` | `GameManager.EndRound` の勝者アリーナ決定直後、`ROUND WIN!` オーバーレイ表示と同フレーム | HitStop 30 フレーム中に再生開始（ヒットストップ時間で減衰）|
+| `se_match_win` | `GameManager.EndMatch` の勝者決定直後 | より長い勝利フレーズ |
+| `se_combo_milestone` | `UIManager.ShowComboMilestone` 呼出と同フレーム（10/20/30）| マイルストーン番号でピッチ +N 半音 |
+| `se_retaliation_ready` | `GameManager.StartRetaliationWindow` 内 | 短い「キン」 |
+| `se_retaliation_fire` | `GameManager.TryConsumeRetaliationWindow` が true を返した直後 | より強い「ドン」 |
+| `se_ui_move` / `se_ui_confirm` | `SkillSelectUI` / `MatchResultUI` のカーソル移動・確定 | UI 共通 |
+
+### 10.5 BGM クロスフェード規則
+
+- **タイトル → 試合**: タイトル BGM をフェードアウト 0.5s、試合 BGM をフェードイン 0.5s（重なる 0.3s）。
+- **試合中の段階クロスフェード**: P1 または P2 のいずれかが **HP ≤ maxHP × 0.3**（30% 帯）に入った瞬間、緊迫レイヤーへクロスフェード 1.0s。両方が 30% 帯から戻った場合のみ通常レイヤーへ戻る（1.0s）。フラッピング防止のため、戻る側のクロスフェードは「両方が 35% 以上」に達した時点で開始（5% のヒステリシス）。
+- **試合中ラウンド遷移**: ラウンド決着 → 次ラウンドカウントダウン → Playing の間、BGM は止めない（連続性優先）。決着 SE/勝利ジングル（`se_round_win`）が BGM の上に重なる（ボーカル感を出す）。
+- **試合 → マッチ結果**: マッチ決着の瞬間に試合 BGM をフェードアウト 1.0s、結果 BGM ジングル（短）を再生。ジングル終了後はループなし無音（プレイヤーの操作を急かさない）。
+- **マッチ結果 → タイトル戻し**: 結果 BGM 終了後 or 「メニューへ戻る」選択時に Stop。タイトル BGM をフェードイン 0.5s。
+- **マッチ結果 → 再戦**: 結果画面で「再戦」選択時、結果 BGM フェードアウト 0.3s → スキル選択画面（通常 BGM 継続）。
 
 ---
 
@@ -1175,20 +1230,42 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | 7. 反撃ウィンドウ | 妨害を受けた直後に「RETALIATION READY」が点灯したら攻撃アイテムを取って 2 倍反撃してみる | 1 回発動 |
 | 8. 完了 | 試合へ進む | — |
 
-- チュートリアル中は HP 減少を無効化（学習に集中）。
-- AI 相手（後述 11.5）を必ず使う。
+- チュートリアル中は HP 減少を無効化（学習に集中）— ボール落下・ブロック底到達・毒・棘・直接攻撃のすべてのダメージ計算をスキップする。HP バーは満タンのまま固定表示（演出用）。
+- AI 相手は **EASY 固定**（チュートリアル中のみ、難易度選択不可）。AI は妨害を仕掛けてこない（受動学習に集中させる）。
+- **スキップ可否**:
+  - タイトル画面で TUTORIAL を選ぶ前に Esc で取消可能。
+  - チュートリアル中の各ステップでは Esc キーで「中断 → タイトルへ戻る」確認ダイアログを表示。「はい」で進捗破棄してタイトルへ。
+  - ステップ表示中に Space/Enter で「次へ」スキップ可能（クリア条件を満たしていなくても次のステップへ進む。観察学習を許容）。
+- **再訪可否**: タイトルメニューの TUTORIAL を再度選べばいつでも最初から再実行可能。途中までの進捗保存はしない（毎回 Step 1 から）。
+- **完了後の挙動**: Step 8 を踏むと「タイトルへ戻る」または「START（通常マッチ）へ進む」を選択可能。デフォルトカーソルは START。
 
 ### 11.4 設定画面
 
-| 設定項目 | 取りうる値 | 保存先 |
-|---|---|---|
-| マスター音量 | 0〜100 | PlayerPrefs `vol.master` |
-| BGM 音量 | 0〜100 | PlayerPrefs `vol.bgm` |
-| SE 音量 | 0〜100 | PlayerPrefs `vol.se` |
-| 先取本数 | 1 / 3 / 5 | PlayerPrefs `match.roundsToWin` |
-| ヒットストップ強度 | OFF / LOW / NORMAL / HIGH | PlayerPrefs `fx.hitstop` |
-| カメラシェイク | OFF / NORMAL / STRONG | PlayerPrefs `fx.shake`（モーションシック配慮） |
-| キーバインド | 既定 / カスタム | （Phase G+ で実装、いったん既定固定） |
+| 設定項目 | 取りうる値 | 初期値 | 保存先 |
+|---|---|---|---|
+| マスター音量 | 0〜100（int）| 80 | PlayerPrefs `vol.master` |
+| BGM 音量 | 0〜100（int）| 70 | PlayerPrefs `vol.bgm` |
+| SE 音量 | 0〜100（int）| 80 | PlayerPrefs `vol.se` |
+| 先取本数 | 1 / 3 / 5 | 1 | PlayerPrefs `match.roundsToWin` |
+| ヒットストップ強度 | OFF / LOW / NORMAL / HIGH | NORMAL | PlayerPrefs `fx.hitstop` |
+| カメラシェイク | OFF / NORMAL / STRONG | NORMAL | PlayerPrefs `fx.shake`（モーションシック配慮） |
+| キーバインド | 既定 / カスタム | 既定 | （Phase G+ で実装、いったん既定固定） |
+
+**音量変換**: PlayerPrefs に保存される 0-100 整数値は、AudioMixer の dB 値に `dB = 20 × log10(value/100)` で変換する（value=0 のときは -80dB に固定）。
+
+**UI ナビゲーション**:
+- 上下: 1P/2P 共通で **↑ / ↓ 矢印キー** または **W/S**（1P タイトル/設定共通操作）
+- 左右（数値増減・選択肢切替）: **← / →** または **A/D**
+- 確定: **Enter / Space**
+- キャンセル（変更破棄）: **Esc** または **P**
+- 戻る（変更を保存して前画面へ）: **Tab** または **B**
+
+**適用タイミング**:
+- 音量はスライダー操作と同時にリアルタイム反映（AudioMixer の SetFloat を即時実行）。「戻る」で確定 → PlayerPrefs に保存。
+- 先取本数・HitStop 強度・シェイク強度はラジオボタン式。選択した瞬間に保存される（次回マッチから反映、進行中マッチには影響しない）。
+- 「キャンセル」で戻る場合、開始時の値に戻す（音量含む）。
+
+**初回起動時**: `PlayerPrefs.HasKey("vol.master")` が false の場合のみデフォルト値を書き込む。以後はユーザー変更後の値が永続化される。
 
 ### 11.5 1P モード（AI 対戦）
 
