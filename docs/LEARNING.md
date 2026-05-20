@@ -430,9 +430,60 @@ new Color(0.4f, 1.0f, 0.4f)         // RGB 0.0〜1.0
 new Color(0.5f, 0f, 0.8f, 0.7f)     // RGBA（4つめがアルファ）
 ```
 
+**Lerp（線形補間）— 滑らかな遷移の基本パターン**
+
+`Lerp(a, b, t)` は「a と b の間を t（0.0〜1.0）の割合で返す」。値・色・ベクトルどれでも使える。
+
+```csharp
+// 数値の補間
+float val = Mathf.Lerp(0f, 100f, 0.3f);  // → 30f
+
+// 色の補間（Ball Heat の実装に使う）
+Color heat = Color.Lerp(Color.white, new Color(1f, 0.3f, 0f), t);
+// t=0 → 白、t=0.5 → ピンクがかった白、t=1 → オレンジ赤
+
+// SpriteRenderer に適用
+GetComponent<SpriteRenderer>().color = heat;
+```
+
+**比率の計算と 0 除算ガード**
+
+HP バーや Victory Bar のように「2つの数値の比率」を表示するとき、ゼロ除算に注意する。
+
+```csharp
+// Victory Bar: P1 の HP が全体に占める比率を出す
+float total = p1HP + p2HP;
+float ratio = total > 0f ? (float)p1HP / total : 0.5f;  // 両方 0 なら中央
+victoryBarFill.fillAmount = ratio;
+```
+
+**Ball Heat の実装パターン（実用例）**
+
+コンボ数に応じてボールの色を変える。毎フレーム `Update()` で呼ぶ。
+
+```csharp
+Color GetHeatColor(int combo)
+{
+    if (combo < 10)  return Color.white;
+    if (combo < 20)  return Color.Lerp(Color.white, new Color(1f, 1f, 0.7f), (combo - 10) / 10f);
+    if (combo < 30)  return Color.Lerp(new Color(1f, 1f, 0.7f), new Color(1f, 0.5f, 0.1f), (combo - 20) / 10f);
+    return new Color(1f, 0.3f, 0f);  // 30+ で固定の赤橙
+}
+
+void Update()
+{
+    // 属性カラーが付与されていなければ Ball Heat を表示
+    if (currentAttribute == BallAttribute.Normal)
+        spriteRenderer.color = GetHeatColor(GameManager.Instance.GetCombo(playerIndex));
+}
+```
+
 ### このプロジェクトでの使われ方
 - `UIManager.cs` — TextMeshProUGUI / Image.fillAmount / Color でHP・スコア・コンボを表示
 - `UIManager.ShowInterferenceOverlay` — CanvasGroup.alpha を 0/1 で切り替えてフラッシュ演出
+- `BallScript.GetHeatColor()` — Color.Lerp でコンボ段階ごとの Ball Heat 色を計算（毎フレーム Update 内）
+- `UIManager.UpdateVictoryBar()` — P1HP/(P1HP+P2HP) 比で fillAmount を更新（0除算ガード付き）
+- `PlayerController.OnItemPickup()` — FlashRoutine コルーチンでパドルをアイテム系統色で 0.1s フラッシュ
 - `SetupHPUI.cs`（Editor スクリプト）— コードで UI オブジェクトを自動生成・配置
 
 ---
