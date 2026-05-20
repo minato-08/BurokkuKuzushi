@@ -413,7 +413,32 @@ Block[] candidates = allBlocks
     .ToArray();
 foreach (Block b in candidates)
     b.HardenToHp(hardenTargetHp);
+
+// AttackHarden の 3s 降下停止（Phase F-Combat で実装予定）
+StartCoroutine(FreezeHardenedBlocks(candidates, hardenFreezeSeconds));
 ```
+
+**FreezeHardenedBlocks（降下停止コルーチン）:**
+
+硬化したブロック群だけを一時的に降下から除外する仕組み。BlockSpawner の降下ループは全ブロックを動かすため、停止対象ブロックに `frozen` フラグを付けてスキップする。
+
+```csharp
+private IEnumerator FreezeHardenedBlocks(Block[] blocks, float duration)
+{
+    foreach (Block b in blocks) b.frozen = true;   // Block に frozen: bool を追加
+    yield return new WaitForSeconds(duration);
+    foreach (Block b in blocks) if (b != null) b.frozen = false;
+}
+
+// BlockSpawner.Update() の降下ループ内:
+foreach (Block b in allBlocks) {
+    if (b == null || b.frozen) continue;             // frozen なら位置を動かさない
+    b.transform.localPosition += Vector3.down * descentSpeed * Time.deltaTime;
+    ...
+}
+```
+
+降下が突然止まる视覚的インパクトが「何かされた」の即認識を生む。3s 後に再降下が始まると、その間に積み上がった新規行と合わさって圧力が増す。
 
 **GetArena():**
 ```csharp
@@ -964,7 +989,7 @@ ItemCategory cat = SelectCategory(dropChanceBuff + dropBiasBuff,
 | 妨害 | 実装窓口 | 効果 |
 |---|---|---|
 | AddRow | `spawner.ReceiveSabotageRow()` | pendingSabotageRows++ → 次の IsTopClear で Hard/Absorb 行スポーン |
-| Harden | `spawner.HardenRandomBlocks(count)` | Normal ブロックを `hardenCount`(=3) 個 Hard 化（金色・HP3） |
+| Harden | `spawner.HardenRandomBlocks(count)` | Normal ブロックを `hardenCount`(=3) 個 Hard 化（金色・HP3）+ `hardenFreezeSeconds`(=3s) 間降下停止 |
 | Spike | `spawner.ReceiveSpikeRow()` | pendingSpikeRows++ → Spike 行スポーン |
 | Poison | `arena.SpawnZonePoison(pos, duration)` | 紫球が落下 → パドル付近で停止 → 接触で毎秒ダメージ |
 | Slow | `arena.SpawnZoneSlow(pos, duration)` | シアン球が落下 → アリーナ中央で停止 → 内部ボールを slowFactor 倍に減速 |

@@ -232,6 +232,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 > ⚠️ **仕様とコードの乖離（2026-05-20）**: DESIGN.md 5.7 では「コンボ自動妨害を撤廃し攻撃アイテム経由に移行」と定義済みだが、上記の `p1DestroyedCount` / `SendSabotageTo` 実装はまだ旧モデルのまま。Phase F-Combat（ROADMAP.md 参照）で削除予定。実装着手時は `GameManager.SendInterference(targetPi, payload)` 経路に統一する。
 
+> ⚠️ **仕様とコードの乖離 — Phase F-Polish 追加実装**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Polish のチェックリストに含まれる:
+> - **パドル反射ゾーン**: DESIGN.md 5.3 に定義の `PlayerController.OnBallHit(localHitX)` + `BallScript.SetAngleOverride()` が未実装（物理反射をそのまま使用中）。Phase F-Polish の追加演出に含む。
+> - **Block.frozen フラグ**: AttackHarden の降下停止に必要。`Block.cs` / `BlockSpawner.Update()` 両方に変更必要。
+
 > ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
 > - **反撃ウィンドウ** (`StartRetaliationWindow`): 妨害受信後 5s、次の攻撃アイテム効果 2x。`GameManager` に未実装。
 > - **RetaliationWindow 攻撃バイアス** (`retaliationAttackBias`): ウィンドウ中は攻撃アイテム抽選を +0.2 優遇。`GameManager.TryDropItem()` に未実装。

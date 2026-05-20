@@ -229,6 +229,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 - [ ] `TitleScene` 新設（または `SampleScene` 内パネルで疑似実装）
 - [ ] メニュー UI（START / TUTORIAL / SETTINGS / QUIT）
+- [ ] ポーズ機能（Escape / P キーでトグル、Time.timeScale=0、BGM ポーズ、PAUSED オーバーレイ）
 - [ ] `SettingsPanel` UI（音量 × 3、先取本数、HitStop 強度、シェイク強度）
 - [ ] チュートリアルフロー（段階解説、HP 減算オフ）
 - [ ] `ResultScene` または既存 `MatchResultPanel` の演出強化
@@ -257,6 +258,8 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] Combo タイマーアーク（コンボ数字下の弧形残時間インジケーター、弧消滅 = コンボリセット）
 - [ ] Ball Heat（コンボ段階でボール色変化: 0-9 白 / 10-19 黄 / 20-29 橙 / 30+ 赤）
 - [ ] アイテム取得時パドルフラッシュ（系統ごとに 0.1s 色フラッシュ: buff=青 / attack=赤 / trap=紫）
+- [ ] Danger Proximity 演出（最下段ブロックが死線 +1.5u 以内で P1/P2BlockDeadLine 赤点滅、+0.5u で高速点滅）
+- [ ] LaunchAimer センター通過ビジュアル（真上 ±10° で LineRenderer をシアン HDR に切替）
 
 ### 追加演出
 
