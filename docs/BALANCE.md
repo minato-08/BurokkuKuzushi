@@ -286,6 +286,7 @@ Section 9 のデモ値を実ゲームの動きを踏まえて見直す。
 | `baseDropChance` | 0.50 | 0.25 | 行あたり平均 1.75 個。視認性と読み合いを両立 |
 | `dropChanceAttack` | 0.50 | 0.40 | 攻撃を多めに維持しつつ全アイテム攻撃の偏りを防ぐ |
 | `spawnIntervalBase` | 4.0（旧 spawnInterval） | 5.0 | Dynamic Escalation 導入により、基底値は 5.0 が適切。1 分後に 4.5、2 分後に 4.0 になるため、発表 2〜3 分目が「旧デモ値」程度の圧力になる |
+| `demoMode` | false | **true** | 初期ブロック 2 行をプリスポーン（発表時専用）。GO! 直後から狙うべきブロックが見える |
 
 **Dynamic Escalation とデモ時間の関係**: 発表の 1 ラウンドが 3〜5 分と仮定すると:
 - 0:00〜1:00（助走）: spawnInterval=5.0→4.5、descentSpeed=0.30→0.35
