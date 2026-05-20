@@ -293,19 +293,23 @@ HP が 1 より大きいブロックには、ブロック上部に小さな **HP
 
 #### スキル一覧
 
-| 名前 | 系統 | 効果 |
-|---|---|---|
-| SkillPaddle_Enlarge | 防御/強化 | パドル幅 ×1.5 を 10 秒間 |
-| SkillBall_Multi | 防御/強化 | 追加ボール +1 を 10 秒間 |
-| SkillBall_Attribute_Fire | 防御/強化 | ボール属性 Fire を 10 秒間 |
-| SkillForceCatch | 防御/強化 | 次に当たったボールを強制キャッチして発射し直し。**さらに、再発射後の最初のブロック命中で攻撃アイテムを確定ドロップさせる（`ForceCatchBonusDrop`）。** 単なる脱出スキルから「逃げ → 反撃セットアップ」に昇格。 |
-| SkillPanic_BlockClear | 防御/強化（緊急用） | 自陣上半分のブロックを破壊。HP 1/3 以下のみ発動可 |
-| SkillAttack_Harden（Phase G+） | 攻撃 | InterferenceHarden 即時発火（攻撃アイテム不要） |
-| SkillAttack_SpikeRow（Phase G+） | 攻撃 | InterferenceSpike 即時発火 |
-| SkillAttack_Cannon（Phase G+） | 攻撃 | InterferenceDirectAttack 即時発火（5s 後 40 ダメージ着弾） |
-| SkillAttack_Surge（Phase G+） | 攻撃 | 相手スポーナーの降下速度を 5 秒間 2 倍 |
+スキル選択 UI では「表示名」と「短い説明」を使う（コードネームは非表示）。
 
-> 攻撃系スキルは Phase G+ で実装予定。Phase F 時点では防御/強化のみで均衡を取る。
+| コードネーム | 表示名 | 系統 | 短い説明（選択 UI 用） | 効果詳細 |
+|---|---|---|---|---|
+| SkillPaddle_Enlarge | **BIG PADDLE** | 防御/強化 | パドルを 10 秒間広げる | パドル幅 ×1.5 を 10s |
+| SkillBall_Multi | **DOUBLE BALL** | 防御/強化 | 10 秒間ボールを 2 個に | 追加ボール +1 を 10s |
+| SkillBall_Attribute_Fire | **FIRE BALL** | 防御/強化 | 10 秒間、着弾周囲を爆発 | ボール属性 Fire を 10s |
+| SkillForceCatch | **CATCH & SHOOT** | 防御/強化 | 次のボールを掴んで再発射。その後の最初の命中で攻撃アイテム確定 | ForceCatch + ForceCatchBonusDrop |
+| SkillPanic_BlockClear | **EMERGENCY CLEAR** | 防御/強化（緊急） | 上半分のブロックを即消去（HP 1/3 以下限定） | 自陣上半分ブロック全消去。HP 10% 以下で解禁 |
+| SkillAttack_Harden（G+） | **IRON CURSE** | 攻撃 | 相手のブロックを即金属化 | InterferenceHarden 即時発火 |
+| SkillAttack_SpikeRow（G+） | **SPIKE DROP** | 攻撃 | 相手に棘の行を送り込む | InterferenceSpike 即時発火 |
+| SkillAttack_Cannon（G+） | **BOMBARDMENT** | 攻撃 | 5 秒後に 40 ダメージ着弾 | InterferenceDirectAttack 即時発火 |
+| SkillAttack_Surge（G+） | **SURGE** | 攻撃 | 5 秒間、相手のブロックが 2 倍速で降る | 相手スポーナー descentSpeed ×2 を 5s |
+
+> 攻撃系スキル（G+）は Phase G+ で実装予定。Phase F 時点では防御/強化のみで均衡を取る。
+
+**選択 UI のレイアウト方針**: スキル選択中は左右で同時にカーソルを動かせる（互いの選択が見える）。ローカル 2P の宿命だが、「相手が DOUBLE BALL を選んだ」情報はそれ自体がメタゲーム（対抗策を選ぶ動機になる）として機能する。
 
 ### 5.7 妨害（攻撃アイテム経由）
 
@@ -811,6 +815,21 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | sabotageHardRatio | 0.5 | 妨害行の Hard vs Absorb 比率 |
 | hardenCount | 3 | AttackHarden で Hard 化する個数 |
 | hardenTargetHp | 3 | Hardened ブロックの HP |
+| hardenFreezeSeconds | 3.0 | AttackHarden で硬化したブロックの降下停止時間 |
+
+### ZonePoison
+| フィールド | デフォルト | 意味 |
+|---|---|---|
+| poisonRadius | 1.5 | パドルとの接触判定半径（OverlapSphere, unit） |
+| duration | 6.0 | ゾーン持続秒数 |
+| damagePoisonPerSec | 5 | HP 減少量/秒（GameManager.damagePoisonPerSec と同値） |
+
+### ZoneSlow
+| フィールド | デフォルト | 意味 |
+|---|---|---|
+| slowRadius | 2.0 | ボール検出半径（OverlapSphere, unit） |
+| slowFactor | 0.5 | ボール速度倍率（0.5 = 半速） |
+| duration | 6.0 | ゾーン持続秒数 |
 
 ### LaunchAimer
 | フィールド | デフォルト | 意味 |
