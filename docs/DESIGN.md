@@ -108,10 +108,11 @@
 | 強制リスポーン（飛行中の発射キー） | 5 | LaunchAimer.ForceRespawn |
 | 上部攻撃被弾（Phase G+） | 40 | InterferenceDirectAttack 着弾 |
 
-> **TBD**: ブロックが多数同時に底に到達した場合のダメージ計算方式は要検討。
-> 現状は線形（10 × 個数）。実プレイ後、5 個以上の同時到達に対して累進的に
-> ダメージを増やす（罰則強化）方式を採用するか判断する。playtest で 1 ラウンドあたりの
-> 平均「底到達ブロック数」を計測してから決定する。
+> **確定（2026-05-20）**: ブロック底到達ダメージは**線形加算**（`damageBlockReachBottom × 個数`）を採用する。
+> 累進方式（5 個以上で罰則増加）は実装が複雑なうえ、Dynamic Escalation 導入により
+> 「同フレームで多数到達」する状況は終盤に自然発生する。その局面はすでに「ピンチ状態」
+> であり追加罰則は過剰。線形で十分な緊張感が生まれる。playtest でダメージ感が
+> 弱いと判断した場合は `damageBlockReachBottom` の値（現行 10）を上げることで対応する。
 
 #### HP帯ごとの動的パラメータ
 
@@ -238,6 +239,18 @@ HP が 1 より大きいブロックには、ブロック上部に小さな **HP
 
 これにより「あと何回で壊れるか」の情報が即座にわかる。パドルをそのブロックに向ける価値判断ができ、戦略的なボール誘導が生まれる。Phase F-Combat 以降で追加（コード変更は最小: Block の `Renderer` に pip 用 GameObject を子追加するのみ）。
 
+#### BlockHard のクラック段階（ビジュアル仕様）
+
+HP の残量に応じて、ブロック本体に重なるクラックオーバーレイを段階的に表示する。HP pip と冗長に見えるが、遠目に「壊れかけ」をシルエットで伝える補助的役割を担う。
+
+| ブロック種 | HP 最大 | HP=Max（満タン） | HP=Max-1 | HP=1 |
+|---|---|---|---|---|
+| BlockHard | 2 | ひびなし（クリーン） | ひびあり（中程度） | ─ |
+| BlockHard | 3 | ひびなし | ひび浅め | ひびひどい |
+| BlockHardened | 3 | 金色クリーン | 金色+ひび浅め | 金色+ひびひどい |
+
+実装: `Block.currentHp` に応じて `crackMaterial.SetFloat("_CrackAmount", (maxHp - currentHp) / (float)(maxHp - 1))` を呼ぶ。クラックシェーダーは Unity の標準 Sprite / SpriteRenderer にオーバーレイするテクスチャブレンドで実現する。HP pip が主情報源、クラックは補助情報として扱う。
+
 #### ブロック一覧
 
 | 名前 | 起源 | 性質 | 効果 | 実装フェーズ |
@@ -334,6 +347,8 @@ HP が 1 より大きいブロックには、ブロック上部に小さな **HP
 ### 5.5 アイテム
 
 ブロック破壊時に確率でドロップし、落下する。パドルで取得すると効果が発動する。アイテムは **強化** / **攻撃** / **罠** の 3 系統に分類される。
+
+**ドロップ位置**: アイテムは破壊されたブロックのワールド座標（X, Y）にスポーンし、そこから重力なしで `itemFallSpeed`（SerializeField）の一定速度でローカル Y 軸方向に落下する。ブロックがスポーン Y（上部）付近にある場合でも、ブロック座標からそのまま落下する（上限クランプなし）。パドル付近のブロック（底に近い）が壊れた場合は落下時間がほぼゼロ = 即キャッチか即通過になる。
 
 ```
 ブロック破壊
@@ -459,7 +474,7 @@ HP が 1 より大きいブロックには、ブロック上部に小さな **HP
 | InterferenceSpike | AttackSpike | 相手スポーナーに Spike 行を 1 予約 |
 | InterferenceAddRow | AttackAddRow | 相手スポーナーに Hard/Absorb 行を 1 予約 |
 | InterferencePoison | AttackPoison | 相手アリーナ下部に ZonePoison を生成（duration 秒） |
-| InterferenceSlow | AttackSlow | 相手アリーナ中央に ZoneSlow を生成（duration 秒） |
+| InterferenceSlow | AttackSlow | 相手アリーナ中央（X=0, Y=0）に ZoneSlow を生成（duration 秒）。ZoneSlow は落下せず Y=0 固定で出現し即座に有効化する（ZonePoison と違い「落下して着地」アニメなし）。X=0 はアリーナの横中央 = ボールの通り道を塞ぐ位置として機能する。 |
 | InterferenceDirectAttack | AttackDirectShot / SkillAttack_Cannon | 相手上空に予告マーカー → 5s 後 40 ダメージ着弾（Phase G+） |
 
 #### 妨害受信側の演出
@@ -545,10 +560,12 @@ ZoneSlow が "上書き方式" のため、重ね生成しても効果が 1 個�
 
 ```
 1 ブロック破壊スコア = blockBaseScore[blockType]
-                       × HP帯バンド scoreMul
-                       × コンボ scoreComboMul
+                       × HP帯バンド scoreMul          ← 乗算（加算ではない）
+                       × コンボ scoreComboMul          ← 乗算（加算ではない）
                        × アイテム属性ボーナス（Fire 着弾点周囲ブロックは ×1.0 ずつ加算）
 ```
+
+> **乗算 vs 加算の確認**: `scoreMul × scoreComboMul` は両方とも乗算。劣勢（scoreMul=1.5）かつ高コンボ（scoreComboMul=1.4 @ 20 combo）の場合、合計倍率は 2.1x。加算なら 1.9x。実プレイ差は小さいが、劣勢 × 高コンボのシナジーを強調するため乗算を採用する。
 
 | blockType | blockBaseScore |
 |---|---|
@@ -1282,6 +1299,27 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
   - **再発射後のパドル操作は反転している**。「ボールの方向は自分で決めたが、そのあと逆に動く」という混乱が残る。
   - `ForceCatchBonusDrop` フラグはキャッチ時に設定される（キャッチそのものは成立している）。
   - これは設計上の想定内。TrapBall_Reversed を食らった状態で CATCH & SHOOT を使う「リカバリー戦略」が成立する（発射は自由、ただし再発射後の修正が難しい）という複雑なインタラクションとして機能させる。
+
+### 12.20 DOUBLE BALL 中に CATCH & SHOOT を発動した場合
+
+- `SkillBall_Multi` による追加ボールが存在する状態で `SkillForceCatch` を発動すると、**パドルに最初に衝突したボールが捕捉対象**になる（メインボール / 追加ボールを問わない）。
+- 追加ボールが捕捉された場合: `PrepareRespawn` によってパドル上で静止。追加ボールをキャッチしたまま再発射できる（追加ボールも LaunchAimer で角度制御される）。
+- 実際上は「どちらが先に当たるか」は軌道次第であり、プレイヤーはメインボールを先に当てて捕捉することを「戦略的に選べない」（どちらが来るかわからない）。この非制御性は仕様として許容する。
+- `ForceCatchBonusDrop` は捕捉したボール（メイン / 追加どちらでも）の「次のブロック命中」で発動する。
+
+### 12.21 スコア表示の累積 vs ラウンド単位
+
+- **HUD のスコア表示（`$P1ScoreValue`）**: マッチ全体の**累積スコア**を表示する。ラウンドをまたいで加算される。
+- **ラウンド終了の簡易リザルト（2s 表示）**: **そのラウンドだけの獲得スコア** を表示する（累積ではなく、そのラウンドの差分）。表示ラベル: `ROUND SCORE: {N}`
+- **マッチ結果画面**: **累積スコア**（マッチ全体）を表示する（カンマ区切り）。
+- 実装: `GameManager` は `roundScore[pi]` と `matchScore[pi]` を独立して保持する。ラウンド開始時に `roundScore` を 0 クリア、`matchScore` は持ち越し。
+
+### 12.22 Combo Timer Arc と HitStop の時間軸
+
+- `comboTimer[pi]` は**ゲーム時間**（`Time.deltaTime`）で加算する。HitStop 中は `IFreezable.Freeze()` で BallScript / PlayerController / BlockSpawner が止まるが、UIManager は止まらない。
+- UIManager.Update() は毎フレーム実行される。HitStop 中も `comboTimer` を更新し、Combo Timer Arc の fillAmount を更新し続ける。
+- つまり HitStop 中にもコンボタイマーが進む（フリーズするのはボールとブロックであり、時計は止まらない）。これは意図通り — HitStop は「演出の一時停止」であってゲーム状態の巻き戻しではない。
+- `UIManager.Update()` で使う `timeSinceLastBlockHit[pi]` は `Time.deltaTime` 加算版（`Time.unscaledDeltaTime` は使わない）。HitStop によって `Time.timeScale` は変更しないため、両者は同じ値になる（このゲームは timeScale=0 を ポーズ時のみに使用）。
 
 ---
 

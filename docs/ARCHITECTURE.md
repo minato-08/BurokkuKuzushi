@@ -281,6 +281,8 @@ HP  10%以下: gaugeRateMul=1.8 / itemDropMul=1.7 / scoreMul=1.5 / dropBiasBuff=
 | `AddScore(pi, baseScore)` | Block | `baseScore × scoreMul × scoreComboMul(combo)` を加算 |
 | `AddEnergy(pi, base)` | Block | `base × gaugeRateMul × gaugeComboMul(combo)` を SkillController に渡す |
 | `SendInterference(targetPi, payload)` | ItemDrop / SkillAttack_* | 攻撃アイテム取得 / 攻撃スキル発動時に呼ばれる唯一の妨害送付窓口 |
+| `StartRetaliationWindow(pi)` | `ApplyInterference` 内 | `retaliationActive[pi]=true` → `WaitForSecondsRealtime(5s)` → false。ウィンドウが有効な間 `TryDropItem` で攻撃アイテム抽選に `retaliationAttackBias` を加算 |
+| `ConsumeRetaliationWindow(pi)` | `SendInterference` 内 | ウィンドウ有効なら true を返し即座に `retaliationActive[pi]=false`（1 回のみ消費）。詳細フローは Section 11 参照 |
 
 ---
 
