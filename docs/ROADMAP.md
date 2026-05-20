@@ -166,6 +166,7 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 - [ ] `GameManager.SendInterference(targetPi, payload)` 公開メソッドを新設
 - [ ] `GameManager.SendSabotageTo` / `RegisterBlockDestroyed` 内の自動送付ロジックを削除
 - [ ] `RegisterBlockDestroyed` をコンボ更新のみに簡略化（spawn 通知 + scoreMul/gaugeMul 算出）
+- [ ] `ItemType` に `TrapBall_Reversed` を追加（`PlayerController.inputReversed` フラグを 5s 間 true、HUD に `REVERSED!` ラベル表示）
 
 ### コンボの再配置
 - [ ] `comboTimer[]` + `comboTimeout`(=3s) 実装。`TickCombo` を Update に
@@ -183,6 +184,7 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 - [ ] アイテム寿命タイマー（8s、残 2s で高速点滅）を ItemDrop に追加
 - [ ] `GameManager.StartRetaliationWindow(playerIndex)` を実装（妨害受信後 5s、次の攻撃効果 2x）
 - [ ] RetaliationWindow の攻撃種別ごとの 2x 効果を `SendInterference` ルーティングに反映（DESIGN.md 5.7 参照）
+- [ ] RetaliationWindow 有効中の攻撃アイテム抽選バイアス（`retaliationAttackBias=0.2` を `TryDropItem` の抽選比率に加算）
 - [ ] `UIManager` に `RETALIATION READY` インジケーター表示を追加
 - [ ] `SkillForceCatch` に `ForceCatchBonusDrop` フラグを追加（再発射後の最初のブロック命中で攻撃アイテム確定ドロップ）
 
@@ -251,6 +253,10 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] BlockHard / BlockHardened HP pip 表示（ブロック上部に ● ドット、命中で減少）
 - [ ] AttackAddRow 妨害行の着弾アニメーション（上端から滑り込み 0.3s + 2f HitStop + SE）
 - [ ] アイテムの寿命点滅（残 2s でアイテムが高速点滅）
+- [ ] Victory Bar（画面上部中央：P1/P2 HP 比の横長バー、観客向け一目確認）
+- [ ] Combo タイマーアーク（コンボ数字下の弧形残時間インジケーター、弧消滅 = コンボリセット）
+- [ ] Ball Heat（コンボ段階でボール色変化: 0-9 白 / 10-19 黄 / 20-29 橙 / 30+ 赤）
+- [ ] アイテム取得時パドルフラッシュ（系統ごとに 0.1s 色フラッシュ: buff=青 / attack=赤 / trap=紫）
 
 ### 追加演出
 
@@ -272,7 +278,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 最終日にまとめてプレイテスト → 数値調整。
 
-- [ ] BALANCE.md Section 9 のデモパラメータ（maxHP=250, baseDropChance=0.5）で開始
+- [ ] BALANCE.md Section 11.3 の改訂デモパラメータ（maxHP=200, baseDropChance=0.25, dropChanceAttack=0.40）で開始（Section 9 から改訂・理由は BALANCE.md 11.3 参照）
 - [ ] フルマッチを 5 試合プレイ（自分 + 他者 2 人）
 - [ ] 1 ラウンドあたりの平均試合時間を計測（目標 60〜90s）
 - [ ] 攻撃アイテムドロップ率の調整（RetaliationWindow 発動頻度が適切か）

@@ -234,10 +234,13 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
 > - **反撃ウィンドウ** (`StartRetaliationWindow`): 妨害受信後 5s、次の攻撃アイテム効果 2x。`GameManager` に未実装。
+> - **RetaliationWindow 攻撃バイアス** (`retaliationAttackBias`): ウィンドウ中は攻撃アイテム抽選を +0.2 優遇。`GameManager.TryDropItem()` に未実装。
 > - **AttackHarden 降下停止**: 硬化対象ブロックを 3s フリーズ。`HardenRandomBlocks()` に未実装。
 > - **アイテム寿命** (`itemLifetime=8s`): `ItemDrop.Update()` に寿命タイマー未実装。
 > - **コンボマイルストーン**: `GameManager.comboMilestones[]` SerializeField と `UIManager` の演出未実装。
 > - **攻撃側フィードバックラベル**: `UIManager.ShowSentLabel(playerIndex, type)` 未実装。
+> - **TrapBall_Reversed**: `PlayerController.inputReversed` フラグ未実装。
+> - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(category)` 未実装。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
