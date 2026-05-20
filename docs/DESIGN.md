@@ -1151,29 +1151,30 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 
 | SE | 発火コード位置 | 補足 |
 |---|---|---|
-| `se_ball_bounce_wall` | `BallScript.OnCollisionEnter`（Block/PlayerController の GetComponent が両方 null = 壁）| pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2 |
-| `se_ball_bounce_paddle` | `PlayerController.OnCollisionEnter`（ball タグ）| 固定 pitch |
+| `se_ball_wall` | `BallScript.OnCollisionEnter`（Block/PlayerController の GetComponent が両方 null = 壁）| pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2 |
+| `se_ball_paddle` | `PlayerController.OnCollisionEnter`（ball タグ）| 固定 pitch |
 | `se_block_hit_normal` | `Block.OnCollisionEnter`（blockType=Normal で hp > 0）| 50ms クールダウン |
 | `se_block_hit_hard` | 同上（blockType=Hard）| ピッチ -2 半音 |
 | `se_block_hit_absorb` | 同上（blockType=Absorb）| 低音「ボフッ」 |
-| `se_block_destroy` | `Block.OnDestroyed`（破壊確定時）| Explosive は別 SE |
-| `se_block_explode` | `Block.OnDestroyed` の Explosive 系統 | HitStop と同期 |
-| `se_block_spike_hit` | `Block.OnSpikeHit`（パドル接触）| 痛々しい金属音 |
-| `se_zone_poison_tick` | `ZonePoison.Update` がダメージ tick した瞬間（1秒ごと）| ループではなく単発を 1Hz |
-| `se_item_drop_spawn` | `ArenaController.SpawnItem` 実行時 | 軽い「ポロン」 |
-| `se_item_pickup_buff` | `ItemDrop.Update` パドル接触検出（系統=Buff）| 上昇アルペジオ |
-| `se_item_pickup_attack` | 同上（系統=Attack）| 攻撃者側で再生（防御者には届く前に） |
-| `se_item_pickup_trap` | 同上（系統=Trap）| 「アッ」のスリップ音 |
+| `se_block_break` | `Block.OnDestroyed`（破壊確定時）| Explosive は別 SE |
+| `se_block_explosive` | `Block.OnDestroyed` の Explosive 系統 | HitStop と同期 |
+| `se_block_spike` | `Block.OnSpikeHit`（パドル接触）| 痛々しい金属音 |
+| `se_poison_loop` | `ZonePoison.Awake` でループ開始、`OnDestroy` で停止 | 滞在中のみ再生（ループ） |
+| `se_item_drop` | `ArenaController.SpawnItem` 実行時 | 軽い「ポロン」 |
+| `se_item_buff` | `ItemDrop.Update` パドル接触検出（系統=Buff）| 上昇アルペジオ |
+| `se_item_attack` | 同上（系統=Attack）| 攻撃者側で再生（防御者には届く前に） |
+| `se_item_trap` | 同上（系統=Trap）| 「アッ」のスリップ音 |
 | `se_skill_ready` | `EnergySystem.OnEnergyFull` イベント（Phase F-Audio で追加）| キーン |
 | `se_skill_activate` | `SkillController.Activate()` 開始時 | スキル種別ごとに微妙な差 |
 | `se_interference_recv` | `GameManager.ApplyInterference` 内 | 種別ごとにラベル発音 |
-| `se_countdown_beep` | `GameManager.CountdownRoutine` の 3/2/1 ループ | GO! は別 SE |
-| `se_countdown_go` | 同 GO! 表示と同フレーム | より高音 |
+| `se_round_start` | `GameManager.CountdownRoutine` 開始時に 1 回再生（3-2-1-GO! 全体で 1 ファイル）| 1.5s |
 | `se_round_win` | `GameManager.EndRound` の勝者アリーナ決定直後、`ROUND WIN!` オーバーレイ表示と同フレーム | HitStop 30 フレーム中に再生開始（ヒットストップ時間で減衰）|
 | `se_match_win` | `GameManager.EndMatch` の勝者決定直後 | より長い勝利フレーズ |
 | `se_combo_milestone` | `UIManager.ShowComboMilestone` 呼出と同フレーム（10/20/30）| マイルストーン番号でピッチ +N 半音 |
-| `se_retaliation_ready` | `GameManager.StartRetaliationWindow` 内 | 短い「キン」 |
-| `se_retaliation_fire` | `GameManager.TryConsumeRetaliationWindow` が true を返した直後 | より強い「ドン」 |
+| `se_retaliation_ready` | `GameManager.StartRetaliationWindow` 内 | 短い「キン」（ASSETS.md 2.2 で追加予定）|
+| `se_retaliation` | `GameManager.TryConsumeRetaliationWindow` が true を返した直後 | より強い「タダン」（上昇系）|
+| `se_addrow_land` | `BlockSpawner.SpawnSabotageRow` の着弾時 | AttackAddRow ドスッ |
+| `se_ball_launch` | `LaunchAimer.ConfirmLaunch` 確定発射時 | 短い「シュッ」 |
 | `se_ui_move` / `se_ui_confirm` | `SkillSelectUI` / `MatchResultUI` のカーソル移動・確定 | UI 共通 |
 
 ### 10.5 BGM クロスフェード規則

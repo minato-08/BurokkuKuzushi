@@ -60,6 +60,7 @@
 | `se_hitstop_strong.wav` | 強ヒットストップ（ラウンド / マッチ決着） | 0.50s |
 | `se_combo_milestone.wav` | コンボ 10, 20, 30... 到達時の通知音（ピッチ差分付き） | 0.20s |
 | `se_addrow_land.wav` | AttackAddRow の妨害行着弾（ドスッとした着地音） | 0.30s |
+| `se_retaliation_ready.wav` | 反撃ウィンドウ開始（妨害受信直後の点灯瞬間、短い「キン」） | 0.15s |
 | `se_retaliation.wav` | 反撃ウィンドウ中の攻撃アイテム取得成功（上昇系タダン音） | 0.40s |
 | `se_special_row.wav` | スペシャル行スポーン時の通知（落雷系短発） | 0.30s |
 
@@ -84,8 +85,10 @@
 ### BGM クロスフェード実装メモ
 
 - `bgm_match_base` と `bgm_match_tense` は同じ BPM / 同じ小節開始で同時再生を開始し、`bgm_match_tense` の Volume を 0 → 1 に 1 秒かけてフェード（`AudioMixer` の Exposed Parameter 経由）。
-- HP 条件: `GameManager.GetHPRatio(0) < 0.33 || GameManager.GetHPRatio(1) < 0.33` を毎フレーム監視。1 度でも発火したら戻さない（試合終了まで緊迫レイヤーを維持）。
-- タイトル → 試合: `bgm_title` を 0.5s でフェードアウトしつつ `bgm_match_base` を 0.5s でフェードイン。
+- HP 条件: `GameManager.GetHPRatio(0) < 0.30 || GameManager.GetHPRatio(1) < 0.30` で緊迫レイヤーへ。**ヒステリシス**: 戻し側は両者が `>= 0.35` に到達した時点で開始（DESIGN.md 10.5 参照）。これによりフラッピング（HP30%付近で行ったり来たり）を防ぐ。
+- タイトル → 試合: `bgm_title` を 0.5s でフェードアウトしつつ `bgm_match_base` を 0.5s でフェードイン（重なる 0.3s）。
+- 試合 → マッチ結果: 試合 BGM を 1.0s でフェードアウト、`bgm_result` 再生（ループなし）。
+- ラウンド間: BGM は連続。決着 SE/勝利ジングル（`se_round_win`）が BGM の上に重なる。
 - `Audio/MasterMixer.mixer` に Master / BGM / SE / Voice の 4 グループを作成。Exposed Parameters: `vol.master`, `vol.bgm`, `vol.se` を Inspector / PlayerPrefs と連動させる。
 
 ---
