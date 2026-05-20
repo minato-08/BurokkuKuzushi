@@ -237,7 +237,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > - **Block.frozen フラグ**: AttackHarden の降下停止に必要。`Block.cs` / `BlockSpawner.Update()` 両方に変更必要。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
-> - **反撃ウィンドウ** (`StartRetaliationWindow`): 妨害受信後 5s、次の攻撃アイテム効果 2x。`GameManager` に未実装。
+> - **反撃ウィンドウ** (`StartRetaliationWindow` / `TryConsumeRetaliationWindow`): 妨害受信後 5s、次の攻撃アイテム効果 2x。`GameManager` に未実装。フローは ARCHITECTURE.md 第11節「RetaliationWindow フロー」参照
 > - **RetaliationWindow 攻撃バイアス** (`retaliationAttackBias`): ウィンドウ中は攻撃アイテム抽選を +0.2 優遇。`GameManager.TryDropItem()` に未実装。
 > - **AttackHarden 降下停止**: 硬化対象ブロックを 3s フリーズ。`HardenRandomBlocks()` に未実装。
 > - **アイテム寿命** (`itemLifetime=8s`): `ItemDrop.Update()` に寿命タイマー未実装。
@@ -245,6 +245,24 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > - **攻撃側フィードバックラベル**: `UIManager.ShowSentLabel(playerIndex, type)` 未実装。
 > - **TrapBall_Reversed**: `PlayerController.inputReversed` フラグ未実装。
 > - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(category)` 未実装。
+> - **Dynamic Escalation**: `BlockSpawner` の `spawnIntervalBase/spawnIntervalDecayPerMin/spawnIntervalMin/descentSpeedBase/descentSpeedGainPerMin/descentSpeedMax` + `roundElapsedTime` 算出未実装。
+> - **comboTimer 起点**: 現在は「パドル反射後」開始の可能性。DESIGN.md 5.8 では「最後のブロック破壊後」に修正済み。
+> - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件管理 + 3 秒経過で自動削除。未実装。
+> - **Victory Bar** (`$VictoryBar` Image.fillAmount): P1HP/(P1HP+P2HP) を毎フレーム反映。未実装。
+
+> ⚠️ **仕様とコードの乖離 — Phase F-Audio 追加実装（2026-05-20）**: DESIGN.md 10.4 / 10.5 で定義済みだがコードに未実装:
+> - **AudioMixer + dB 変換**: `dB = 20 × log10(value/100)` で PlayerPrefs 0-100 整数を dB に変換。
+> - **SE コードトリガーマッピング**: DESIGN.md 10.4 の 22 種の SE 発火位置に AudioSource.PlayOneShot を仕込む。
+> - **ブロック衝突 SE 50ms クールダウン**: `lastBlockSeTime` を保持し `unscaledTime` 差分で抑制。
+> - **BGM クロスフェード（HP 30% 帯・5% ヒステリシス）**: `bgm_match_base` と `bgm_match_tense` の同時再生 + Volume Lerp。
+
+> ⚠️ **仕様とコードの乖離 — Phase F-Title 追加実装（2026-05-20）**: DESIGN.md Section 4 / 11.3 / 11.4 で定義済みだがコードに未実装:
+> - **GameState 拡張**: `Countdown` / `RoundIntermission` の 2 状態を `GameManager.GameState` enum に追加。
+> - **状態別ポーズ可否**: DESIGN.md Section 4 状態別テーブル参照。`isPaused` フラグを GameState とは直交で持ち、SkillSelect/RoundOver/MatchOver ではポーズキー無視。
+> - **AudioSource.Pause/UnPause で BGM 位置保持**: ポーズ時に BGM が頭から再生にならないよう Pause/UnPause を使用。
+> - **HitStop 中ポーズ対応**: `HitStopController` の `WaitForSecondsRealtime` コルーチンを timeScale=0 で停止する仕組み（現状は timeScale で進む可能性）。
+> - **設定 UI** (`SettingsPanel`): 音量 × 3、先取本数、HitStop 強度、シェイク強度、初期値テーブル DESIGN.md 11.4 参照。
+> - **チュートリアル**: 8 ステップ進行マネージャ、Step 7 でスクリプト Harden 発火、HP 減算オフ、AI=EASY 固定。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
