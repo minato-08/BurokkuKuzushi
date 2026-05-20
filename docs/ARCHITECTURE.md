@@ -538,6 +538,28 @@ transform.localScale = originalScale;
 **ForceCatch（SkillForceCatch）の検出:**  
 `OnCollisionEnter` でボールとの衝突時に `SkillController.IsForceCatchActive` を確認。有効なら `ball.PrepareRespawn(パドル上の位置)` でキャッチ扱いにしてリスポーン待機状態にする。
 
+**TrapBall_Reversed（入力反転トラップ）:**  
+`inputReversed` フラグを 5s 間 `true` にするコルーチン。`Update()` 内でフラグを確認し、移動入力の符号を反転させる（発射確定キーは反転しない）。
+
+```csharp
+float rawInput = Keyboard.current[moveLeftKey].isPressed ? -1f : 
+                 Keyboard.current[moveRightKey].isPressed ? 1f : 0f;
+float input = inputReversed ? -rawInput : rawInput;
+```
+
+**アイテム取得フラッシュ（OnItemPickup）:**  
+アイテム取得時に呼ばれる `OnItemPickup(ItemCategory cat)` メソッド。パドルの `SpriteRenderer.color` を系統色で 0.1s フラッシュ後に元色に戻す。
+
+```csharp
+Color flashColor = cat switch {
+    Buff   => new Color(0.4f, 0.9f, 1f),  // Cyan
+    Attack => new Color(1f,   0.3f, 0.2f), // Red
+    Trap   => new Color(0.8f, 0.4f, 1f),  // Purple
+    _      => Color.white
+};
+StartCoroutine(FlashRoutine(flashColor, 0.1f));
+```
+
 ---
 
 ### DeadZone
@@ -857,6 +879,23 @@ Layer 4: absorbSlowMul
 
 層を増やすコストはわずか（FixedUpdate の乗算 1 個）。代わりに各効果ソースが独立して書き換え可能になる利点が大きい。
 
+### Ball Heat（コンボ連動の色表示レイヤー）
+
+速度とは独立した**純粋な演出レイヤー**。`BallScript.Update()` で毎フレーム `SpriteRenderer.color` を Lerp 更新する。
+
+```csharp
+Color GetHeatColor(int combo) {
+    if (combo < 10)  return Color.white;
+    if (combo < 20)  return Color.Lerp(Color.white, new Color(1f, 1f, 0.7f), ...);
+    if (combo < 30)  return new Color(1f, 0.6f, 0.2f); // オレンジ
+    return new Color(1f, 0.3f, 0f);                    // 赤
+}
+```
+
+- 属性カラー（Fire/Ice 等）が付与中の場合は属性カラーを優先する（Ball Heat は隠れる）。
+- コンボ 0 リセット時は 0.2s かけて白にフェードバック（Lerp）。
+- ヒットストップ中でも `Update()` 内で更新継続（色変化がフリーズしないようにする）。
+
 ---
 
 ## 10. アイテム・スキルの共通設計
@@ -910,6 +949,16 @@ ItemType type = cat switch {
 
 HP帯バンドの `dropBiasBuff` は劣勢側に強化アイテムを優先させる。`dropChanceBuff:Attack:Trap = 6:3:1` がデフォルト。
 
+**RetaliationWindow 中の抽選バイアス**: ウィンドウ有効中は `dropChanceAttack` に `retaliationAttackBias`（デフォルト 0.2）を加算して抽選する。これにより「受けた直後に攻撃アイテムが出やすい」状況を作り、ウィンドウを実際に活用できる機会を担保する。
+
+```csharp
+// RetaliationWindow 考慮版
+float attackBias = IsRetaliationActive(ownerPi) ? retaliationAttackBias : 0f;
+ItemCategory cat = SelectCategory(dropChanceBuff + dropBiasBuff,
+                                  dropChanceAttack + attackBias,
+                                  dropChanceTrap, r1);
+```
+
 ### 各妨害の実装
 
 | 妨害 | 実装窓口 | 効果 |
@@ -928,9 +977,42 @@ HP帯バンドの `dropBiasBuff` は劣勢側に強化アイテムを優先さ�
 ```
 targetArena.TriggerHitStop(interferenceTriggerFrames=10, shake:false)
 targetArena.ShowInterferenceOverlay(label) → UIManager.ShowInterferenceOverlay
+GameManager.StartRetaliationWindow(targetPi)  ← 受信側の RetaliationWindow 開始
 ```
 
 赤フラッシュ + ラベル表示 + 短いヒットストップで「何が来たか」を即認知させる。シェイクはしない（攻撃側が能動なのでお互い演出の鬱陶しさを最小化）。
+
+### 攻撃側のフィードバック
+
+攻撃アイテム取得時の 3 連フィードバックループ:
+
+```
+1. パドルが Attack アイテムに触れる
+   → PlayerController.OnItemPickup(Attack)
+   → パドルを赤系フラッシュ（0.1s）
+2. GameManager.SendInterference が発火
+   → UIManager.ShowSentLabel("SENT → P2: POISON", 1.5s)
+   → SE: se_item_attack.wav（攻撃者側）
+3. 受信側に効果発動
+   → UIManager.ShowInterferenceOverlay("INCOMING: POISON", 1.5s）
+   → SE: se_interference_recv.wav（受信者側）
+```
+
+「取った → 送った → 届いた」の三連フィードバックが完結する。
+
+### RetaliationWindow フロー
+
+```
+GameManager.StartRetaliationWindow(targetPi)
+  → retaliationActive[i] = true
+  → StartCoroutine(RetaliationRoutine(i))  // WaitForSecondsRealtime(5f)
+  → UIManager.ShowRetaliationReady(targetPi)
+
+次の攻撃アイテム取得時:
+  → GameManager.ConsumeRetaliationWindow(ownerPi) → true
+  → SendInterference の payload.intensity に retaliationMultiplier を乗算
+  → UIManager.ShowRetaliation(ownerPi, "RETALIATION!")
+```
 
 ---
 
