@@ -182,7 +182,9 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 - [ ] AttackHarden で対象ブロックを 3s 降下停止させる実装（`RigidbodyConstraints` or Transform 固定）
 - [ ] アイテム寿命タイマー（8s、残 2s で高速点滅）を ItemDrop に追加
 - [ ] `GameManager.StartRetaliationWindow(playerIndex)` を実装（妨害受信後 5s、次の攻撃効果 2x）
+- [ ] RetaliationWindow の攻撃種別ごとの 2x 効果を `SendInterference` ルーティングに反映（DESIGN.md 5.7 参照）
 - [ ] `UIManager` に `RETALIATION READY` インジケーター表示を追加
+- [ ] `SkillForceCatch` に `ForceCatchBonusDrop` フラグを追加（再発射後の最初のブロック命中で攻撃アイテム確定ドロップ）
 
 ### コンボマイルストーン
 
@@ -239,7 +241,18 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 ## Phase F-Polish: 演出強化（〜2026-06-03）
 
-時間が許す範囲で見映えを上げる。
+時間が許す範囲で見映えを上げる。優先度順。
+
+### 必須演出（デモで「地味」と思われないライン）
+
+- [ ] ラウンド開始カウントダウン（3-2-1-GO!）シーケンス実装（PlayerController Freeze + LaunchAimer 起動タイミング）
+- [ ] ラウンド決着演出（勝者アリーナ白フラッシュ / 敗者アリーナ暗転 + `ROUND WIN!` / `ROUND OVER` 表示）
+- [ ] Last Stand 演出（HP 10%: アリーナ枠BreathPulse高速化 + 赤化 + HP バー点滅 + `PANIC READY` 表示）
+- [ ] BlockHard / BlockHardened HP pip 表示（ブロック上部に ● ドット、命中で減少）
+- [ ] AttackAddRow 妨害行の着弾アニメーション（上端から滑り込み 0.3s + 2f HitStop + SE）
+- [ ] アイテムの寿命点滅（残 2s でアイテムが高速点滅）
+
+### 追加演出
 
 - [ ] 破壊ブロック飛翔演出（Screen Space Overlay アニメーション）
 - [ ] Trail Renderer（ボール軌跡、属性ごとに色変化）
@@ -248,6 +261,10 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] 攻撃アイテム発射時のトレイル（パドルから上空へ）
 - [ ] スキル発動時の画面演出（縁取り光 + 短時間スロー）
 - [ ] ヒットストップ / カメラシェイクの拡張
+- [ ] スペシャル行の出現演出と SE（`se_special_row.wav`）
+- [ ] パドル反射ゾーン実装（`PlayerController.OnBallHit` 角度補正）
+- [ ] LaunchAimer センター通過音（真上 90° 通過時の「ティック」SE）
+- [ ] アイテムアイコンに形状識別（○ / ★ / △）を追加（アクセシビリティ対応）
 
 ---
 
@@ -255,10 +272,13 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 最終日にまとめてプレイテスト → 数値調整。
 
+- [ ] BALANCE.md Section 9 のデモパラメータ（maxHP=250, baseDropChance=0.5）で開始
 - [ ] フルマッチを 5 試合プレイ（自分 + 他者 2 人）
-- [ ] 1 ラウンドあたりの平均試合時間を計測（目標 60〜120s）
-- [ ] 攻撃アイテムドロップ率の調整（多すぎず少なすぎず）
+- [ ] 1 ラウンドあたりの平均試合時間を計測（目標 60〜90s）
+- [ ] 攻撃アイテムドロップ率の調整（RetaliationWindow 発動頻度が適切か）
 - [ ] HP 帯バンドのカムバック感の確認（劣勢から逆転できるか）
+- [ ] コンボマイルストーン（10/20/30）が実際の試合で到達できるか
+- [ ] AttackHarden の視覚インパクト確認（3s 停止が「あっ」と感じさせるか）
 - [ ] コンボ持続が短すぎないか（comboTimeout 値の妥当性）
 - [ ] 一行底到達ペナルティの調整（線形 / 累進どちらか確定）
 - [ ] 致命バグ・クラッシュ対応
