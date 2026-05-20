@@ -629,7 +629,7 @@ BlockSpike 破壊時または InterferencePoison で `ArenaController.SpawnZoneP
 ### ZoneSlow
 
 InterferenceSlow で `ArenaController.SpawnZoneSlow()` から生成される。  
-`Setup(targetWorldY)` でアリーナ中央の着地 Y（`ArenaRoot.position.y`）を受け取る。
+`Setup()` はアリーナ中央（X=0, Y=0 のローカル座標 = アリーナの中心）に直接スポーンし、**落下アニメーションなし**で即座に有効化する（ZonePoison の落下→着地フローとは異なる）。ZoneSlow はボールの通り道（アリーナ中央）に常駐するため、落下位置制御より「即有効化」の方が妨害として機能する。
 
 **ボール減速の仕組み（"リセット再適用"パターン）:**
 ```
@@ -743,6 +743,43 @@ slot = StartCoroutine(OverlayRoutine(cg, txt, label));
 ```
 前のコルーチンが走っていれば停止してから再開（妨害が連続で飛んできた場合の重複防止）。  
 `WaitForSecondsRealtime` を使うため `Time.timeScale=0` でも1.5秒後に消える。
+
+**Victory Bar（`$VictoryBar` Image.fillAmount）:**
+```csharp
+// UIManager.Update() 毎フレーム
+float p1Hp = GameManager.Instance.GetHP(1);
+float p2Hp = GameManager.Instance.GetHP(2);
+float total = p1Hp + p2Hp;
+victoryBar.fillAmount = (total > 0f) ? p1Hp / total : 0.5f;
+// P2HP=0 → 1.0（P1全幅）, P1HP=0 → 0.0（P2全幅）, 両方0は12.1のルールで発生しないが安全側に0.5
+```
+バーは `Horizontal Fill / fillOrigin=Left` に設定。左半分を P1 色（青系 HDR）、右半分を P2 色（橙系 HDR）とするため Image を2枚重ねにする（`$VictoryBarP1` / `$VictoryBarP2`）か、Gradient テクスチャで1枚表現する。
+
+**Incoming インジケータ（妨害受信表示キュー）:**
+```csharp
+// GameManager.SendInterference() 内（妨害確定と同時に通知）
+uiManager.PushIncoming(targetPlayerIndex, interferenceLabel);
+
+// UIManager
+private struct IncomingEntry { public string label; public float expireTime; }
+private Queue<IncomingEntry>[] incomingQueues = new Queue<IncomingEntry>[3]; // [1]=P1, [2]=P2
+
+public void PushIncoming(int pi, string label) {
+    var q = incomingQueues[pi];
+    if (q.Count >= 3) q.Dequeue(); // FIFO: 最古を押し出す
+    q.Enqueue(new IncomingEntry { label=label, expireTime=Time.time + incomingDisplaySec });
+    RebuildIncomingUI(pi);
+}
+
+// UIManager.Update()
+foreach (int pi in new[]{1,2}) {
+    var q = incomingQueues[pi];
+    bool dirty = false;
+    while (q.Count > 0 && q.Peek().expireTime < Time.time) { q.Dequeue(); dirty=true; }
+    if (dirty) RebuildIncomingUI(pi);
+}
+```
+`RebuildIncomingUI` はキューの内容をテキスト要素（`$P1IncomingLine0/1/2`）に書き込む。ラウンド終了時 `ResetForNewRound()` でキューを Clear。`incomingDisplaySec`（デフォルト 3.0s）は SerializeField。
 
 ---
 
@@ -1001,7 +1038,7 @@ ItemCategory cat = SelectCategory(dropChanceBuff + dropBiasBuff,
 | Harden | `spawner.HardenRandomBlocks(count)` | Normal ブロックを `hardenCount`(=3) 個 Hard 化（金色・HP3）+ `hardenFreezeSeconds`(=3s) 間降下停止 |
 | Spike | `spawner.ReceiveSpikeRow()` | pendingSpikeRows++ → Spike 行スポーン |
 | Poison | `arena.SpawnZonePoison(pos, duration)` | 紫球が落下 → パドル付近で停止 → 接触で毎秒ダメージ |
-| Slow | `arena.SpawnZoneSlow(pos, duration)` | シアン球が落下 → アリーナ中央で停止 → 内部ボールを slowFactor 倍に減速 |
+| Slow | `arena.SpawnZoneSlow(duration)` | シアン球がアリーナ中央（X=0, Y=0）に即出現（落下なし）→ duration 秒間、内部ボールを slowFactor 倍に減速 |
 | DirectAttack (Phase G+) | `arena.SpawnTelegraphedShot(payload)` | 上空に予告マーカー → 5s 後 40 ダメージ着弾 |
 
 ### 受信側の即時演出
@@ -1037,16 +1074,43 @@ GameManager.StartRetaliationWindow(targetPi)  ← 受信側の RetaliationWindow
 ### RetaliationWindow フロー
 
 ```
-GameManager.StartRetaliationWindow(targetPi)
-  → retaliationActive[i] = true
-  → StartCoroutine(RetaliationRoutine(i))  // WaitForSecondsRealtime(5f)
-  → UIManager.ShowRetaliationReady(targetPi)
+[起動] GameManager.ApplyInterference の最後
+  └→ GameManager.StartRetaliationWindow(targetPi)
+        ├→ if (retaliationCoroutine[targetPi] != null) StopCoroutine(...)  // 既存窓を停止
+        ├→ retaliationActive[targetPi] = true
+        ├→ retaliationCoroutine[targetPi] = StartCoroutine(RetaliationRoutine(targetPi))
+        │     └→ yield return new WaitForSecondsRealtime(retaliationWindowSec)
+        │     └→ retaliationActive[targetPi] = false
+        │     └→ UIManager.HideRetaliationReady(targetPi)
+        └→ UIManager.ShowRetaliationReady(targetPi)
 
-次の攻撃アイテム取得時:
-  → GameManager.ConsumeRetaliationWindow(ownerPi) → true
-  → SendInterference の payload.intensity に retaliationMultiplier を乗算
-  → UIManager.ShowRetaliation(ownerPi, "RETALIATION!")
+[消費] ItemDrop が攻撃アイテム取得を検知
+  └→ GameManager.TryConsumeRetaliationWindow(ownerPi)
+        ├→ if (!retaliationActive[ownerPi]) return false   // 窓なし
+        ├→ retaliationActive[ownerPi] = false
+        ├→ if (retaliationCoroutine[ownerPi] != null) StopCoroutine(...)
+        ├→ UIManager.HideRetaliationReady(ownerPi)
+        ├→ UIManager.ShowRetaliation(ownerPi, "RETALIATION!")  // 1.5s
+        └→ return true
+  └→ if (consumed) payload = ApplyRetaliationMultiplier(payload, retaliationMultiplier=2.0)
+        ├→ Harden: hardenCount × 2 / Spike: ZonePoison 着弾追加 / AddRow: 2 行 / Poison: ゾーン2個 / Slow: 強度UP
+        └→ GameManager.SendInterference(opponent, payload)
+
+[タイムアウト] WaitForSecondsRealtime(5s) 完了
+  └→ retaliationActive[targetPi] = false
+  └→ UIManager.HideRetaliationReady(targetPi)
+  └→ 攻撃アイテムを取らずに窓を逃した（履歴に残らない）
+
+[再受信] ウィンドウ有効中に再度妨害を受信
+  └→ StartRetaliationWindow が再度呼ばれる
+        └→ 既存コルーチンを Stop → 新たに 5s 窓をリスタート（DESIGN.md 12.8 参照）
 ```
+
+不変式:
+- `retaliationActive[pi]=true` の間のみ `TryConsumeRetaliationWindow(pi)` が true を返す。
+- 消費は攻撃アイテム取得 1 回のみ。ConsumeRetaliationWindow は `RegisterActiveItem` の前に呼ぶ（順序固定）。
+- buff/trap アイテムは ConsumeRetaliationWindow を呼ばない（攻撃アイテムのみウィンドウを消費する）。
+- ラウンド終了 / `ArenaController.ResetForNewRound()` で `retaliationActive[*] = false`、コルーチンを全 Stop。
 
 ---
 

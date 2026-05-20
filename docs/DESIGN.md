@@ -46,7 +46,7 @@
    ▼
 [マッチ開始]
    │
-   │ スキル装備（1 個セット、Phase D 以降）
+   │ スキル装備（1 個セット、Phase D 以降）← **マッチ全体で 1 回のみ。ラウンド間に再選択はしない**
    ▼
 [ラウンド開始]
    │  プレイ中:
@@ -822,8 +822,8 @@ ZoneSlow が "上書き方式" のため、重ね生成しても効果が 1 個�
 | Combo テキスト | `{current}` 大、Bebas Neue |
 | Combo タイマーアーク | コンボ数字の真下に半円弧（Filled Image, 180° Radial 360, Bottom → Clockwise）を配置。**コンボが発生した瞬間**に弧が満杯（白、Intensity 1.5 程度 Bloom）からスタートし、経過時間に応じて fillAmount が 1→0 に縮小（左端から時計回りに消える）。弧 = 0（消滅）= コンボリセット。コンボ 0 のとき `SetActive(false)` で非表示。消滅の 0.5s 前から橙色にフェードチェンジ（緊急警告）。実装: `UIManager.Update()` で `(comboTimeout - timeSinceLastBlockHit[pi]) / comboTimeout` を `fillAmount` に毎フレーム書き込む。 |
 | ラウンド表示 | 中央上部 `ROUND {N}` + 先取数分のドット（点灯/非点灯で勝利数表示） |
-| Victory Bar | 画面上部中央の小さな横長バー。P1HP / (P1HP + P2HP) の比で左（P1=青系）/ 右（P2=橙系）に分割。HP が等しければ中央。P1 が優勢なら左に傾く。観客が一瞬で「どちらが優勢か」を読める設計。数字を読まなくてよい。 |
-| Incoming インジケータ | 中央領域の縦長 2 列（左列=P1への予約・右列=P2への予約）。送付が確定した妨害のアイコンが下から積み上がる（最大 3 個表示、最古が押し出される）。アイコンはテキストシンボルで種別を表現（Phase F ではテキスト版で実装、Phase G+ でアイコン画像に差し替え）。種別ごとのシンボル: `⬛HARD`（Harden）/ `☠SPIKE`（Spike）/ `↓ROW`（AddRow）/ `☣PSION`（Poison）/ `🐌SLOW`（Slow）。各アイコンは赤系 HDR カラー。観客が「今どちらが攻勢か」を一目で読める設計。 |
+| Victory Bar | 画面上部中央の小さな横長バー。`ratio = P1HP / (P1HP + P2HP)` の比で左（P1=青系）/ 右（P2=橙系）に分割。HP が等しければ中央（ratio=0.5）。P1 が優勢なら左に傾く。観客が一瞬で「どちらが優勢か」を読める設計。数字を読まなくてよい。ゼロHP時: P2HP=0 → ratio=1.0（P1 全幅青）/ P1HP=0 → ratio=0.0（P2 全幅橙）。両方 0 は 12.1 のルールにより発生しない（一方が先に 0 になる）。UIManager の $VictoryBar Image.fillAmount を毎フレーム更新。 |
+| Incoming インジケータ | 中央領域の縦長 2 列（左列=P1への予約・右列=P2への予約）。妨害送付確定と同時にアイコンが下から追加される（最大 3 個表示、FIFO — 4個目到着時に最古が押し出される）。**表示時間**: `incomingDisplaySec`（デフォルト 3.0s）が経過すると自動削除。アイコンはテキストシンボルで種別を表現（Phase F ではテキスト版で実装、Phase G+ でアイコン画像に差し替え）。種別ごとのシンボル: `⬛HARD`（Harden）/ `☠SPIKE`（Spike）/ `↓ROW`（AddRow）/ `☣PSION`（Poison）/ `🐌SLOW`（Slow）。各アイコンは赤系 HDR カラー。ラウンド終了 / リセット時に全クリア。 |
 | アイテム表示 | 取得中アイテムのアイコン + 名前 + 残り秒数（最後に取った1個のみ表示） |
 | スキル表示 | スキル名 + キー（Q / U）+ READY 状態（ゲージ満タンで光る） |
 | 試合状態テキスト | ラウンド/マッチ終了時のみ表示。`ROUND WIN!` / `ROUND OVER` / `P{N} WINS!` |
@@ -1019,6 +1019,8 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | comboMilestones[] | {10, 20, 30} | コンボマイルストーン演出の閾値一覧 |
 | matchStats.blocksDestroyed[] | — | マッチ全体の総破壊ブロック数（P1/P2）。リザルト画面に表示 |
 | matchStats.interferenceReceived[] | — | マッチ全体の受信妨害回数（P1/P2）。リザルト画面に表示 |
+| roundScore[] | — | 現ラウンドのスコア差分（ラウンド開始時に 0 クリア）。ラウンド終了簡易リザルトに表示 |
+| matchScore[] | — | マッチ全体の累積スコア（ラウンドをまたいで加算）。HUD と マッチ結果画面に表示 |
 
 > **削除済み**: 旧 `comboThreshold`（コンボ自動妨害の閾値）。攻撃アイテム経由モデル移行（2026-05-20）で不要になった。
 
@@ -1037,20 +1039,20 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | フィールド | デフォルト | 意味 |
 |---|---|---|
 | blocksPerRow | 6 | 1行あたりのブロック数（6 × 1.5667 = 9.4 でアリーナ幅に収まる） |
-| spawnInterval | 5 | 行生成間隔（秒） |
-| descentSpeed | 0.3 | 降下速度（unit/秒） |
 | blockDeadZoneY | -4.5 | ブロックが到達してはいけない Y |
 | blockDeadZoneHitFrames | 5 | 底到達ヒットストップフレーム数 |
 | sabotageHardRatio | 0.5 | 妨害行の Hard vs Absorb 比率 |
 | hardenCount | 3 | AttackHarden で Hard 化する個数 |
 | hardenTargetHp | 3 | Hardened ブロックの HP |
 | hardenFreezeSeconds | 3.0 | AttackHarden で硬化したブロックの降下停止時間 |
-| spawnIntervalBase | 5.0 | ラウンド開始時のスポーン間隔 |
+| spawnIntervalBase | 5.0 | ラウンド開始時のスポーン間隔（Dynamic Escalation の起点） |
 | spawnIntervalDecayPerMin | 0.5 | 1 分ごとにスポーン間隔が縮まる量 |
 | spawnIntervalMin | 2.5 | スポーン間隔の下限 |
-| descentSpeedBase | 0.3 | ラウンド開始時の降下速度 |
+| descentSpeedBase | 0.3 | ラウンド開始時の降下速度（Dynamic Escalation の起点） |
 | descentSpeedGainPerMin | 0.05 | 1 分ごとに降下速度が増える量 |
 | descentSpeedMax | 0.6 | 降下速度の上限 |
+
+> **削除済み**: 旧 `spawnInterval` / `descentSpeed` 固定値フィールド。Dynamic Escalation 導入（2026-05-20）により `spawnIntervalBase` / `descentSpeedBase` に置換。
 
 ### ZonePoison
 | フィールド | デフォルト | 意味 |
@@ -1073,6 +1075,17 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | metronomePeriodSec | 1.0 | 往復周期（秒） |
 | autoLaunchSec | 5.0 | 自動発射までの待機秒 |
 | minAutoLaunchSec | 1.5 | ブロック最下段時の最短自動発射秒 |
+
+### UIManager
+| フィールド | デフォルト | 意味 |
+|---|---|---|
+| incomingDisplaySec | 3.0 | Incoming インジケータのアイコン1個あたりの表示時間（秒） |
+| overlayFlashDuration | 1.5 | 妨害受信時の赤フラッシュ持続時間（秒） |
+| sentLabelDuration | 1.5 | 攻撃送付ラベル（`SENT → P{N}`）の表示時間（秒） |
+| retaliationLabelDuration | 1.5 | `RETALIATION!` オーバーレイの表示時間（秒） |
+| comboMilestoneDuration | 1.2 | `{N} COMBO!!` オーバーレイの表示時間（秒） |
+| hpColorBands | (white, yellow, red) | HP バーの色閾値（70%/30% で切替）|
+| skillReadySuffix | ` · READY` | スキルゲージ満タン時のラベル末尾 |
 
 ---
 
