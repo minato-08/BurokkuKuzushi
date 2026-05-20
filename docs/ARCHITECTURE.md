@@ -536,8 +536,10 @@ ball.IsWaitingToLaunch == false（飛行中）:
 ball.IsWaitingToLaunch == true（発射待ち）:
   metronomeTime += dt
   currentAngleDeg = sin(metronomeTime × 2π / period) × range
-  UpdateLine() → LineRenderer を更新
+    // t=0 のとき sin(0)=0 → angle=0 = 真上（90°）。初期位置は常にセンター
+  UpdateLine() → LineRenderer を更新（±10° 内でシアン HDR に色変化）
   発射キー押下 or aimingTime >= GetEffectiveAutoLaunchSec() → Fire()
+    // 自動発射: その瞬間の currentAngleDeg でそのまま発射（最良角を待たない）
 ```
 
 **自動発射時間の短縮:**  

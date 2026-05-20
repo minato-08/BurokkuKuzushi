@@ -64,10 +64,14 @@
 |---|---|---|---|
 | `GameManager.maxHP` | 試合長くなる、カムバックの余裕↑ | 短い試合・一発逆転傾向 | 300〜800 |
 | `GameManager.damageBallDrop` | 落とすリスク大、慎重なプレイ | カジュアル化 | 3〜15 |
-| `BlockSpawner.spawnInterval` | ブロック減少、防御楽 | プレッシャー大、ピンチ常態化 | 3.0〜7.0 |
-| `BlockSpawner.descentSpeed` | 緊張感↑、撃ち漏らし致命 | のんびり、戦略的 | 0.1〜0.5 |
+| `BlockSpawner.spawnIntervalBase` | ラウンド序盤のプレッシャー軽い | 序盤から詰まる | 4.0〜7.0 |
+| `BlockSpawner.spawnIntervalDecayPerMin` | 時間圧力の増速↑ | 緩やかなエスカレーション | 0.2〜0.8 |
+| `BlockSpawner.descentSpeedBase` | 緊張感↑（序盤から） | 序盤のんびり | 0.15〜0.5 |
+| `BlockSpawner.descentSpeedGainPerMin` | 終盤の速度増加量↑ | フラットな難易度 | 0.02〜0.10 |
 | `BallScript.baseSpeed` | スピード感↑、反射精度要求 | のんびり、初心者向け | 5〜10 |
 | `BallScript.timeAccelMax` | 加速ピーク↑、終盤狂気 | 一定テンポ | 1.5〜2.5 |
+
+> **注**: `spawnInterval` / `descentSpeed` は固定値ではなく基底値（Dynamic Escalation の起点）。実際の挙動は `spawnIntervalBase` に加えて `spawnIntervalDecayPerMin` と経過時間で動的に変化する（DESIGN.md 5.4.1 参照）。
 
 ### 3.2 戦術の比重に影響する系
 
@@ -281,7 +285,14 @@ Section 9 のデモ値を実ゲームの動きを踏まえて見直す。
 | `maxHP` | 250 | 200 | 攻撃アイテムの効果を体感しやすくする（毒=HP15%→ 実感できる） |
 | `baseDropChance` | 0.50 | 0.25 | 行あたり平均 1.75 個。視認性と読み合いを両立 |
 | `dropChanceAttack` | 0.50 | 0.40 | 攻撃を多めに維持しつつ全アイテム攻撃の偏りを防ぐ |
-| `spawnInterval` | 4.0 | 4.0 | 変更なし |
+| `spawnIntervalBase` | 4.0（旧 spawnInterval） | 5.0 | Dynamic Escalation 導入により、基底値は 5.0 が適切。1 分後に 4.5、2 分後に 4.0 になるため、発表 2〜3 分目が「旧デモ値」程度の圧力になる |
+
+**Dynamic Escalation とデモ時間の関係**: 発表の 1 ラウンドが 3〜5 分と仮定すると:
+- 0:00〜1:00（助走）: spawnInterval=5.0→4.5、descentSpeed=0.30→0.35
+- 1:00〜2:00（核心）: spawnInterval=4.5→4.0、descentSpeed=0.35→0.40
+- 2:00〜3:00（クライマックス）: spawnInterval=4.0→3.5、descentSpeed=0.40→0.45
+
+観客が最も盛り上がるのは 2 分台。それまでに試合が終わる場合（maxHP=200 の短期戦）でも、ラウンド中盤の緊張感は十分に到達する。
 
 > playtest で実際の体感を確認してから確定する。Section 9 の値は「攻撃が頻繁に出る」ことの上限ラインとして参照し、最終的には改訂値を基準にする。
 
