@@ -130,26 +130,35 @@ WaitingToStart
     ↓ Start()
 SkillSelect  ← Time.timeScale = 0
     ↓ BeginMatch()（両プレイヤーがスキル確定）
+Countdown    ← Time.timeScale = 1、入力一部制限（移動可・発射不可）
+    ↓ 3-2-1-GO!（実時間 3.0s、WaitForSecondsRealtime）
 Playing      ← Time.timeScale = 1
     ↓ どちらかの HP = 0
-RoundOver    ← NextRoundCoroutine（WaitForSecondsRealtime）
-    ↓ nextRoundDelay 秒後 StartNextRound()
-Playing（次ラウンド）
-    ↓ 先取条件達成
-MatchOver    ← Time.timeScale = 0（MatchOverCoroutine 後）
+RoundOver    ← 決着演出 30 フレーム（HitStop）
+    ↓ HitStop 完了
+RoundIntermission ← Time.timeScale = 1（簡易リザルト表示）
+    ↓ nextRoundDelay 秒後（既定 2s）
+Countdown（次ラウンド準備）
+    ↓ 先取条件達成時は RoundOver から直接 MatchOver へ
+MatchOver    ← Time.timeScale = 0
     ↓ 再戦 → StartRematch() → SkillSelect
+    ↓ メニューへ → タイトルシーン
 ```
 
-`WaitForSecondsRealtime` を使用するため、`Time.timeScale = 0` の状態でもコルーチンが進む。
+`WaitForSecondsRealtime` を使用するため、`Time.timeScale = 0` の状態でもコルーチンが進む。**Pause 状態は GameState とは独立した直交フラグ** (`isPaused`) で管理する（GameState=Playing でも isPaused=true なら timeScale=0 を維持）。
 
 ### 各状態での動作制限
 
-| コンポーネント | SkillSelect | Playing | RoundOver | MatchOver |
-|---|---|---|---|---|
-| BlockSpawner | 停止（GameState判定） | 動作 | 動作 | 停止 |
-| BallScript | 停止（timeScale=0） | 動作 | 動作 | 停止 |
-| LaunchAimer | 表示停止 | 動作 | 動作 | 停止 |
-| SkillController | 停止（GameState判定） | 動作 | 停止 | 停止 |
+| コンポーネント | SkillSelect | Countdown | Playing | RoundOver | Intermission | MatchOver |
+|---|---|---|---|---|---|---|
+| BlockSpawner | 停止 | 停止（GO! まで） | 動作 | 動作（演出のみ） | 停止 | 停止 |
+| BallScript | 停止（timeScale=0） | パドル上で待機 | 動作 | 動作 | 停止 | 停止 |
+| LaunchAimer | 表示停止 | GO! と同時起動 | 動作 | 動作 | 停止 | 停止 |
+| PlayerController | 停止 | 移動可・発射不可 | 動作 | 動作 | 停止 | 停止 |
+| SkillController | 停止 | 蓄積停止 | 動作 | 停止 | 停止 | 停止 |
+| UIManager（HUD） | 動作（選択画面） | 動作（カウントダウン表示）| 動作 | 動作（決着演出）| 動作（簡易リザルト） | 動作（結果画面） |
+
+> **Countdown / Intermission の追加（2026-05-20）**: 旧版では Playing と RoundOver の 2 状態のみだったが、ポーズ挙動（DESIGN.md Section 4）とカウントダウン挙動（DESIGN.md 12.12）を厳密化するために中間状態として分離した。実装は `GameState` enum に値を追加し、`UpdateGameState()` の遷移ロジックに 2 行追記すれば対応可能。
 
 ---
 

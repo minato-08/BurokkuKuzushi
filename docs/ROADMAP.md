@@ -214,19 +214,22 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 
 DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂しい」と思われないライン。
 
-- [ ] `AudioMixer` 作成（Master / BGM / SE / Voice）
-- [ ] ボール反射 SE（速度層でピッチ可変）
-- [ ] ブロック衝突 SE（Normal/Hard/Absorb/Explosive/Spike で音色差）
+- [ ] `AudioMixer` 作成（Master / BGM / SE / Voice）+ dB 変換式 `dB = 20 × log10(value/100)` 実装
+- [ ] ボール反射 SE（速度層でピッチ可変、`pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2`）
+- [ ] ブロック衝突 SE（Normal/Hard/Absorb/Explosive/Spike で音色差、50ms クールダウン実装）
 - [ ] ブロック破壊 SE
 - [ ] アイテム取得 SE（系統別: 強化 / 攻撃 / 罠 で 3 音）
-- [ ] スキル発動 SE + チャージ完了 SE
+- [ ] スキル発動 SE + チャージ完了 SE（`EnergySystem.OnEnergyFull` イベント追加）
 - [ ] 妨害受信 SE（種別ごとに短発ラベル発音）
+- [ ] コンボマイルストーン SE（ピッチ +N 半音、10/20/30）
+- [ ] RetaliationWindow Ready/Fire SE
 - [ ] ラウンド開始 / 勝利 / マッチ勝利 ジングル
-- [ ] BGM: タイトル 1 曲 + 試合中 1 曲（クロスフェード）
+- [ ] BGM: タイトル 1 曲 + 試合中 1 曲（クロスフェード規則: DESIGN.md 10.5 参照）
+- [ ] HP30% 帯クロスフェード実装（5% ヒステリシス付き、両者が 35% 以上で通常戻し）
 - [ ] PlayerPrefs ベースの音量設定（vol.master/bgm/se）
-- [ ] 設定 UI と連動
+- [ ] 設定 UI と連動（リアルタイム反映、戻る時に PlayerPrefs 保存）
 
-音源は自作 or フリー素材（CC0/Creative Commons）から調達。生成優先順位はブロック衝突から。
+音源は自作 or フリー素材（CC0/Creative Commons）から調達。生成優先順位はブロック衝突から。SE コードトリガーマッピングは DESIGN.md 10.4 を参照。
 
 ---
 
@@ -236,9 +239,13 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 - [ ] `TitleScene` 新設（または `SampleScene` 内パネルで疑似実装）
 - [ ] メニュー UI（START / TUTORIAL / SETTINGS / QUIT）
-- [ ] ポーズ機能（Escape / P キーでトグル、Time.timeScale=0、BGM ポーズ、PAUSED オーバーレイ）
-- [ ] `SettingsPanel` UI（音量 × 3、先取本数、HitStop 強度、シェイク強度）
-- [ ] チュートリアルフロー（段階解説、HP 減算オフ）
+- [ ] ポーズ機能（Escape / P キーでトグル、Time.timeScale=0、`AudioSource.Pause/UnPause` で BGM 位置保持、PAUSED オーバーレイ）
+- [ ] 状態別ポーズ可否判定（SkillSelect/RoundOver/MatchOver はポーズ不可、Countdown/Playing/Intermission は可）→ DESIGN.md Section 4 状態別テーブル参照
+- [ ] HitStop 中ポーズ対応（`HitStopController` の WaitForSecondsRealtime コルーチンを timeScale=0 で停止する仕組み）
+- [ ] `SettingsPanel` UI（音量 × 3、先取本数、HitStop 強度、シェイク強度、初期値テーブル DESIGN.md 11.4 参照）
+- [ ] 設定 UI ナビゲーション実装（↑↓ で項目、←→ で値、Enter 確定、Esc 取消、Tab 戻る）
+- [ ] チュートリアルフロー（8 ステップ、HP 減算オフ、AI=EASY 固定、Step 7 でスクリプト Harden 発火）
+- [ ] チュートリアル中断・再訪 UI（Esc で確認ダイアログ、Space/Enter でステップスキップ）
 - [ ] `ResultScene` または既存 `MatchResultPanel` の演出強化（DESIGN.md 5.10 マッチ結果画面詳細を実装）
   - 必須: 大見出し `P{N} WINS!` / 最終スコア / 最大コンボ表示
   - 任意: ブロック破壊数・受信妨害数（GameManager に `MatchStats` 集計構造を追加）
