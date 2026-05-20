@@ -61,6 +61,7 @@
 | `se_combo_milestone.wav` | コンボ 10, 20, 30... 到達時の通知音（ピッチ差分付き） | 0.20s |
 | `se_addrow_land.wav` | AttackAddRow の妨害行着弾（ドスッとした着地音） | 0.30s |
 | `se_retaliation.wav` | 反撃ウィンドウ中の攻撃アイテム取得成功（上昇系タダン音） | 0.40s |
+| `se_special_row.wav` | スペシャル行スポーン時の通知（落雷系短発） | 0.30s |
 
 ### 2.3 SE 実装メモ
 
