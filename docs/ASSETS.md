@@ -58,7 +58,9 @@
 | `se_poison_loop.ogg` | 毒エリアダメージ中（1 秒ループ） | 1.00s ループ |
 | `se_ball_launch.wav` | 発射確定 | 0.15s |
 | `se_hitstop_strong.wav` | 強ヒットストップ（ラウンド / マッチ決着） | 0.50s |
-| `se_combo_milestone.wav` | コンボ 10, 20, 30... 到達時の通知音 | 0.20s |
+| `se_combo_milestone.wav` | コンボ 10, 20, 30... 到達時の通知音（ピッチ差分付き） | 0.20s |
+| `se_addrow_land.wav` | AttackAddRow の妨害行着弾（ドスッとした着地音） | 0.30s |
+| `se_retaliation.wav` | 反撃ウィンドウ中の攻撃アイテム取得成功（上昇系タダン音） | 0.40s |
 
 ### 2.3 SE 実装メモ
 
