@@ -174,16 +174,28 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 - [ ] `AddScore` / `AddEnergy` / `TryDropItem` で各倍率を反映
 - [ ] UI の `$P1ComboValue` 表示を「現在コンボ」に統一（旧「次の妨害までの残り」を撤去）
 
-### 攻撃アイテムビジュアル
+### 攻撃アイテム強化（DESIGN.md 5.5.2 / 5.7 の刷新分を含む）
+
 - [ ] 攻撃アイテム用カラー / アイコン（赤系オーラ）
 - [ ] 取得時の SE 仮当て（Phase F-Audio で正式音）
-- [ ] 取得時の「TARGET: P2」のような送付方向ラベル（短時間表示）
+- [ ] 攻撃側 HUD への `SENT → P{N}: [種別]` ラベル表示（1.5s, スライドフェードアウト）
+- [ ] AttackHarden で対象ブロックを 3s 降下停止させる実装（`RigidbodyConstraints` or Transform 固定）
+- [ ] アイテム寿命タイマー（8s、残 2s で高速点滅）を ItemDrop に追加
+- [ ] `GameManager.StartRetaliationWindow(playerIndex)` を実装（妨害受信後 5s、次の攻撃効果 2x）
+- [ ] `UIManager` に `RETALIATION READY` インジケーター表示を追加
+
+### コンボマイルストーン
+
+- [ ] `comboMilestones[]` 配列（デフォルト {10, 20, 30}）を GameManager SerializeField に追加
+- [ ] マイルストーン到達時のオーバーレイ表示（達成者 HUD + 相手 HUD の警告）
+- [ ] `se_combo_milestone.wav` の仮当て（ピッチ差分付き）
 
 ### コミット粒度
 1. ItemType 拡張 + 抽選ロジック refactor
 2. SendInterference の経路統一 + RegisterBlockDestroyed 簡略化
-3. コンボの自己強化系統 (scoreMul/gaugeMul)
-4. UI 反映 + 攻撃アイテムビジュアル
+3. コンボの自己強化系統 (scoreMul/gaugeMul) + マイルストーン
+4. アイテム寿命 + RetaliationWindow
+5. AttackHarden 降下停止 + UI 反映 + 攻撃アイテムビジュアル
 
 ---
 

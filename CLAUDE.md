@@ -7,7 +7,9 @@
 | [`docs/DESIGN.md`](./docs/DESIGN.md) | ゲーム設計仕様書（**最新仕様の真実**） |
 | [`docs/ROADMAP.md`](./docs/ROADMAP.md) | 開発フェーズ計画・進捗・発表逆算スケジュール |
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | 実装アーキテクチャ詳細・依存関係 |
-| [`docs/BALANCE.md`](./docs/BALANCE.md) | バランス哲学・パラメータ調整ガイド |
+| [`docs/BALANCE.md`](./docs/BALANCE.md) | バランス哲学・パラメータ調整ガイド・デモ設定 |
+| [`docs/ASSETS.md`](./docs/ASSETS.md) | SE/BGM/ビジュアルアセット一覧・調達ガイド |
+| [`docs/PRESENTATION.md`](./docs/PRESENTATION.md) | 発表（2026-06-05）のデモ進行・準備チェックリスト |
 | [`docs/LEARNING.md`](./docs/LEARNING.md) | C# / Unity 学習ロードマップ |
 | 本ファイル | コード実装の現状、シーン構成、座標系、既知の問題 |
 
@@ -229,6 +231,13 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
 
 > ⚠️ **仕様とコードの乖離（2026-05-20）**: DESIGN.md 5.7 では「コンボ自動妨害を撤廃し攻撃アイテム経由に移行」と定義済みだが、上記の `p1DestroyedCount` / `SendSabotageTo` 実装はまだ旧モデルのまま。Phase F-Combat（ROADMAP.md 参照）で削除予定。実装着手時は `GameManager.SendInterference(targetPi, payload)` 経路に統一する。
+
+> ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
+> - **反撃ウィンドウ** (`StartRetaliationWindow`): 妨害受信後 5s、次の攻撃アイテム効果 2x。`GameManager` に未実装。
+> - **AttackHarden 降下停止**: 硬化対象ブロックを 3s フリーズ。`HardenRandomBlocks()` に未実装。
+> - **アイテム寿命** (`itemLifetime=8s`): `ItemDrop.Update()` に寿命タイマー未実装。
+> - **コンボマイルストーン**: `GameManager.comboMilestones[]` SerializeField と `UIManager` の演出未実装。
+> - **攻撃側フィードバックラベル**: `UIManager.ShowSentLabel(playerIndex, type)` 未実装。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
