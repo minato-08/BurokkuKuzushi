@@ -194,12 +194,19 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 - [ ] マイルストーン到達時のオーバーレイ表示（達成者 HUD + 相手 HUD の警告）
 - [ ] `se_combo_milestone.wav` の仮当て（ピッチ差分付き）
 
+### ラウンド内エスカレーション（DESIGN.md 5.4.1）
+
+- [ ] `BlockSpawner` に `spawnIntervalBase / spawnIntervalDecayPerMin / spawnIntervalMin / descentSpeedBase / descentSpeedGainPerMin / descentSpeedMax` を SerializeField 追加
+- [ ] `roundElapsedTime` を `BlockSpawner.Update()` で毎フレーム加算し、スポーン間隔・降下速度をリアルタイム算出（`ArenaController.ResetForNewRound()` でリセット）
+- [ ] `comboTimer[]` タイマー起点を「パドル反射後」から「最後のブロック破壊後」に修正（DESIGN.md 5.8 注記参照）
+
 ### コミット粒度
 1. ItemType 拡張 + 抽選ロジック refactor
 2. SendInterference の経路統一 + RegisterBlockDestroyed 簡略化
 3. コンボの自己強化系統 (scoreMul/gaugeMul) + マイルストーン
 4. アイテム寿命 + RetaliationWindow
 5. AttackHarden 降下停止 + UI 反映 + 攻撃アイテムビジュアル
+6. Dynamic Escalation（BlockSpawner 時間スケール）
 
 ---
 

@@ -911,6 +911,83 @@ Phase 8: 妨害
 
 ---
 
+### デバッグ：Debug.Log と Unity Console の使い方
+
+ゲームを作ると「なぜか動かない」場面が必ず来る。Unity の Console ウィンドウ（Window > General > Console）が主な診断ツール。
+
+```csharp
+// 基本：文字列をコンソールに出力
+Debug.Log("OnCollisionEnter が呼ばれた");
+
+// 変数の値を確認したいとき → 文字列補間でまとめて出力
+Debug.Log($"HP={currentHP}, Combo={combo}, Speed={ball.naturalSpeed:F2}");
+
+// 警告（黄色）・エラー（赤）で重要度を分ける
+Debug.LogWarning("HPが0なのに EndRound が呼ばれていない");
+Debug.LogError("hitStop が null です。Setup HitStop を実行してください。");
+```
+
+**よくある使い方のパターン**
+
+```csharp
+// OnCollisionEnter が本当に呼ばれているか確認
+void OnCollisionEnter(Collision col) {
+    Debug.Log($"[Block] 衝突: {col.gameObject.name}, tag={col.gameObject.tag}");
+    // ... 処理 ...
+}
+
+// コルーチンの開始・終了を追跡
+IEnumerator RetaliationWindowRoutine(int pi) {
+    Debug.Log($"[GameManager] RetaliationWindow 開始 pi={pi}");
+    yield return new WaitForSecondsRealtime(retaliationWindowSec);
+    retaliationActive[pi] = false;
+    Debug.Log($"[GameManager] RetaliationWindow 終了 pi={pi}");
+}
+```
+
+コンソール出力が多すぎて読みにくい場合は、動作確認が終わったら `Debug.Log` 行を `// Debug.Log(...)` でコメントアウトするか削除する。ビルド時は `Conditional` 属性で自動除外することもできるが、今は手動でよい。
+
+---
+
+### プレイテスト計測：ゲームバランスを数値で見る
+
+「なんか難しい気がする」ではなく数値で見ることで仮説を立てやすくなる。
+このプロジェクトで確認すべき主な指標：
+
+| 指標 | 確認方法 | 目安（Phase F） |
+|---|---|---|
+| ラウンドあたりのブロック破壊数 | `matchStats.blocksDestroyed[]` をラウンド終了時に Log | 各プレイヤー 30〜60 |
+| ラウンド時間 | `Time.time` を RoundStart/RoundEnd でログ | 60〜90 秒 |
+| アイテム取得数/ラウンド | `ItemDrop.OnPickup` に Log 追加 | 3〜6 個 |
+| 妨害受信数/マッチ | `matchStats.interferenceReceived[]` | 5〜15 回 |
+| HP 変動の最大落差 | ラウンド開始 HP - ラウンド終了 HP | ≤ 60（理想は 40〜50） |
+
+```csharp
+// GameManager.EndRound() に一時的に追加して計測するサンプル
+void EndRound(int loserPi) {
+    Debug.Log($"[Stats] Round{currentRound} 終了: " +
+              $"P1破壊={matchStats.blocksDestroyed[0]} " +
+              $"P2破壊={matchStats.blocksDestroyed[1]} " +
+              $"P1被妨害={matchStats.interferenceReceived[0]} " +
+              $"P2被妨害={matchStats.interferenceReceived[1]}");
+    // ... 通常の終了処理 ...
+}
+```
+
+これを数セッション繰り返してログをスプレッドシートに記録すると、パラメータ調整の根拠になる。
+`BALANCE.md` の Section 11.3 にデモパラメータ改訂の根拠と目安値をまとめているので合わせて参照。
+
+---
+
+### Step 9 チェックリスト追加項目
+
+### Step 9（プロジェクト全体）
+- [ ] Debug.Log で変数の値をコンソールに出力できる
+- [ ] コルーチンの開始・終了を Log で追跡できる
+- [ ] ラウンド終了時に matchStats をログ出力して数値でバランスを確認できる
+
+---
+
 ## 各概念の理解チェックリスト
 
 以下を自分の言葉で説明できればそのステップは完了。

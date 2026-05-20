@@ -389,11 +389,16 @@ private List<Block> allBlocks;  // ブロックの実体。DestroyされるとGO
 ```
 
 **Update の処理順序（毎フレーム）:**
-1. `spawnTimer` 加算 → 閾値で `SpawnRow(Normal)`
-2. `pendingSabotageRows > 0 && IsTopClear()` → `SpawnRow(Sabotage)`
-3. `pendingSpikeRows > 0 && IsTopClear()` → `SpawnRow(Spike)`
-4. `DescendBlocks()` — 全ブロックを `descentSpeed × dt` だけ下に移動
-5. `CheckBottomReached()` — `blockDeadZoneY` 以下のブロックを破棄 + GameManager 通知
+1. `roundElapsedTime += Time.deltaTime` → エスカレーション値を算出
+   - `currentSpawnInterval = Max(spawnIntervalMin, spawnIntervalBase - spawnIntervalDecayPerMin × (roundElapsedTime / 60f))`
+   - `currentDescentSpeed  = Min(descentSpeedMax,  descentSpeedBase  + descentSpeedGainPerMin  × (roundElapsedTime / 60f))`
+2. `spawnTimer` 加算 → `currentSpawnInterval` 超で `SpawnRow(Normal)`
+3. `pendingSabotageRows > 0 && IsTopClear()` → `SpawnRow(Sabotage)`
+4. `pendingSpikeRows > 0 && IsTopClear()` → `SpawnRow(Spike)`
+5. `DescendBlocks()` — 全ブロックを `currentDescentSpeed × dt` だけ下に移動
+6. `CheckBottomReached()` — `blockDeadZoneY` 以下のブロックを破棄 + GameManager 通知
+
+`ResetForNewRound()` で `roundElapsedTime = 0` にリセット。`SerializeField` の base 値は変更しない（毎フレーム計算値で上書きするだけ）。
 
 **SpawnRow の種別:**
 | RowType | ブロック構成 |
