@@ -232,7 +232,9 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] ポーズ機能（Escape / P キーでトグル、Time.timeScale=0、BGM ポーズ、PAUSED オーバーレイ）
 - [ ] `SettingsPanel` UI（音量 × 3、先取本数、HitStop 強度、シェイク強度）
 - [ ] チュートリアルフロー（段階解説、HP 減算オフ）
-- [ ] `ResultScene` または既存 `MatchResultPanel` の演出強化
+- [ ] `ResultScene` または既存 `MatchResultPanel` の演出強化（DESIGN.md 5.10 マッチ結果画面詳細を実装）
+  - 必須: 大見出し `P{N} WINS!` / 最終スコア / 最大コンボ表示
+  - 任意: ブロック破壊数・受信妨害数（GameManager に `MatchStats` 集計構造を追加）
 - [ ] BGM はタイトル/試合で切り替え
 
 スリップした場合の優先順:
