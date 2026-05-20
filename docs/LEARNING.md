@@ -492,11 +492,83 @@ private IEnumerator AttributeRoutine(BallAttribute attr, float duration)
 **WaitForSecondsRealtime を使う場面：**  
 `Time.timeScale = 0` の状態（試合終了後の停止中など）でも動かしたいコルーチンには `WaitForSecondsRealtime` を使う。`WaitForSeconds` は `timeScale=0` だと止まってしまう。
 
+**時限フラグパターン（RetaliationWindow の実装例）：**
+
+「5 秒間だけ有効になるフラグ」のような "時限状態" は、コルーチン + null 判定でシンプルに実装できる。
+
+```csharp
+private Coroutine[] retaliationRoutines = new Coroutine[2];
+private bool[] retaliationActive = new bool[2];
+
+// 妨害を受けた瞬間に呼ぶ
+public void StartRetaliationWindow(int playerIndex)
+{
+    int i = playerIndex - 1;
+    // 既に有効なウィンドウがあればタイマーをリセット
+    if (retaliationRoutines[i] != null)
+        StopCoroutine(retaliationRoutines[i]);
+    retaliationActive[i] = true;
+    retaliationRoutines[i] = StartCoroutine(RetaliationRoutine(i));
+}
+
+private IEnumerator RetaliationRoutine(int i)
+{
+    yield return new WaitForSecondsRealtime(5f);  // ラウンド終了中でも動く
+    retaliationActive[i] = false;
+    retaliationRoutines[i] = null;
+}
+
+// 攻撃アイテム取得時に呼ぶ
+public bool ConsumeRetaliationWindow(int playerIndex)
+{
+    int i = playerIndex - 1;
+    if (!retaliationActive[i]) return false;
+    // 1回で消費する
+    StopCoroutine(retaliationRoutines[i]);
+    retaliationActive[i] = false;
+    retaliationRoutines[i] = null;
+    return true;  // 2x 効果を適用
+}
+```
+
+**時限アイテム（ItemDrop の寿命タイマー）：**
+
+```csharp
+private void Start()
+{
+    StartCoroutine(LifetimeRoutine());
+}
+
+private IEnumerator LifetimeRoutine()
+{
+    float warningTime = 2f;
+    float lifetime = 8f;
+    yield return new WaitForSeconds(lifetime - warningTime);
+    // 残り 2 秒 → 高速点滅開始
+    StartCoroutine(BlinkRoutine());
+    yield return new WaitForSeconds(warningTime);
+    // タイムアップ → 消滅
+    Destroy(gameObject);
+}
+
+private IEnumerator BlinkRoutine()
+{
+    var renderer = GetComponent<SpriteRenderer>();
+    while (true)
+    {
+        renderer.enabled = !renderer.enabled;  // 点滅
+        yield return new WaitForSeconds(0.1f);
+    }
+}
+```
+
 ### このプロジェクトでの使われ方
 - `BallScript.AttributeRoutine / SpeedRoutine` — 属性・速度の一時変更
 - `PlayerController.WidthRoutine` — パドル幅の一時変更
 - `HitStopController.HitStopRoutine` — フリーズ中のカメラシェイク
 - `ArenaController.LaunchExtraBallRoutine` — 追加ボールの発射と自動削除
+- `GameManager.RetaliationRoutine` — 反撃ウィンドウの 5s 時限管理（Phase F-Combat で実装）
+- `ItemDrop.LifetimeRoutine` — アイテム寿命タイマー + 消滅直前の点滅（Phase F-Combat で実装）
 - `GameManager.NextRoundCoroutine / MatchOverCoroutine` — ラウンド間の待機
 - `UIManager.OverlayRoutine` — 妨害通知フラッシュ
 
