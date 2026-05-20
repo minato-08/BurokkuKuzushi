@@ -362,6 +362,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - 実装: `SkillPaddle_Enlarge` / `SkillBall_Attribute_Fire` / `SkillBall_Multi` / `SkillForceCatch` / `SkillPanic_BlockClear`
 - すべて public フィールドでパラメータを保持（Profile 参照なし）
 
+> ⚠️ **仕様とコードの乖離（2026-05-20）**: `SkillForceCatch` は現在「強制キャッチ + 再発射」のみ。DESIGN.md 5.6 では「再発射後の最初のブロック命中で攻撃アイテム確定ドロップ（`ForceCatchBonusDrop`）」が追加されているがコード未実装。Phase F-Combat で対応。
+
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
 - A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
