@@ -28,9 +28,8 @@
 
 - 各プレイヤーに HP がある（初期値 500）。
 - 以下のイベントで HP が減少する:
-  - ボールの落下
   - 自陣のブロックが底に到達
-  - 妨害効果による被弾（毒エリア、棘ブロック等）
+  - 妨害効果による被弾（毒エリア等）
 - HP が 0 になったプレイヤーが負け。
 - 試合は複数ラウンド制（先取数で勝利、デフォルト 1 本先取）。
 - 先取数は試合前の設定画面で変更可能（1~5本で選択）。
@@ -86,7 +85,7 @@
 ### 5.1 HP
 
 - 各プレイヤーは HP を持つ（初期値 500）。
-- **ラウンド開始時にリセットされるもの**: HP（最大値まで）/ スキルゲージ（0に）/ アクティブ効果（Buff/Attack/Trap アイテム効果、スキル効果）/ コンボカウント / RetaliationWindow / ZonePoison・ZoneSlow（ArenaController.ResetForNewRound で Destroy）。
+- **ラウンド開始時にリセットされるもの**: HP（最大値まで）/ スキルゲージ（0に）/ アクティブ効果（Buff/Attack/Trap アイテム効果、スキル効果）/ コンボカウント / ZonePoison・ZoneSlow（ArenaController.ResetForNewRound で Destroy）。
 - ラウンドをまたいで引き継ぐものは**なし**（すべてラウンド単位でリセット）。
 - HP が 0 になった瞬間にそのラウンドの敗者が確定する。
 
@@ -104,7 +103,7 @@
 > 累進方式（5 個以上で罰則増加）は実装が複雑なうえ、Dynamic Escalation 導入により
 > 「同フレームで多数到達」する状況は終盤に自然発生する。その局面はすでに「ピンチ状態」
 > であり追加罰則は過剰。線形で十分な緊張感が生まれる。playtest でダメージ感が
-> 弱いと判断した場合は `damageBlockReachBottom` の値（現行 10）を上げることで対応する。
+> 弱いと判断した場合は `damageBlockReachBottom` の値（現行 15）を上げることで対応する。
 > **確定(2026-05-28)**: ボールのダメージ、棘ブロックは削除。
 
 #### HP帯ごとの動的パラメータ
@@ -146,7 +145,7 @@
 | Fire | 着弾点周囲のブロックにダメージ（範囲攻撃） | 属性倍率 ×1.2 | 炎を纏わせる。攻撃範囲を着弾時に表示。 |
 | Thunder | 着弾点周囲の同種ブロックに連鎖ダメージ | 属性倍率 ×1.1 | バチバチとした微弱な電気エフェクトを纏わせる。巻き込まれた同種ブロックに稲妻が走るような演出。 |
 | Ice | ダメージ2 | 属性倍率 ×1.2 | 冷気を纏わせる。着弾時に氷属性のエフェクト。 |
-| Heavy | ダメージ3、速度を0.7倍 | 属性倍率 ×1.5、貫通時 `lastVelocity` 復元 | 重さを感じさせる金属質な見た目に。 |
+| Heavy | ダメージ3、速度を0.7倍 | 属性倍率 ×1.5 | 重さを感じさせる金属質な見た目に。 |
 | Pierce | ダメージ1、ブロックを貫通、ヒットストップ抑制 | テンポ重視貫通。属性倍率 0（ヒットストップ無効化） | トレイルを長くする。 |
 
 >**2026-5-28**属性効果とは、カメラシェイクなどに与えられる係数という認識でいい？
@@ -334,7 +333,7 @@ HP の残量に応じて、ブロック本体に重なるクラックオーバ�
 | BuffAttribute_Fire | ボール属性 Fire（着弾点周囲ダメージ） | 5s |
 | BuffAttribute_Thunder | ボール属性 Thunder（同種ブロック連鎖） | 3s |
 | BuffAttribute_Ice | ボール属性 Ice（ダメージ2） | 8s |
-| BuffAttribute_Heavy | ボール属性 Heavy（貫通 / ダメージ3） | 8s |
+| BuffAttribute_Heavy | ボール属性 Heavy（速度0.7倍 / ダメージ3） | 8s |
 | BuffBall_Pierce | ボール属性 Pierce（貫通・ヒットストップなし） | 3s |
 | BuffPaddle_Enlarge | パドル幅 ×1.5 | 10s |
 | BuffPaddle_SpeedUp | パドル移動速度 +30% | 10s |
@@ -347,11 +346,10 @@ HP の残量に応じて、ブロック本体に重なるクラックオーバ�
 | 名前 | 取得時の効果（相手アリーナへ送付） |
 |---|---|
 | AttackHarden | 相手の Normal ブロックを `hardenCount` 個 Hard 化（金色オーラ・HP3）|
-| AttackSpike | 相手スポーナーに Spike 行を 1 予約（IsTopClear で出現） |
 | AttackAddRow | 相手スポーナーに Hard/Absorb 混合行を 1 予約 |
 | AttackPoison | 相手アリーナ下部に ZonePoison（毒）を 1 個落下生成 |
 | AttackSlow | 相手アリーナ中央に ZoneSlow（減速）を 1 個落下生成 |
-| AttackDirectShot（Phase G+） | 相手アリーナ上空に InterferenceDirectAttack 着弾予告（5s 後 40 ダメージ） |
+| AttackDirectShot（Phase G+） | 当たると30ダメージの攻撃を0.3秒間隔で、その時点でのパドル座標に5発落とす。 |
 
 **取得回避の判断:** 攻撃アイテムは取得しなくてもプレイヤーに直接の損はない（地面に落ちて消える）。ただし**取得しないと送付できない**ため、攻撃したい場合は能動的にキャッチする必要がある。逆に強化アイテムとの優先順位を考えながらパドルを動かすのが戦略の核となる。
 
@@ -507,8 +505,8 @@ HP の残量に応じて、ブロック本体に重なるクラックオーバ�
 | 入門 | ボールを落とさないことだけを考える。アイテムは偶然当たれば取る |
 | 初級 | 強化アイテムを意識してキャッチする。LaunchAimer を少し使う |
 | 中級 | 攻撃アイテムと強化アイテムの優先度を判断して取る。パドル角度を意識して発射 |
-| 上級 | 反撃ウィンドウを把握し、タイミングを狙う。コンボを維持しながら攻撃アイテムを使う |
-| 超上級 | LaunchAimer で特定ブロック列を狙い撃ち。CATCH & SHOOT 後の RetaliationWindow 連携で確定反撃の連鎖を組む |
+| 上級 | コンボを維持しながら攻撃アイテムを使う。攻撃と強化の優先順位を瞬時に判断する |
+| 超上級 | LaunchAimer で特定ブロック列を狙い撃ち。アイテム優先度と妨害タイミングを読んで盤面を制御する |
 
 熟練度が上がるほど「攻撃アイテム経由の妨害」が有効になる設計。入門〜初級は純粋なブロック崩しとして楽しめ、中級以上で対戦読み合いの奥行きが生まれる。
 
@@ -553,8 +551,8 @@ HP の残量に応じて、ブロック本体に重なるクラックオーバ�
 | SE | `se_round_win.wav` | `se_hitstop_strong.wav` |
 | カメラシェイク | なし | 敗者アリーナのみシェイク |
 
-- 演出が終わったあと、`NEXT ROUND IN 2...` のカウントダウンを画面中央に表示。
-- 表示内容（2 秒後に消える簡易リザルト）: 勝者名 / 残HP / 今ラウンドのスコア / 最大コンボ。
+- 演出が終わったあと、簡易リザルトを表示する。いずれかのプレイヤーがキーを押すと次のラウンドへ進む。
+- 表示内容: 勝者名 / 残HP / 今ラウンドのスコア / 最大コンボ。
 - 「勝者が輝いて、敗者が沈む」コントラストを明確にすることで、観客・プレイヤー双方に何が起きたか瞬時に伝わる。
 
 #### ラウンド開始シーケンス
@@ -571,7 +569,7 @@ HP の残量に応じて、ブロック本体に重なるクラックオーバ�
 #### マッチ終了
 - 先取条件を満たしたラウンドが終わるとマッチ終了。
 - マッチ結果画面に遷移し、「再戦」または「メニューへ戻る」を選択できる。
-- ラウンド間待機時間のデフォルト: 2 秒（結果表示）+ 3 秒（カウントダウン）= 計 5 秒がラウンド間の最短休憩。マッチ終了はリザルト画面が表示されるまで待つ（自動移行しない）。
+- ラウンド間: 簡易リザルト確認（キーで次へ進む）+ 3 秒（カウントダウン）。マッチ終了はリザルト画面が表示されるまで待つ（自動移行しない）。
 
 #### マッチ結果画面の詳細
 
@@ -722,8 +720,6 @@ HP の残量に応じて、ブロック本体に重なるクラックオーバ�
 | 試合状態テキスト | ラウンド/マッチ終了時のみ表示。`ROUND WIN!` / `ROUND OVER` / `P{N} WINS!` |
 | 妨害通知 | 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha） |
 | 攻撃送付ラベル | `SENT → P{N}: [種別]` — 攻撃アイテム取得時に攻撃者 HUD に 1.5s 表示、中央方向スライドアウト |
-| 反撃ウィンドウ表示 | `RETALIATION READY` — 妨害受信後 5s 間、点灯インジケーター（タイムアウトで消灯） |
-| RETALIATION! 表示 | 反撃ウィンドウ中に攻撃アイテム取得成功時、`RETALIATION!` を 1.5s 全幅オーバーレイ |
 | コンボマイルストーン | コンボ 10/20/30 到達時に `{N} COMBO!!` を 1.2s オーバーレイ（Bloom 強め、Bebas Neue 大文字） |
 | ラウンド決着演出 | 勝者側: アリーナフラッシュ白 + `ROUND WIN!` 大文字。敗者側: アリーナ暗転 + `ROUND OVER` |
 
@@ -806,7 +802,7 @@ public interface IFreezable {
 
 ```csharp
 public enum InterferenceType {
-    Harden, Spike, AddRow, Poison, Slow, DirectAttack,
+    Harden, AddRow, Poison, Slow, DirectAttack,
 }
 public class InterferencePayload {
     public InterferenceType type;
@@ -887,12 +883,11 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | フィールド | デフォルト | 意味 |
 |---|---|---|
 | maxHP | 500 | HP初期値 |
-| damageBallDrop | 5 | ボール落下ダメージ |
-| damageBlockReachBottom | 10 | ブロック1個 底到達ダメージ |
-| damageBlockSpike | 15 | 棘ブロック接触ダメージ |
-| damagePoisonPerSec | 5 | 毒ダメージ/秒 |
+| damageBallDrop | 0 | ボール落下ダメージ（現在0） |
+| damageBlockReachBottom | 15 | ブロック1個 底到達ダメージ |
+| damagePoisonPerSec | 3 | 毒ダメージ/秒 |
 | damageForceRespawn | 5 | 飛行中の発射キー押下ペナルティ |
-| damageDirectAttack | 40 | 上部攻撃着弾ダメージ（Phase G+） |
+| damageDirectAttack | 30 | 上部攻撃着弾ダメージ（Phase G+） |
 | comboTimeout | 3.0 | 連続破壊間隔の上限（秒、超過で 0 リセット） |
 | comboScoreStep | 5 | コンボ何個ごとにスコア倍率 +10% するか |
 | comboGaugeStep | 5 | コンボ何個ごとにゲージ倍率 +5% するか |
@@ -902,13 +897,10 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | roundEndFrames | 30 | ラウンド決着ヒットストップ |
 | matchEndFrames | 60 | マッチ決着ヒットストップ |
 | nextRoundDelay | 2 | 次ラウンドまでの待機秒 |
-| roundsToWin | 1 | 先取本数（1/3/5 の設定可） |
-| dropChanceBuff / Attack / Trap | 0.6 / 0.3 / 0.1 | アイテム系統別の基本ドロップ比率（HP帯で偏重） |
+| roundsToWin | 1 | 先取本数（1~5本で選択） |
+| dropChanceBuff / Attack | 0.6 / 0.4 | アイテム系統別の基本ドロップ比率（HP帯で偏重） |
 | itemLifetime | 8.0 | アイテムが消滅するまでの秒数（底到達より先に来た場合） |
 | itemWarningTime | 2.0 | 消滅 N 秒前から点滅開始（itemLifetime - itemWarningTime = 6s） |
-| retaliationWindowSec | 5.0 | 妨害受信後の反撃ウィンドウ持続秒 |
-| retaliationMultiplier | 2.0 | 反撃ウィンドウ中の攻撃効果倍率 |
-| retaliationAttackBias | 0.2 | RetaliationWindow 有効中に攻撃アイテム抽選比率に加算する値（例: 0.3+0.2=0.5） |
 | comboMilestones[] | {10, 20, 30} | コンボマイルストーン演出の閾値一覧 |
 | matchStats.blocksDestroyed[] | — | マッチ全体の総破壊ブロック数（P1/P2）。リザルト画面に表示 |
 | matchStats.interferenceReceived[] | — | マッチ全体の受信妨害回数（P1/P2）。リザルト画面に表示 |
@@ -923,8 +915,8 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | baseSpeed | 7 | 基本速度 |
 | minAxisRatio | 0.2 | 軌道補正 最小軸成分比率 |
 | timeAccelRate | 0.05 | 時間加速量/秒 |
-| timeAccelMax | 2.0 | 時間加速上限倍率 |
-| hitStopSpeedThreshold | 1.5 | ヒットストップ発動速度倍率 |
+| timeAccelMax | 1.5 | 時間加速上限倍率 |
+| hitStopSpeedThreshold | 1.4 | ヒットストップ発動速度倍率 |
 | wallBounceFrames | 0 | 壁バウンス最大ヒットストップフレーム数 |
 | normalDamage / iceDamage / heavyDamage / pierceDamage | 1 / 2 / 3 / 1 | 属性ダメージ |
 
@@ -937,13 +929,12 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | sabotageHardRatio | 0.5 | 妨害行の Hard vs Absorb 比率 |
 | hardenCount | 3 | AttackHarden で Hard 化する個数 |
 | hardenTargetHp | 3 | Hardened ブロックの HP |
-| hardenFreezeSeconds | 3.0 | AttackHarden で硬化したブロックの降下停止時間 |
 | spawnIntervalBase | 5.0 | ラウンド開始時のスポーン間隔（Dynamic Escalation の起点） |
-| spawnIntervalDecayPerMin | 0.5 | 1 分ごとにスポーン間隔が縮まる量 |
-| spawnIntervalMin | 2.5 | スポーン間隔の下限 |
+| spawnIntervalDecayPerMin | 0.2 | 1 分ごとにスポーン間隔が縮まる量 |
+| spawnIntervalMin | 3.0 | スポーン間隔の下限 |
 | descentSpeedBase | 0.3 | ラウンド開始時の降下速度（Dynamic Escalation の起点） |
-| descentSpeedGainPerMin | 0.05 | 1 分ごとに降下速度が増える量 |
-| descentSpeedMax | 0.6 | 降下速度の上限 |
+| descentSpeedGainPerMin | 0.03 | 1 分ごとに降下速度が増える量 |
+| descentSpeedMax | 0.45 | 降下速度の上限 |
 
 > **削除済み**: 旧 `spawnInterval` / `descentSpeed` 固定値フィールド。Dynamic Escalation 導入（2026-05-20）により `spawnIntervalBase` / `descentSpeedBase` に置換。
 
@@ -952,7 +943,7 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 |---|---|---|
 | poisonRadius | 1.5 | パドルとの接触判定半径（OverlapSphere, unit） |
 | duration | 6.0 | ゾーン持続秒数 |
-| damagePoisonPerSec | 5 | HP 減少量/秒（GameManager.damagePoisonPerSec と同値） |
+| damagePoisonPerSec | 3 | HP 減少量/秒（GameManager.damagePoisonPerSec と同値） |
 
 ### ZoneSlow
 | フィールド | デフォルト | 意味 |
@@ -975,7 +966,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | incomingDisplaySec | 3.0 | Incoming インジケータのアイコン1個あたりの表示時間（秒） |
 | overlayFlashDuration | 1.5 | 妨害受信時の赤フラッシュ持続時間（秒） |
 | sentLabelDuration | 1.5 | 攻撃送付ラベル（`SENT → P{N}`）の表示時間（秒） |
-| retaliationLabelDuration | 1.5 | `RETALIATION!` オーバーレイの表示時間（秒） |
 | comboMilestoneDuration | 1.2 | `{N} COMBO!!` オーバーレイの表示時間（秒） |
 | hpColorBands | (white, yellow, red) | HP バーの色閾値（70%/30% で切替）|
 | skillReadySuffix | ` · READY` | スキルゲージ満タン時のラベル末尾 |
@@ -1018,7 +1008,7 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 ### 10.3 実装メモ
 
 - ミキサーは `Audio/MasterMixer.mixer`（新規）に Master / BGM / SE / Voice の 4 グループ。
-- 音量設定は設定画面（11.4）から 0〜100 で調整。`PlayerPrefs` に `vol.master / vol.bgm / vol.se` で保存。
+- 音量設定は 0〜100 で調整。`PlayerPrefs` に `vol.master / vol.bgm / vol.se` で保存。
 - 同時発音衝突対策として、ブロック衝突 SE は 50ms クールダウン（連打抑制）。1 アリーナごとに `lastBlockSeTime` を保持し、`Time.unscaledTime - lastBlockSeTime < 0.05f` なら無視する。
 - SE ピッチ可変は `AudioSource.pitch` の動的書き換え。
 - Phase F-Audio で音源を導入。生成優先順位: ブロック衝突 → ボール反射 → アイテム取得 → スキル → 妨害 → ラウンド遷移。
@@ -1036,7 +1026,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | `se_block_hit_absorb` | 同上（blockType=Absorb）| 低音「ボフッ」 |
 | `se_block_break` | `Block.OnDestroyed`（破壊確定時）| Explosive は別 SE |
 | `se_block_explosive` | `Block.OnDestroyed` の Explosive 系統 | HitStop と同期 |
-| `se_block_spike` | `Block.OnSpikeHit`（パドル接触）| 痛々しい金属音 |
 | `se_poison_loop` | `ZonePoison.Awake` でループ開始、`OnDestroy` で停止 | 滞在中のみ再生（ループ） |
 | `se_item_drop` | `ArenaController.SpawnItem` 実行時 | 軽い「ポロン」 |
 | `se_item_buff` | `ItemDrop.Update` パドル接触検出（系統=Buff）| 上昇アルペジオ |
@@ -1049,8 +1038,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | `se_round_win` | `GameManager.EndRound` の勝者アリーナ決定直後、`ROUND WIN!` オーバーレイ表示と同フレーム | HitStop 30 フレーム中に再生開始（ヒットストップ時間で減衰）|
 | `se_match_win` | `GameManager.EndMatch` の勝者決定直後 | より長い勝利フレーズ |
 | `se_combo_milestone` | `UIManager.ShowComboMilestone` 呼出と同フレーム（10/20/30）| マイルストーン番号でピッチ +N 半音 |
-| `se_retaliation_ready` | `GameManager.StartRetaliationWindow` 内 | 短い「キン」（ASSETS.md 2.2 で追加予定）|
-| `se_retaliation` | `GameManager.TryConsumeRetaliationWindow` が true を返した直後 | より強い「タダン」（上昇系）|
 | `se_addrow_land` | `BlockSpawner.SpawnSabotageRow` の着弾時 | AttackAddRow ドスッ |
 | `se_ball_launch` | `LaunchAimer.ConfirmLaunch` 確定発射時 | 短い「シュッ」 |
 | `se_ui_move` / `se_ui_confirm` | `SkillSelectUI` / `MatchResultUI` のカーソル移動・確定 | UI 共通 |
@@ -1114,7 +1101,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 ### 12.3 アイテム落下中のラウンド終了
 
 - ラウンド終了時、まだ落下中のアイテムは**即時 Destroy**する。効果は適用しない。
-- `RetaliationWindow` が有効な状態でラウンドが終わった場合、ウィンドウは消滅する（ラウンドをまたがない）。
 
 ### 12.4 ZonePoison / ZoneSlow の重ね掛け
 
@@ -1130,7 +1116,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 ### 12.6 AttackHarden の対象がない場合
 
 - 相手アリーナに Normal ブロックが 1 個も存在しない場合（すべて Hard / Hardened / Absorb / Explosive / Spike）、AttackHarden は**効果なしで消費**される。通知や返金はしない。
-- 降下停止（3s フリーズ）も発動しない。
 - この状況は試合中盤以降にまれに発生しうるが、攻撃タイミングを読む戦略要素として許容する。
 
 ### 12.7 コンボタイマーとボール落下の競合
@@ -1138,11 +1123,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 - ボールが DeadZone に入った瞬間（`OnTriggerEnter`）に、コンボを**即時 0 リセット**する。comboTimer のカウントダウン判定より先に処理する。
 - メインボール落下でのみリセット。追加ボール落下ではリセットしない（12.2 参照）。
 - `comboTimeout` によるリセットと落下リセットは独立したトリガーとして扱う。
-
-### 12.8 RetaliationWindow 中に再度妨害を受けた場合
-
-- ウィンドウが有効な 5s 内に新たな妨害を受けた場合、**タイマーを 5s にリスタート**する（延長ではなくリセット）。倍率は 2x のまま変わらない。
-- 複数妨害を連続して受けても、効果倍率は 2x より大きくはならない（スタックしない）。
 
 ### 12.9 DirectAttack 予告中のラウンド終了（Phase G+）
 
@@ -1154,26 +1134,12 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 - コンボ 10 を達成した後、11・12 と続いても `10 COMBO!!` は再表示しない。
 - コンボが 0 にリセットされ、再度 10 に到達した場合は改めて演出を発火する（ラウンド内のマイルストーン到達回数は無制限）。
 
-### 12.11 RetaliationWindow の「次の 1 回のみ」ルール
-
-- RetaliationWindow は**最初の攻撃アイテム取得でのみ 2x 効果**を発動し、即座にウィンドウを消費する。
-- ウィンドウが消費されても 5s タイマーは継続しない。最初の取得で完全に終了する。
-- つまり「受けた → 最初の反撃だけ 2 倍」であって、5s 間すべての攻撃が 2 倍ではない。
-- `ForceCatchBonusDrop` で落ちた攻撃アイテムが RetaliationWindow 中に取得された場合も、同じく 2x 効果を発動してウィンドウを消費する。これは意図した相乗効果（ForceCatch → 攻撃アイテム → RETALIATION! の連鎖が報酬として機能する）。
-
 ### 12.12 ラウンド開始カウントダウン中の入力
 
 - 3-2-1-GO! のカウントダウン中は `GameState = Countdown`。PlayerController は移動入力を受け付ける（パドルポジショニング許可）が、発射キー（S/K）は無効化する。ボールはパドル上で静止し続ける。
 - LaunchAimer は GO! と同時に起動（メトロノーム開始）。
 - カウントダウン中にスキルキー（Q/U）を押しても発動しない（ゲージ 0 蓄積も停止しているため）。
 - カウントダウン中はブロックも Freeze（落下停止）。スキル蓄積（`SkillController` の gauge 加算）も停止する。
-- カウントダウン中にポーズキー（Esc/P）は有効（DESIGN.md Section 4 状態別ポーズ表参照）。ポーズで timeScale=0 になるとカウントダウンも止まり、再開時に同じ数字から続行する。
-
-### 12.13 BlockSpike 連鎖破壊による ZonePoison の累積
-
-- Fire 属性ボール（範囲ダメージ）や BlockExplosive の爆発で、複数の BlockSpike が同フレームで破壊された場合、各 BlockSpike がそれぞれ `SpawnZonePoison` を発火する。
-- 結果として複数の ZonePoison が同一アリーナに生成されうる。`12.4` のルール（最大 3 個、4 個目で最古を Destroy）を適用する。
-- これは設計上の想定内。Fire/Explosive + Spike ブロックの組み合わせは「高リスク・高リターンの連鎖」として機能する（Spike 行スポーン時はプレイヤーに注意を促す SE が鳴る）。
 
 ### 12.15 DOUBLE BALL 中のコンボ管理
 
@@ -1183,17 +1149,11 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 
 **設計意図**: 追加ボールがコンボに貢献できることで「DOUBLE BALL を使いながらコンボを延ばす」プレイスタイルが成立する。単なる防御スキルから「コンボ加速器」としての側面を持たせる。
 
-### 12.16 CATCH & SHOOT 中のボール落下
-
-- `SkillForceCatch` でボールを捕捉中（`ForceCatch` 状態）に、プレイヤーが発射せずに何らかの理由でボールが消えた場合（例: 強制リスポーン等）、**ForceCatch 状態は解除**される（捕捉は次のリスポーンに引き継がない）。
-- `ForceCatchBonusDrop` フラグ（再発射後「次の命中で攻撃アイテム確定」状態）は、**ボール落下時にリセット**される。再発射されずに落下したボールは「命中」扱いにならない。
-- `ForceCatchBonusDrop` の「次の命中」は**ブロックへの命中のみ**。壁・パドルへの反射は命中とカウントしない。ボールが何度も壁を跳ね回ってからブロックに当たった場合、そのブロック命中で攻撃アイテムが確定ドロップする。
-
 ### 12.17 BlockItem の詳細
 
 - `BlockItem` は `BlockType.Item` の通常行扱いで、標準スポーン時に `specialRowChance`（スペシャル行確率）とは別に混入する可能性がある（または特定の行構成で出現する）。**現状の仕様では「特定の行構成には含まない」— 単独スポーンまたは通常行の一要素として Phase C で実装済み。詳細な出現ロジックは実装者の判断**（Phase C 時点の `BlockSpawner` ロジックに従う）。
 - `BlockItem` を破壊すると **確定で 1 個アイテムドロップ** する（通常の確率ドロップではなく確定）。
-- ドロップするアイテムの系統分布は通常の抽選と同じ（HP 帯バンド + RetaliationWindow バイアスを参照）。強化・攻撃・罠のいずれかをランダムに選ぶ。
+- ドロップするアイテムの系統分布は通常の抽選と同じ（HP 帯バンドを参照）。強化・攻撃・罠のいずれかをランダムに選ぶ。
 - `BlockItem` 自体は HP1（1 撃で破壊）。ブロック IP ドットは表示しない（1 撃確定なので不要）。
 
 ### 12.18 TrapBall_Reversed 中の発射操作
@@ -1202,26 +1162,10 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 - 発射確定キー（S / K）の機能は変わらない。「発射後に変な方向に飛んだ」のはパドルが逆に動いた混乱によるものであり、発射判定自体は通常通り行われる。
 - `TrapBall_Reversed` 中に罠を取ってしまった場合（Shrink など）、重複効果は通常どおり上書き/加算される（特別なインタラクションなし）。
 
-### 12.19 TrapBall_Reversed と CATCH & SHOOT の同時発動
-
-- `TrapBall_Reversed` が有効な状態で `SkillForceCatch`（CATCH & SHOOT）が発動した場合:
-  - **キャッチ判定は通常通り発生する**（パドルにボールが当たれば捕捉）。
-  - **LaunchAimer は正常に起動する**（sin 波でアイマーが振れる）。発射確定キーは反転しない。
-  - **再発射後のパドル操作は反転している**。「ボールの方向は自分で決めたが、そのあと逆に動く」という混乱が残る。
-  - `ForceCatchBonusDrop` フラグはキャッチ時に設定される（キャッチそのものは成立している）。
-  - これは設計上の想定内。TrapBall_Reversed を食らった状態で CATCH & SHOOT を使う「リカバリー戦略」が成立する（発射は自由、ただし再発射後の修正が難しい）という複雑なインタラクションとして機能させる。
-
-### 12.20 DOUBLE BALL 中に CATCH & SHOOT を発動した場合
-
-- `SkillBall_Multi` による追加ボールが存在する状態で `SkillForceCatch` を発動すると、**パドルに最初に衝突したボールが捕捉対象**になる（メインボール / 追加ボールを問わない）。
-- 追加ボールが捕捉された場合: `PrepareRespawn` によってパドル上で静止。追加ボールをキャッチしたまま再発射できる（追加ボールも LaunchAimer で角度制御される）。
-- 実際上は「どちらが先に当たるか」は軌道次第であり、プレイヤーはメインボールを先に当てて捕捉することを「戦略的に選べない」（どちらが来るかわからない）。この非制御性は仕様として許容する。
-- `ForceCatchBonusDrop` は捕捉したボール（メイン / 追加どちらでも）の「次のブロック命中」で発動する。
-
 ### 12.21 スコア表示の累積 vs ラウンド単位
 
 - **HUD のスコア表示（`$P1ScoreValue`）**: マッチ全体の**累積スコア**を表示する。ラウンドをまたいで加算される。
-- **ラウンド終了の簡易リザルト（2s 表示）**: **そのラウンドだけの獲得スコア** を表示する（累積ではなく、そのラウンドの差分）。表示ラベル: `ROUND SCORE: {N}`
+- **ラウンド終了の簡易リザルト（キー待ち）**: **そのラウンドだけの獲得スコア** を表示する（累積ではなく、そのラウンドの差分）。表示ラベル: `ROUND SCORE: {N}`
 - **マッチ結果画面**: **累積スコア**（マッチ全体）を表示する（カンマ区切り）。
 - 実装: `GameManager` は `roundScore[pi]` と `matchScore[pi]` を独立して保持する。ラウンド開始時に `roundScore` を 0 クリア、`matchScore` は持ち越し。
 
@@ -1230,7 +1174,7 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 - `comboTimer[pi]` は**ゲーム時間**（`Time.deltaTime`）で加算する。HitStop 中は `IFreezable.Freeze()` で BallScript / PlayerController / BlockSpawner が止まるが、UIManager は止まらない。
 - UIManager.Update() は毎フレーム実行される。HitStop 中も `comboTimer` を更新し、Combo Timer Arc の fillAmount を更新し続ける。
 - つまり HitStop 中にもコンボタイマーが進む（フリーズするのはボールとブロックであり、時計は止まらない）。これは意図通り — HitStop は「演出の一時停止」であってゲーム状態の巻き戻しではない。
-- `UIManager.Update()` で使う `timeSinceLastBlockHit[pi]` は `Time.deltaTime` 加算版（`Time.unscaledDeltaTime` は使わない）。HitStop によって `Time.timeScale` は変更しないため、両者は同じ値になる（このゲームは timeScale=0 を ポーズ時のみに使用）。
+- `UIManager.Update()` で使う `timeSinceLastBlockHit[pi]` は `Time.deltaTime` 加算版（`Time.unscaledDeltaTime` は使わない）。HitStop によって `Time.timeScale` は変更しないため、両者は同じ値になる（このゲームは timeScale=0 を SkillSelect / MatchOver 等の UI 待機状態でのみ使用。ポーズ機能は廃止済み）。
 
 ---
 
@@ -1260,7 +1204,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | BlockHard | 灰 | 横線テクスチャ |
 | BlockAbsorb | 緑 | 波線テクスチャ |
 | BlockExplosive | 橙 | 爆発記号（☆） |
-| BlockSpike | 赤 | 棘形状 |
 | BlockHardened | 金 | 金色（輝度で区別、HDR 発光） |
 
 ### 13.2 操作・環境的配慮
@@ -1282,7 +1225,6 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 - 重要な状況通知は **必ず視覚的にも表示**（音だけに依存しない）。SE で知らせる項目は HUD に同期する:
   - スキル READY → `· READY` テキスト
   - 妨害受信 → 赤フラッシュ + `INCOMING: 〈種別〉` テキスト
-  - 反撃ウィンドウ → `RETALIATION READY` 表示
   - コンボマイルストーン → `{N} COMBO!!` 大きく
 - BGM 音量 0 設定でもゲームの本質的な情報伝達に支障が出ないこと（playtest で確認）。
 - 補助テキストフォントは JetBrainsMono（モノスペース）を使い、視認性を上げる。
