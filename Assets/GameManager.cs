@@ -245,6 +245,30 @@ public class GameManager : MonoBehaviour
         Debug.Log($"P{targetPlayerIndex} に妨害送信: {type}");
     }
 
+    // 攻撃アイテム取得時の妨害送付窓口 (DESIGN.md 5.5.2 / 7.4)
+    // EffectAttack.Apply から呼ばれる。targetPlayerIndex は受信側 (= 取得者の相手)
+    public void SendInterference(int targetPlayerIndex, ItemType attackItem)
+    {
+        ArenaController target = GetArena(targetPlayerIndex);
+        if (target == null) return;
+
+        InterferenceType type = AttackItemToInterference(attackItem);
+        ApplyInterference(target, type);
+        target.TriggerHitStop(interferenceTriggerFrames);
+        target.ShowInterferenceOverlay(GetInterferenceLabel(type));
+
+        Debug.Log($"P{targetPlayerIndex} に妨害送信: {type} (attack={attackItem})");
+    }
+
+    private static InterferenceType AttackItemToInterference(ItemType item) => item switch
+    {
+        ItemType.AttackHarden => InterferenceType.Harden,
+        ItemType.AttackAddRow => InterferenceType.AddRow,
+        ItemType.AttackPoison => InterferenceType.Poison,
+        ItemType.AttackSlow   => InterferenceType.Slow,
+        _                     => InterferenceType.AddRow
+    };
+
     private InterferenceType SelectInterferenceType()
     {
         int total = interferenceWeightAddRow + interferenceWeightHarden

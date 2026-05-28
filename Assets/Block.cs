@@ -193,13 +193,24 @@ public class Block : MonoBehaviour
         GetArena()?.SpawnItem(transform.position, type);
     }
 
+    // DESIGN.md 5.5.2: 強化 6 : 攻撃 4 が基本比率。HPStateBand.goodItemBias で
+    // 強化偏重を加算 (劣勢時に強化が出やすくなる)
+    private const float BASE_BUFF_WEIGHT = 0.6f;
+
+    private static readonly ItemType[] BuffPool = {
+        ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce,
+        ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal
+    };
+    private static readonly ItemType[] AttackPool = {
+        ItemType.AttackHarden, ItemType.AttackAddRow,
+        ItemType.AttackPoison, ItemType.AttackSlow
+    };
+
     private static ItemType SelectRandomItemType(float goodItemBias)
     {
-        var good = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal };
-        var all  = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal, ItemType.Shrink, ItemType.Hyper };
-        if (goodItemBias > 0f && Random.value < goodItemBias)
-            return good[Random.Range(0, good.Length)];
-        return all[Random.Range(0, all.Length)];
+        float buffWeight = Mathf.Clamp01(BASE_BUFF_WEIGHT + goodItemBias);
+        ItemType[] pool  = Random.value < buffWeight ? BuffPool : AttackPool;
+        return pool[Random.Range(0, pool.Length)];
     }
 
     private ArenaController GetArena()

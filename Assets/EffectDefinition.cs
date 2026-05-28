@@ -44,3 +44,16 @@ public sealed class EffectHeal : EffectDefinition
     public override void Apply(int playerIndex, ArenaController arena)
         => GameManager.Instance?.Heal(playerIndex, Amount);
 }
+
+// 攻撃アイテム取得時に発火する効果。playerIndex は取得した側。
+// GameManager 経由で相手アリーナへ妨害を送付する。
+public sealed class EffectAttack : EffectDefinition
+{
+    public ItemType AttackItem;
+
+    public override void Apply(int playerIndex, ArenaController arena)
+    {
+        int opponent = playerIndex == 1 ? 2 : 1;
+        GameManager.Instance?.SendInterference(opponent, AttackItem);
+    }
+}

@@ -127,7 +127,7 @@ public class ItemDrop : MonoBehaviour
         }
     }
 
-    // 効果の持続時間。Heal など瞬時アイテムは 0（=表示しない）
+    // 効果の持続時間。Heal や Attack 等の瞬時アイテムは 0（=表示しない）
     private float GetActiveDuration() => itemType switch
     {
         ItemType.Fire or ItemType.Ice or ItemType.Thunder
@@ -149,6 +149,9 @@ public class ItemDrop : MonoBehaviour
         ItemType.SpeedUp => new EffectBallSpeed     { Multiplier = speedUpMultiplier, Duration = speedDuration  },
         ItemType.Hyper   => new EffectBallSpeed     { Multiplier = hyperMultiplier,   Duration = speedDuration  },
         ItemType.Heal    => new EffectHeal          { Amount = healAmount },
+        ItemType.AttackHarden or ItemType.AttackAddRow
+            or ItemType.AttackPoison or ItemType.AttackSlow
+                         => new EffectAttack        { AttackItem = itemType },
         _                => new EffectHeal          { Amount = 0 }
     };
 }
