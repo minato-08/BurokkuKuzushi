@@ -2,42 +2,69 @@ using UnityEngine;
 
 public enum ItemType
 {
-    Fire, Ice, Thunder, Heavy, Pierce, // Ball attribute
-    Enlarge, SpeedUp,                  // Good items
-    Shrink, Hyper,                     // Bad items
-    Heal                               // Recovery
+    // Buff: Ball attribute
+    Fire, Ice, Thunder, Heavy, Pierce,
+    // Buff: Paddle / Recovery
+    Enlarge, SpeedUp, Heal,
+    // Attack (相手アリーナへ妨害送付)
+    AttackHarden, AttackAddRow, AttackPoison, AttackSlow,
+    // Trap (取得回避が戦略)
+    Shrink, Hyper, Reversed
 }
+
+public enum ItemCategory { Buff, Attack, Trap }
 
 public static class ItemDefinition
 {
     public static Color GetColor(ItemType type) => type switch
     {
-        ItemType.Fire    => new Color(1.000f, 0.478f, 0.239f), // #ff7a3d
-        ItemType.Ice     => new Color(0.306f, 0.765f, 1.000f), // #4ec3ff
-        ItemType.Thunder => new Color(1.000f, 0.847f, 0.290f), // #ffd84a
-        ItemType.Heavy   => new Color(0.706f, 0.643f, 1.000f), // #b4a4ff lavender
-        ItemType.Pierce  => new Color(0.635f, 1.000f, 0.878f), // #a2ffdf
-        ItemType.Enlarge => new Color(0.482f, 0.878f, 0.482f), // #7be07b ok green
-        ItemType.SpeedUp => new Color(0.306f, 0.765f, 1.000f), // #4ec3ff (blue like ice)
-        ItemType.Shrink  => new Color(1.000f, 0.231f, 0.361f), // #ff3b5c warn red
-        ItemType.Hyper   => new Color(1.000f, 0.847f, 0.290f), // #ffd84a accent yellow
-        ItemType.Heal    => new Color(0.482f, 0.878f, 0.482f), // #7be07b ok green
-        _                => Color.white
+        ItemType.Fire         => new Color(1.000f, 0.478f, 0.239f), // #ff7a3d
+        ItemType.Ice          => new Color(0.306f, 0.765f, 1.000f), // #4ec3ff
+        ItemType.Thunder      => new Color(1.000f, 0.847f, 0.290f), // #ffd84a
+        ItemType.Heavy        => new Color(0.706f, 0.643f, 1.000f), // #b4a4ff lavender
+        ItemType.Pierce       => new Color(0.635f, 1.000f, 0.878f), // #a2ffdf
+        ItemType.Enlarge      => new Color(0.482f, 0.878f, 0.482f), // #7be07b ok green
+        ItemType.SpeedUp      => new Color(0.306f, 0.765f, 1.000f), // #4ec3ff
+        ItemType.Heal         => new Color(0.482f, 0.878f, 0.482f), // #7be07b ok green
+        // Attack 系: 赤系オーラ
+        ItemType.AttackHarden => new Color(1.000f, 0.745f, 0.196f), // #ffbe32 gold-red
+        ItemType.AttackAddRow => new Color(1.000f, 0.298f, 0.235f), // #ff4c3c crimson
+        ItemType.AttackPoison => new Color(0.741f, 0.227f, 0.812f), // #bd3aCF purple-red
+        ItemType.AttackSlow   => new Color(1.000f, 0.439f, 0.290f), // #ff704a orange-red
+        // Trap: 紫系
+        ItemType.Shrink       => new Color(0.792f, 0.286f, 0.851f), // #ca49d9 purple
+        ItemType.Hyper        => new Color(0.659f, 0.345f, 0.961f), // #a858f5 deep purple
+        ItemType.Reversed     => new Color(0.561f, 0.302f, 0.812f), // #8f4dCF dark purple
+        _                     => Color.white
     };
 
     public static string GetName(ItemType type) => type switch
     {
-        ItemType.Fire    => "FIRE",
-        ItemType.Ice     => "ICE",
-        ItemType.Thunder => "THUNDER",
-        ItemType.Heavy   => "HEAVY",
-        ItemType.Pierce  => "PIERCE",
-        ItemType.Enlarge => "ENLARGE",
-        ItemType.SpeedUp => "SPEED UP",
-        ItemType.Shrink  => "SHRINK",
-        ItemType.Hyper   => "HYPER",
-        ItemType.Heal    => "HEAL",
-        _                => "???"
+        ItemType.Fire         => "FIRE",
+        ItemType.Ice          => "ICE",
+        ItemType.Thunder      => "THUNDER",
+        ItemType.Heavy        => "HEAVY",
+        ItemType.Pierce       => "PIERCE",
+        ItemType.Enlarge      => "ENLARGE",
+        ItemType.SpeedUp      => "SPEED UP",
+        ItemType.Heal         => "HEAL",
+        ItemType.AttackHarden => "HARDEN",
+        ItemType.AttackAddRow => "ADD ROW",
+        ItemType.AttackPoison => "POISON",
+        ItemType.AttackSlow   => "SLOW",
+        ItemType.Shrink       => "SHRINK",
+        ItemType.Hyper        => "HYPER",
+        ItemType.Reversed     => "REVERSED",
+        _                     => "???"
+    };
+
+    public static ItemCategory GetCategory(ItemType type) => type switch
+    {
+        ItemType.AttackHarden or ItemType.AttackAddRow or
+        ItemType.AttackPoison or ItemType.AttackSlow    => ItemCategory.Attack,
+        ItemType.Shrink or ItemType.Hyper or
+        ItemType.Reversed                               => ItemCategory.Trap,
+        _                                               => ItemCategory.Buff
     };
 }
 
