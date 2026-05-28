@@ -145,7 +145,7 @@ MatchOver    ← Time.timeScale = 0
     ↓ メニューへ → タイトルシーン
 ```
 
-`WaitForSecondsRealtime` を使用するため、`Time.timeScale = 0` の状態でもコルーチンが進む。**Pause 状態は GameState とは独立した直交フラグ** (`isPaused`) で管理する（GameState=Playing でも isPaused=true なら timeScale=0 を維持）。
+`WaitForSecondsRealtime` を使用するため、`Time.timeScale = 0` の状態でもコルーチンが進む。**ポーズ機能は 2026-05-28 仕様変更で廃止済み**（DESIGN.md Section 4 参照）。`timeScale = 0` は SkillSelect / MatchOver の UI 待機状態でのみ使用する。
 
 ### 各状態での動作制限
 
@@ -158,7 +158,7 @@ MatchOver    ← Time.timeScale = 0
 | SkillController | 停止 | 蓄積停止 | 動作 | 停止 | 停止 | 停止 |
 | UIManager（HUD） | 動作（選択画面） | 動作（カウントダウン表示）| 動作 | 動作（決着演出）| 動作（簡易リザルト） | 動作（結果画面） |
 
-> **Countdown / Intermission の追加（2026-05-20）**: 旧版では Playing と RoundOver の 2 状態のみだったが、ポーズ挙動（DESIGN.md Section 4）とカウントダウン挙動（DESIGN.md 12.12）を厳密化するために中間状態として分離した。実装は `GameState` enum に値を追加し、`UpdateGameState()` の遷移ロジックに 2 行追記すれば対応可能。
+> **Countdown / Intermission の追加（2026-05-20）**: 旧版では Playing と RoundOver の 2 状態のみだったが、カウントダウン挙動（DESIGN.md 12.12）を厳密化するために中間状態として分離した。実装は `GameState` enum に値を追加し、`UpdateGameState()` の遷移ロジックに 2 行追記すれば対応可能。
 
 ---
 
@@ -196,7 +196,7 @@ Block
 
 PlayerController
   → ArenaController（GetArena()で取得）
-  → SkillController（OnCollisionEnter: ForceCatch確認）
+  → SkillController（スキル発動の参照のみ）
 
 DeadZone → GameManager.Instance / BallScript
 ZonePoison → GameManager.Instance
@@ -280,9 +280,8 @@ HP  10%以下: gaugeRateMul=1.8 / itemDropMul=1.7 / scoreMul=1.5 / dropBiasBuff=
 **主要メソッド:**
 | メソッド | 呼び出し元 | 処理 |
 |---|---|---|
-| `OnBallDropped(pi)` | DeadZone | damageBallDrop を ApplyDamage + combo=0 |
+| `OnBallDropped(pi)` | DeadZone | コンボ 0 リセット（ボール落下ダメージは 2026-05-28 仕様で 0 に変更） |
 | `OnBlocksReachedBottom(pi, count)` | BlockSpawner | damageBlockReachBottom × count |
-| `OnSpikeHit(pi)` | Block | damageBlockSpike を ApplyDamage |
 | `OnPoisonTick(pi, dt)` | ZonePoison | damagePoisonPerSec × dt を ApplyDamage |
 | `OnForceRespawn(pi)` | LaunchAimer | damageForceRespawn を ApplyDamage |
 | `RegisterBlockDestroyed(pi)` | Block | combo++、comboTimer リセット、maxCombo 更新（妨害送付はしない） |
@@ -290,8 +289,6 @@ HP  10%以下: gaugeRateMul=1.8 / itemDropMul=1.7 / scoreMul=1.5 / dropBiasBuff=
 | `AddScore(pi, baseScore)` | Block | `baseScore × scoreMul × scoreComboMul(combo)` を加算 |
 | `AddEnergy(pi, base)` | Block | `base × gaugeRateMul × gaugeComboMul(combo)` を SkillController に渡す |
 | `SendInterference(targetPi, payload)` | ItemDrop / SkillAttack_* | 攻撃アイテム取得 / 攻撃スキル発動時に呼ばれる唯一の妨害送付窓口 |
-| `StartRetaliationWindow(pi)` | `ApplyInterference` 内 | `retaliationActive[pi]=true` → `WaitForSecondsRealtime(5s)` → false。ウィンドウが有効な間 `TryDropItem` で攻撃アイテム抽選に `retaliationAttackBias` を加算 |
-| `ConsumeRetaliationWindow(pi)` | `SendInterference` 内 | ウィンドウ有効なら true を返し即座に `retaliationActive[pi]=false`（1 回のみ消費）。詳細フローは Section 11 参照 |
 
 ---
 
@@ -405,18 +402,16 @@ private List<Block> allBlocks;  // ブロックの実体。DestroyされるとGO
    - `currentDescentSpeed  = Min(descentSpeedMax,  descentSpeedBase  + descentSpeedGainPerMin  × (roundElapsedTime / 60f))`
 2. `spawnTimer` 加算 → `currentSpawnInterval` 超で `SpawnRow(Normal)`
 3. `pendingSabotageRows > 0 && IsTopClear()` → `SpawnRow(Sabotage)`
-4. `pendingSpikeRows > 0 && IsTopClear()` → `SpawnRow(Spike)`
-5. `DescendBlocks()` — 全ブロックを `currentDescentSpeed × dt` だけ下に移動
-6. `CheckBottomReached()` — `blockDeadZoneY` 以下のブロックを破棄 + GameManager 通知
+4. `DescendBlocks()` — 全ブロックを `currentDescentSpeed × dt` だけ下に移動
+5. `CheckBottomReached()` — `blockDeadZoneY` 以下のブロックを破棄 + GameManager 通知
 
 `ResetForNewRound()` で `roundElapsedTime = 0` にリセット。`SerializeField` の base 値は変更しない（毎フレーム計算値で上書きするだけ）。
 
 **SpawnRow の種別:**
 | RowType | ブロック構成 |
 |---|---|
-| Normal | Explosive(10%) / Hard(20%) / Normal(70%)。確率は SerializeField |
+| Normal | Item(10%) / Hard(10%) / Explosive(5%) / Normal(残り)。確率は SerializeField（DESIGN.md 5.4 参照） |
 | Sabotage | Hard or Absorb 50:50（`sabotageHardRatio`） |
-| Spike | 全マス Spike（`spikeBlockHp` = 1） |
 
 `IsTopClear()`: spawnY 付近にブロックが存在しない場合 true。妨害行はトップが空いてからスポーン。
 
@@ -429,22 +424,9 @@ Block[] candidates = allBlocks
     .ToArray();
 foreach (Block b in candidates)
     b.HardenToHp(hardenTargetHp);
-
-// AttackHarden の 3s 降下停止（Phase F-Combat で実装予定）
-StartCoroutine(FreezeHardenedBlocks(candidates, hardenFreezeSeconds));
 ```
 
-**FreezeHardenedBlocks（降下停止コルーチン）:**
-
-硬化したブロック群だけを一時的に降下から除外する仕組み。BlockSpawner の降下ループは全ブロックを動かすため、停止対象ブロックに `frozen` フラグを付けてスキップする。
-
-```csharp
-private IEnumerator FreezeHardenedBlocks(Block[] blocks, float duration)
-{
-    foreach (Block b in blocks) b.frozen = true;   // Block に frozen: bool を追加
-    yield return new WaitForSeconds(duration);
-    foreach (Block b in blocks) if (b != null) b.frozen = false;
-}
+> AttackHarden の 3s 降下停止は 2026-05-28 仕様変更で廃止済み（ブロックは通常通り降下する）。
 
 // BlockSpawner.Update() の降下ループ内:
 foreach (Block b in allBlocks) {
@@ -453,8 +435,6 @@ foreach (Block b in allBlocks) {
     ...
 }
 ```
-
-降下が突然止まる视覚的インパクトが「何かされた」の即認識を生む。3s 後に再降下が始まると、その間に積み上がった新規行と合わさって圧力が増す。
 
 **GetArena():**
 ```csharp
@@ -578,9 +558,6 @@ yield return new WaitForSeconds(duration);
 transform.localScale = originalScale;
 ```
 
-**ForceCatch（SkillForceCatch）の検出:**  
-`OnCollisionEnter` でボールとの衝突時に `SkillController.IsForceCatchActive` を確認。有効なら `ball.PrepareRespawn(パドル上の位置)` でキャッチ扱いにしてリスポーン待機状態にする。
-
 **TrapBall_Reversed（入力反転トラップ）:**  
 `inputReversed` フラグを 5s 間 `true` にするコルーチン。`Update()` 内でフラグを確認し、移動入力の符号を反転させる（発射確定キーは反転しない）。
 
@@ -620,7 +597,7 @@ Arena ルートの子として `localPos(0, -11, 0)` に固定配置。`isTrigge
 
 ### ZonePoison
 
-BlockSpike 破壊時または InterferencePoison で `ArenaController.SpawnZonePoison()` から生成される。  
+InterferencePoison（AttackPoison 取得時）で `ArenaController.SpawnZonePoison()` から生成される。  
 `Setup(playerIndex, targetWorldY)` で落下目標Y（パドルWorldY + 0.5）を受け取る。
 
 **ライフサイクル:**
@@ -734,8 +711,7 @@ public abstract class SkillDefinition
 | `SkillPaddle_Enlarge` | 常時 | `player.SetWidthTemporary(1.5, 10)` |
 | `SkillBall_Attribute_Fire` | 常時 | `ball.SetAttributeTemporary(Fire, 10)` |
 | `SkillBall_Multi` | 常時 | `arena.SpawnExtraBall(10)` |
-| `SkillForceCatch` | 常時 | `skillController.SetForceCatch(true)` |
-| `SkillPanic_BlockClear` | HP ≤ 1/3 のみ | 上半分ブロックを全 Destroy + ヒットストップ |
+| `SkillPanic_BlockClear` | HP ≤ 10% のみ | 下半分ブロックを全 Destroy + ヒットストップ |
 
 ---
 
@@ -825,7 +801,6 @@ ItemDrop.Update (毎フレーム落下 + パドル接触ポーリング)
               ├→ GameManager.Instance.SendInterference(opponentPlayerIndex, payload)
               │     └→ ApplyInterference(targetArena, payload)
               │           ├→ Harden: targetArena.GetSpawner().HardenRandomBlocks(payload.intensity)
-              │           ├→ Spike:  targetArena.GetSpawner().ReceiveSpikeRow()
               │           ├→ AddRow: targetArena.GetSpawner().ReceiveSabotageRow()
               │           ├→ Poison: targetArena.SpawnZonePoison(GetRandomFloorWorldPos(), payload.duration)
               │           ├→ Slow:   targetArena.SpawnZoneSlow(GetRandomFloorWorldPos(), payload.duration)
@@ -843,17 +818,12 @@ ItemDrop.Update (毎フレーム落下 + パドル接触ポーリング)
 Ball が DeadZone.isTrigger に接触
   └→ DeadZone.OnTriggerEnter
         ├→ GameManager.OnBallDropped(playerIndex)
-        │     └→ ApplyDamage(playerIndex, damageBallDrop)
-        │           └→ p1HP.TakeDamage(5)
-        │                 └→ IsAlive == false → EndRound(winner=2)
-        │                       ├→ p2RoundWins++
-        │                       ├→ p2RoundWins >= roundsToWin → MatchOver処理
-        │                       │     ├→ TriggerHitStop(60, strong, shake) 両アリーナ
-        │                       │     └→ MatchOverCoroutine → Time.timeScale=0
-        │                       └→ それ以外 → RoundOver処理
-        │                             └→ TriggerHitStop(30) + NextRoundCoroutine
+        │     └→ コンボ 0 リセット（damageBallDrop=0 のためダメージ通知のみ）
+        │           └→ HP は変化しないため EndRound しない
         └→ ball.PrepareRespawn(GetRespawnPos())
 ```
+
+> ラウンド終了は HP=0 でのみ発生する。HP 減少源はブロック底到達 / 毒エリア / 強制リスポーン / 上部攻撃（G+）。EndRound 内では `roundsToWin` 到達で MatchOver、それ以外で RoundOver → NextRoundCoroutine に分岐する。
 
 ### アイテム取得
 
@@ -1027,28 +997,17 @@ ItemType type = cat switch {
 };
 ```
 
-HP帯バンドの `dropBiasBuff` は劣勢側に強化アイテムを優先させる。`dropChanceBuff:Attack:Trap = 6:3:1` がデフォルト。
-
-**RetaliationWindow 中の抽選バイアス**: ウィンドウ有効中は `dropChanceAttack` に `retaliationAttackBias`（デフォルト 0.2）を加算して抽選する。これにより「受けた直後に攻撃アイテムが出やすい」状況を作り、ウィンドウを実際に活用できる機会を担保する。
-
-```csharp
-// RetaliationWindow 考慮版
-float attackBias = IsRetaliationActive(ownerPi) ? retaliationAttackBias : 0f;
-ItemCategory cat = SelectCategory(dropChanceBuff + dropBiasBuff,
-                                  dropChanceAttack + attackBias,
-                                  dropChanceTrap, r1);
-```
+HP帯バンドの `dropBiasBuff` は劣勢側に強化アイテムを優先させる。`dropChanceBuff:Attack = 6:4` がデフォルト（DESIGN.md 5.5.2 参照、罠アイテムは確率抽選外）。
 
 ### 各妨害の実装
 
 | 妨害 | 実装窓口 | 効果 |
 |---|---|---|
 | AddRow | `spawner.ReceiveSabotageRow()` | pendingSabotageRows++ → 次の IsTopClear で Hard/Absorb 行スポーン |
-| Harden | `spawner.HardenRandomBlocks(count)` | Normal ブロックを `hardenCount`(=3) 個 Hard 化（金色・HP3）+ `hardenFreezeSeconds`(=3s) 間降下停止 |
-| Spike | `spawner.ReceiveSpikeRow()` | pendingSpikeRows++ → Spike 行スポーン |
+| Harden | `spawner.HardenRandomBlocks(count)` | Normal ブロックを `hardenCount`(=3) 個 Hard 化（金色・HP3） |
 | Poison | `arena.SpawnZonePoison(pos, duration)` | 紫球が落下 → パドル付近で停止 → 接触で毎秒ダメージ |
 | Slow | `arena.SpawnZoneSlow(duration)` | シアン球がアリーナ中央（X=0, Y=0）に即出現（落下なし）→ duration 秒間、内部ボールを slowFactor 倍に減速 |
-| DirectAttack (Phase G+) | `arena.SpawnTelegraphedShot(payload)` | 上空に予告マーカー → 5s 後 40 ダメージ着弾 |
+| DirectAttack (Phase G+) | `arena.SpawnTelegraphedShot(payload)` | 上空に予告マーカー → パドル位置へ 0.3s 間隔で 5 発、ヒットで 30 ダメージ |
 
 ### 受信側の即時演出
 
@@ -1057,10 +1016,9 @@ ItemCategory cat = SelectCategory(dropChanceBuff + dropBiasBuff,
 ```
 targetArena.TriggerHitStop(interferenceTriggerFrames=10, shake:false)
 targetArena.ShowInterferenceOverlay(label) → UIManager.ShowInterferenceOverlay
-GameManager.StartRetaliationWindow(targetPi)  ← 受信側の RetaliationWindow 開始
 ```
 
-赤フラッシュ + ラベル表示 + 短いヒットストップで「何が来たか」を即認知させる。シェイクはしない（攻撃側が能動なのでお互い演出の鬱陶しさを最小化）。
+オーブが相手アリーナから飛来する演出 + 赤フラッシュ（AddRow/DirectShot のみ）+ 短いヒットストップで「何が来たか」を即認知させる。シェイクはしない（攻撃側が能動なのでお互い演出の鬱陶しさを最小化）。
 
 ### 攻撃側のフィードバック
 
@@ -1080,46 +1038,7 @@ GameManager.StartRetaliationWindow(targetPi)  ← 受信側の RetaliationWindow
 
 「取った → 送った → 届いた」の三連フィードバックが完結する。
 
-### RetaliationWindow フロー
-
-```
-[起動] GameManager.ApplyInterference の最後
-  └→ GameManager.StartRetaliationWindow(targetPi)
-        ├→ if (retaliationCoroutine[targetPi] != null) StopCoroutine(...)  // 既存窓を停止
-        ├→ retaliationActive[targetPi] = true
-        ├→ retaliationCoroutine[targetPi] = StartCoroutine(RetaliationRoutine(targetPi))
-        │     └→ yield return new WaitForSecondsRealtime(retaliationWindowSec)
-        │     └→ retaliationActive[targetPi] = false
-        │     └→ UIManager.HideRetaliationReady(targetPi)
-        └→ UIManager.ShowRetaliationReady(targetPi)
-
-[消費] ItemDrop が攻撃アイテム取得を検知
-  └→ GameManager.TryConsumeRetaliationWindow(ownerPi)
-        ├→ if (!retaliationActive[ownerPi]) return false   // 窓なし
-        ├→ retaliationActive[ownerPi] = false
-        ├→ if (retaliationCoroutine[ownerPi] != null) StopCoroutine(...)
-        ├→ UIManager.HideRetaliationReady(ownerPi)
-        ├→ UIManager.ShowRetaliation(ownerPi, "RETALIATION!")  // 1.5s
-        └→ return true
-  └→ if (consumed) payload = ApplyRetaliationMultiplier(payload, retaliationMultiplier=2.0)
-        ├→ Harden: hardenCount × 2 / Spike: ZonePoison 着弾追加 / AddRow: 2 行 / Poison: ゾーン2個 / Slow: 強度UP
-        └→ GameManager.SendInterference(opponent, payload)
-
-[タイムアウト] WaitForSecondsRealtime(5s) 完了
-  └→ retaliationActive[targetPi] = false
-  └→ UIManager.HideRetaliationReady(targetPi)
-  └→ 攻撃アイテムを取らずに窓を逃した（履歴に残らない）
-
-[再受信] ウィンドウ有効中に再度妨害を受信
-  └→ StartRetaliationWindow が再度呼ばれる
-        └→ 既存コルーチンを Stop → 新たに 5s 窓をリスタート（DESIGN.md 12.8 参照）
-```
-
-不変式:
-- `retaliationActive[pi]=true` の間のみ `TryConsumeRetaliationWindow(pi)` が true を返す。
-- 消費は攻撃アイテム取得 1 回のみ。ConsumeRetaliationWindow は `RegisterActiveItem` の前に呼ぶ（順序固定）。
-- buff/trap アイテムは ConsumeRetaliationWindow を呼ばない（攻撃アイテムのみウィンドウを消費する）。
-- ラウンド終了 / `ArenaController.ResetForNewRound()` で `retaliationActive[*] = false`、コルーチンを全 Stop。
+> 反撃ウィンドウ (RetaliationWindow) は 2026-05-28 仕様変更で廃止済み。`StartRetaliationWindow` / `TryConsumeRetaliationWindow` / `retaliationAttackBias` も実装不要。
 
 ---
 
@@ -1242,7 +1161,7 @@ GameManager ←── 全コンポーネントから通知を受ける（OnXxx�
 ArenaController
   ←── GameManager / Block / BallScript から TriggerHitStop 要求
   ────→ HitStopController (TriggerHitStop)
-  ────→ BlockSpawner (ReceiveSabotageRow / ReceiveSpikeRow / HardenRandomBlocks)
+  ────→ BlockSpawner (ReceiveSabotageRow / HardenRandomBlocks)
   ────→ UIManager (ShowInterferenceOverlay)
   ────→ ZonePoison / ZoneSlow 生成
   ────→ ItemDrop 生成（buff / attack / trap 系統別）

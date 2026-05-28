@@ -22,7 +22,7 @@
 2026-05-20 〜 23   Phase F-Combat: 攻撃アイテム実装・コンボ自動妨害撤去
 2026-05-24 〜 26   Phase F-Setup 残作業: CenterUI_Old 削除・Energy/Incoming UI
 2026-05-27 〜 29   Phase F-Audio: SE/BGM 最低セット
-2026-05-30 〜 06-01 Phase F-Title: Title/Settings/Tutorial 最小実装
+2026-05-30 〜 06-01 Phase F-Title: タイトル + 結果画面の最小実装
 2026-06-02 〜 03   Phase F-Polish: 演出強化（破壊飛翔・Trail・破片）
 2026-06-04        Playtest + バランス調整 + 最終バグ取り
 2026-06-05        発表（部活）
@@ -159,7 +159,7 @@
 DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃アイテム経路に置換する。
 
 ### コア変更
-- [ ] `ItemType` enum に `AttackHarden / AttackSpike / AttackAddRow / AttackPoison / AttackSlow` を追加
+- [ ] `ItemType` enum に `AttackHarden / AttackAddRow / AttackPoison / AttackSlow` を追加
 - [ ] `EffectAttack` 系 EffectDefinition を新設（または `ItemDrop` で系統分岐）
 - [ ] `Block.SelectRandomItemType()` を 3 系統（buff/attack/trap）抽選に書き換え
 - [ ] HP帯バンドに `dropBiasBuff` フィールドを追加し、抽選で反映
@@ -180,13 +180,10 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 - [ ] 攻撃アイテム用カラー / アイコン（赤系オーラ）
 - [ ] 取得時の SE 仮当て（Phase F-Audio で正式音）
 - [ ] 攻撃側 HUD への `SENT → P{N}: [種別]` ラベル表示（1.5s, スライドフェードアウト）
-- [ ] AttackHarden で対象ブロックを 3s 降下停止させる実装（`RigidbodyConstraints` or Transform 固定）
 - [ ] アイテム寿命タイマー（8s、残 2s で高速点滅）を ItemDrop に追加
-- [ ] `GameManager.StartRetaliationWindow(playerIndex)` を実装（妨害受信後 5s、次の攻撃効果 2x）
-- [ ] RetaliationWindow の攻撃種別ごとの 2x 効果を `SendInterference` ルーティングに反映（DESIGN.md 5.7 参照）
-- [ ] RetaliationWindow 有効中の攻撃アイテム抽選バイアス（`retaliationAttackBias=0.2` を `TryDropItem` の抽選比率に加算）
-- [ ] `UIManager` に `RETALIATION READY` インジケーター表示を追加
-- [ ] `SkillForceCatch` に `ForceCatchBonusDrop` フラグを追加（再発射後の最初のブロック命中で攻撃アイテム確定ドロップ）
+- [ ] 妨害送受信のオーブ演出（相手アリーナから自分のアリーナへ飛ぶエフェクト、AddRow/DirectShot は赤系 `INCOMING` オーバーレイ）
+
+> 2026-05-28 仕様変更で以下は廃止: AttackSpike / AttackHarden 降下停止 / 反撃ウィンドウ (RetaliationWindow) / CATCH & SHOOT (`SkillForceCatch`)。
 
 ### コンボマイルストーン
 
@@ -204,8 +201,8 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 1. ItemType 拡張 + 抽選ロジック refactor
 2. SendInterference の経路統一 + RegisterBlockDestroyed 簡略化
 3. コンボの自己強化系統 (scoreMul/gaugeMul) + マイルストーン
-4. アイテム寿命 + RetaliationWindow
-5. AttackHarden 降下停止 + UI 反映 + 攻撃アイテムビジュアル
+4. アイテム寿命 + 攻撃アイテムビジュアル
+5. 妨害送受信のオーブ演出 + Incoming オーバーレイ
 6. Dynamic Escalation（BlockSpawner 時間スケール）
 
 ---
@@ -216,13 +213,12 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 - [ ] `AudioMixer` 作成（Master / BGM / SE / Voice）+ dB 変換式 `dB = 20 × log10(value/100)` 実装
 - [ ] ボール反射 SE（速度層でピッチ可変、`pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2`）
-- [ ] ブロック衝突 SE（Normal/Hard/Absorb/Explosive/Spike で音色差、50ms クールダウン実装）
+- [ ] ブロック衝突 SE（Normal/Hard/Absorb/Explosive で音色差、50ms クールダウン実装）
 - [ ] ブロック破壊 SE
 - [ ] アイテム取得 SE（系統別: 強化 / 攻撃 / 罠 で 3 音）
 - [ ] スキル発動 SE + チャージ完了 SE（`EnergySystem.OnEnergyFull` イベント追加）
 - [ ] 妨害受信 SE（種別ごとに短発ラベル発音）
 - [ ] コンボマイルストーン SE（ピッチ +N 半音、10/20/30）
-- [ ] RetaliationWindow Ready/Fire SE
 - [ ] ラウンド開始 / 勝利 / マッチ勝利 ジングル
 - [ ] BGM: タイトル 1 曲 + 試合中 1 曲（クロスフェード規則: DESIGN.md 10.5 参照）
 - [ ] HP30% 帯クロスフェード実装（5% ヒステリシス付き、両者が 35% 以上で通常戻し）
@@ -238,23 +234,20 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 発表で 1 人プレイの取っ掛かりが必要なため最小実装する。
 
 - [ ] `TitleScene` 新設（または `SampleScene` 内パネルで疑似実装）
-- [ ] メニュー UI（START / TUTORIAL / SETTINGS / QUIT）
-- [ ] ポーズ機能（Escape / P キーでトグル、Time.timeScale=0、`AudioSource.Pause/UnPause` で BGM 位置保持、PAUSED オーバーレイ）
-- [ ] 状態別ポーズ可否判定（SkillSelect/RoundOver/MatchOver はポーズ不可、Countdown/Playing/Intermission は可）→ DESIGN.md Section 4 状態別テーブル参照
-- [ ] HitStop 中ポーズ対応（`HitStopController` の WaitForSecondsRealtime コルーチンを timeScale=0 で停止する仕組み）
-- [ ] `SettingsPanel` UI（音量 × 3、先取本数、HitStop 強度、シェイク強度、初期値テーブル DESIGN.md 11.4 参照）
-- [ ] 設定 UI ナビゲーション実装（↑↓ で項目、←→ で値、Enter 確定、Esc 取消、Tab 戻る）
-- [ ] チュートリアルフロー（8 ステップ、HP 減算オフ、AI=EASY 固定、Step 7 でスクリプト Harden 発火）
-- [ ] チュートリアル中断・再訪 UI（Esc で確認ダイアログ、Space/Enter でステップスキップ）
+- [ ] メニュー UI（START / QUIT）
+- [ ] `GameState` enum に `Countdown` / `RoundIntermission` の 2 状態を追加（DESIGN.md 12.12 参照）
+- [ ] ラウンド開始カウントダウン中の入力制御（移動可・発射不可、ブロック降下停止、スキル蓄積停止）
 - [ ] `ResultScene` または既存 `MatchResultPanel` の演出強化（DESIGN.md 5.10 マッチ結果画面詳細を実装）
   - 必須: 大見出し `P{N} WINS!` / 最終スコア / 最大コンボ表示
   - 任意: ブロック破壊数・受信妨害数（GameManager に `MatchStats` 集計構造を追加）
 - [ ] BGM はタイトル/試合で切り替え
 
+> **2026-05-28 廃止**: ポーズ機能 / 設定 UI (`SettingsPanel`) / チュートリアル / AI 対戦 — DESIGN.md から削除済み。実装不要。
+
 スリップした場合の優先順:
 1. タイトル + START（最低限）
-2. 設定（音量）
-3. チュートリアル
+2. ラウンド/マッチ結果演出
+3. BGM 切替
 
 ---
 
@@ -300,10 +293,10 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] BALANCE.md Section 11.3 の改訂デモパラメータ（maxHP=200, baseDropChance=0.25, dropChanceAttack=0.40）で開始（Section 9 から改訂・理由は BALANCE.md 11.3 参照）
 - [ ] フルマッチを 5 試合プレイ（自分 + 他者 2 人）
 - [ ] 1 ラウンドあたりの平均試合時間を計測（目標 60〜90s）
-- [ ] 攻撃アイテムドロップ率の調整（RetaliationWindow 発動頻度が適切か）
+- [ ] 攻撃アイテムドロップ率の調整（攻撃 / 強化の偏りが体感バランスに合っているか）
 - [ ] HP 帯バンドのカムバック感の確認（劣勢から逆転できるか）
 - [ ] コンボマイルストーン（10/20/30）が実際の試合で到達できるか
-- [ ] AttackHarden の視覚インパクト確認（3s 停止が「あっ」と感じさせるか）
+- [ ] AttackHarden の視覚インパクト確認（金色オーラが「あっ」と感じさせるか）
 - [ ] コンボ持続が短すぎないか（comboTimeout 値の妥当性）
 - [ ] 一行底到達ペナルティの調整（線形 / 累進どちらか確定）
 - [ ] 致命バグ・クラッシュ対応
@@ -316,7 +309,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] **両プレイヤーが操作可能**: 1P / 2P 双方でパドル操作・発射・スキル発動ができる
 - [ ] **HP・スコア・コンボが表示**: HUD の基本数値（HP、スコア、コンボ）が更新される
 - [ ] **音が出る**: 最低限「ブロック衝突」「アイテム取得」「ラウンド勝利」の 3 種類の SE が再生される（BGM は任意）
-- [ ] **DESIGN.md と矛盾しない**: 主要な仕様（HP=200、攻撃アイテム経由モデル、RetaliationWindow）が動作する
+- [ ] **DESIGN.md と矛盾しない**: 主要な仕様（HP=200、攻撃アイテム経由モデル、Dynamic Escalation）が動作する
 
 **No-Go（発表延期 or デモ縮小）の判断基準**:
 - 1 試合に 1 回以上の頻度でクラッシュ → 当日は事前録画ビデオに切り替え

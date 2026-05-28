@@ -233,13 +233,9 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > ⚠️ **仕様とコードの乖離（2026-05-20）**: DESIGN.md 5.7 では「コンボ自動妨害を撤廃し攻撃アイテム経由に移行」と定義済みだが、上記の `p1DestroyedCount` / `SendSabotageTo` 実装はまだ旧モデルのまま。Phase F-Combat（ROADMAP.md 参照）で削除予定。実装着手時は `GameManager.SendInterference(targetPi, payload)` 経路に統一する。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Polish 追加実装**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Polish のチェックリストに含まれる:
-> - **パドル反射ゾーン**: DESIGN.md 5.3 に定義の `PlayerController.OnBallHit(localHitX)` + `BallScript.SetAngleOverride()` が未実装（物理反射をそのまま使用中）。Phase F-Polish の追加演出に含む。
-> - **Block.frozen フラグ**: AttackHarden の降下停止に必要。`Block.cs` / `BlockSpawner.Update()` 両方に変更必要。
+> - （パドル反射ゾーンは 2026-05-28 仕様変更で廃止済み — 単純な物理反射に統一）
 
-> ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
-> - **反撃ウィンドウ** (`StartRetaliationWindow` / `TryConsumeRetaliationWindow`): 妨害受信後 5s、次の攻撃アイテム効果 2x。`GameManager` に未実装。フローは ARCHITECTURE.md 第11節「RetaliationWindow フロー」参照
-> - **RetaliationWindow 攻撃バイアス** (`retaliationAttackBias`): ウィンドウ中は攻撃アイテム抽選を +0.2 優遇。`GameManager.TryDropItem()` に未実装。
-> - **AttackHarden 降下停止**: 硬化対象ブロックを 3s フリーズ。`HardenRandomBlocks()` に未実装。
+> ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20 / 2026-05-28 改訂）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
 > - **アイテム寿命** (`itemLifetime=8s`): `ItemDrop.Update()` に寿命タイマー未実装。
 > - **コンボマイルストーン**: `GameManager.comboMilestones[]` SerializeField と `UIManager` の演出未実装。
 > - **攻撃側フィードバックラベル**: `UIManager.ShowSentLabel(playerIndex, type)` 未実装。
@@ -249,20 +245,17 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > - **comboTimer 起点**: 現在は「パドル反射後」開始の可能性。DESIGN.md 5.8 では「最後のブロック破壊後」に修正済み。
 > - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件管理 + 3 秒経過で自動削除。未実装。
 > - **Victory Bar** (`$VictoryBar` Image.fillAmount): P1HP/(P1HP+P2HP) を毎フレーム反映。未実装。
+> - **2026-05-28 廃止**: 反撃ウィンドウ (RetaliationWindow)、AttackSpike / BlockSpike、AttackHarden 降下停止、CATCH & SHOOT (`SkillForceCatch`) — DESIGN.md から削除済み。実装側にコードが残っている場合は削除対象。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Audio 追加実装（2026-05-20）**: DESIGN.md 10.4 / 10.5 で定義済みだがコードに未実装:
 > - **AudioMixer + dB 変換**: `dB = 20 × log10(value/100)` で PlayerPrefs 0-100 整数を dB に変換。
-> - **SE コードトリガーマッピング**: DESIGN.md 10.4 の 22 種の SE 発火位置に AudioSource.PlayOneShot を仕込む。
+> - **SE コードトリガーマッピング**: DESIGN.md 10.4 の SE 発火位置に AudioSource.PlayOneShot を仕込む。
 > - **ブロック衝突 SE 50ms クールダウン**: `lastBlockSeTime` を保持し `unscaledTime` 差分で抑制。
 > - **BGM クロスフェード（HP 30% 帯・5% ヒステリシス）**: `bgm_match_base` と `bgm_match_tense` の同時再生 + Volume Lerp。
 
-> ⚠️ **仕様とコードの乖離 — Phase F-Title 追加実装（2026-05-20）**: DESIGN.md Section 4 / 11.3 / 11.4 で定義済みだがコードに未実装:
+> ⚠️ **仕様とコードの乖離 — Phase F-Title 追加実装（2026-05-28 改訂）**: DESIGN.md で定義済みだがコードに未実装:
 > - **GameState 拡張**: `Countdown` / `RoundIntermission` の 2 状態を `GameManager.GameState` enum に追加。
-> - **状態別ポーズ可否**: DESIGN.md Section 4 状態別テーブル参照。`isPaused` フラグを GameState とは直交で持ち、SkillSelect/RoundOver/MatchOver ではポーズキー無視。
-> - **AudioSource.Pause/UnPause で BGM 位置保持**: ポーズ時に BGM が頭から再生にならないよう Pause/UnPause を使用。
-> - **HitStop 中ポーズ対応**: `HitStopController` の `WaitForSecondsRealtime` コルーチンを timeScale=0 で停止する仕組み（現状は timeScale で進む可能性）。
-> - **設定 UI** (`SettingsPanel`): 音量 × 3、先取本数、HitStop 強度、シェイク強度、初期値テーブル DESIGN.md 11.4 参照。
-> - **チュートリアル**: 8 ステップ進行マネージャ、Step 7 でスクリプト Harden 発火、HP 減算オフ、AI=EASY 固定。
+> - **2026-05-28 廃止**: ポーズ機能 / 設定 UI (`SettingsPanel`) / チュートリアル / AI対戦 (`AIPlayerController`) — DESIGN.md から削除済み。実装側にコードや TODO が残っている場合は削除対象。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
@@ -307,9 +300,9 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `BlockSpawner.cs`
 - タイマーで行を生成、毎フレーム降下、底判定
-- 妨害行（`pendingSabotageRows`）と Spike 行（`pendingSpikeRows`）をキューで管理。`IsTopClear()` になり次第スポーン
+- 妨害行（`pendingSabotageRows`）をキューで管理。`IsTopClear()` になり次第スポーン（旧 `pendingSpikeRows` は AttackSpike 廃止に伴い不要）
 - `blockDeadZoneY`（旧 `bottomY`）を超えたブロックを削除し `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知。同時に `TriggerHitStop` でカメラシェイク
-- `ReceiveSabotageRow()` / `ReceiveSpikeRow()` — GameManager から呼ばれる
+- `ReceiveSabotageRow()` — GameManager から呼ばれる（`ReceiveSpikeRow()` は AttackSpike 廃止で不要、コードに残っている場合は削除対象）
 - `HardenRandomBlocks()` — LINQ で Normal ブロックをランダムに `hardenCount` 個選び `HardenToHp(hardenTargetHp)` で Hard 化
 - `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
 
@@ -341,7 +334,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - ArenaController.ballSpawnOffsetY と同じ値にすること
 
 ### `ZonePoison.cs`
-- Phase E で新設。BlockSpike 破壊時または InterferencePoison で生成される毒エリア
+- Phase E で新設。InterferencePoison（AttackPoison 取得）で生成される毒エリア
 - `Setup(playerIndex, targetWorldY)` でパドル Y とオーナー設定 → 落下して着地後 `duration` 秒間持続
 - 着地後は `OverlapSphereNonAlloc`（事前確保バッファ）でパドル接触を毎フレーム検出し `GameManager.OnPoisonTick()` を呼ぶ
 - `Destroy(gameObject, duration)` で自動消滅。`ArenaController.ResetForNewRound()` でも即時削除
@@ -384,10 +377,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `SkillDefinition.cs`
 - スキル効果の抽象基底クラス（`SkillDefinition`）
-- 実装: `SkillPaddle_Enlarge` / `SkillBall_Attribute_Fire` / `SkillBall_Multi` / `SkillForceCatch` / `SkillPanic_BlockClear`
+- 実装: `SkillPaddle_Enlarge` / `SkillBall_Attribute_Fire` / `SkillBall_Multi` / `SkillPanic_BlockClear`（`SkillForceCatch` は 2026-05-28 仕様から廃止）
 - すべて public フィールドでパラメータを保持（Profile 参照なし）
 
-> ⚠️ **仕様とコードの乖離（2026-05-20）**: `SkillForceCatch` は現在「強制キャッチ + 再発射」のみ。DESIGN.md 5.6 では「再発射後の最初のブロック命中で攻撃アイテム確定ドロップ（`ForceCatchBonusDrop`）」が追加されているがコード未実装。Phase F-Combat で対応。
+> ⚠️ **仕様とコードの乖離（2026-05-28）**: `SkillForceCatch` (CATCH & SHOOT) は DESIGN.md から削除済み。コードに残っている場合は Phase F-Combat で削除する。
 
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示

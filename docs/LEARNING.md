@@ -543,42 +543,40 @@ private IEnumerator AttributeRoutine(BallAttribute attr, float duration)
 **WaitForSecondsRealtime を使う場面：**  
 `Time.timeScale = 0` の状態（試合終了後の停止中など）でも動かしたいコルーチンには `WaitForSecondsRealtime` を使う。`WaitForSeconds` は `timeScale=0` だと止まってしまう。
 
-**時限フラグパターン（RetaliationWindow の実装例）：**
+**時限フラグパターン（汎用 N 秒ウィンドウの実装例）：**
 
-「5 秒間だけ有効になるフラグ」のような "時限状態" は、コルーチン + null 判定でシンプルに実装できる。
+「N 秒間だけ有効になるフラグ」のような "時限状態" は、コルーチン + null 判定でシンプルに実装できる。アイテム効果の重ね掛けや、一時的な状態管理に応用できる。
 
 ```csharp
-private Coroutine[] retaliationRoutines = new Coroutine[2];
-private bool[] retaliationActive = new bool[2];
+private Coroutine[] windowRoutines = new Coroutine[2];
+private bool[] windowActive = new bool[2];
 
-// 妨害を受けた瞬間に呼ぶ
-public void StartRetaliationWindow(int playerIndex)
+// 状態を開始する瞬間に呼ぶ（既存のウィンドウはリセット）
+public void StartWindow(int playerIndex, float seconds)
 {
     int i = playerIndex - 1;
-    // 既に有効なウィンドウがあればタイマーをリセット
-    if (retaliationRoutines[i] != null)
-        StopCoroutine(retaliationRoutines[i]);
-    retaliationActive[i] = true;
-    retaliationRoutines[i] = StartCoroutine(RetaliationRoutine(i));
+    if (windowRoutines[i] != null)
+        StopCoroutine(windowRoutines[i]);
+    windowActive[i] = true;
+    windowRoutines[i] = StartCoroutine(WindowRoutine(i, seconds));
 }
 
-private IEnumerator RetaliationRoutine(int i)
+private IEnumerator WindowRoutine(int i, float seconds)
 {
-    yield return new WaitForSecondsRealtime(5f);  // ラウンド終了中でも動く
-    retaliationActive[i] = false;
-    retaliationRoutines[i] = null;
+    yield return new WaitForSecondsRealtime(seconds);  // ラウンド終了中でも動く
+    windowActive[i] = false;
+    windowRoutines[i] = null;
 }
 
-// 攻撃アイテム取得時に呼ぶ
-public bool ConsumeRetaliationWindow(int playerIndex)
+// 「1 回だけ使える」消費型にしたい場合
+public bool ConsumeWindow(int playerIndex)
 {
     int i = playerIndex - 1;
-    if (!retaliationActive[i]) return false;
-    // 1回で消費する
-    StopCoroutine(retaliationRoutines[i]);
-    retaliationActive[i] = false;
-    retaliationRoutines[i] = null;
-    return true;  // 2x 効果を適用
+    if (!windowActive[i]) return false;
+    StopCoroutine(windowRoutines[i]);
+    windowActive[i] = false;
+    windowRoutines[i] = null;
+    return true;
 }
 ```
 
@@ -618,7 +616,6 @@ private IEnumerator BlinkRoutine()
 - `PlayerController.WidthRoutine` — パドル幅の一時変更
 - `HitStopController.HitStopRoutine` — フリーズ中のカメラシェイク
 - `ArenaController.LaunchExtraBallRoutine` — 追加ボールの発射と自動削除
-- `GameManager.RetaliationRoutine` — 反撃ウィンドウの 5s 時限管理（Phase F-Combat で実装）
 - `ItemDrop.LifetimeRoutine` — アイテム寿命タイマー + 消滅直前の点滅（Phase F-Combat で実装）
 - `GameManager.NextRoundCoroutine / MatchOverCoroutine` — ラウンド間の待機
 - `UIManager.OverlayRoutine` — 妨害通知フラッシュ
@@ -859,7 +856,7 @@ target.HardenBlocks();
 hitStop?.TriggerHitStop(frames);
 
 // チェーンできる
-arena?.GetSpawner()?.ReceiveSpikeRow();
+arena?.GetSpawner()?.ReceiveSabotageRow();
 ```
 
 ---
@@ -937,11 +934,11 @@ void OnCollisionEnter(Collision col) {
 }
 
 // コルーチンの開始・終了を追跡
-IEnumerator RetaliationWindowRoutine(int pi) {
-    Debug.Log($"[GameManager] RetaliationWindow 開始 pi={pi}");
-    yield return new WaitForSecondsRealtime(retaliationWindowSec);
-    retaliationActive[pi] = false;
-    Debug.Log($"[GameManager] RetaliationWindow 終了 pi={pi}");
+IEnumerator AttributeRoutine(int pi, BallAttribute attr, float duration) {
+    Debug.Log($"[BallScript] 属性 {attr} 付与 pi={pi}");
+    yield return new WaitForSecondsRealtime(duration);
+    currentAttribute = BallAttribute.Normal;
+    Debug.Log($"[BallScript] 属性解除 pi={pi}");
 }
 ```
 

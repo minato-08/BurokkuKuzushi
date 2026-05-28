@@ -35,7 +35,6 @@
 | `se_block_hit_absorb.wav` | BlockAbsorb 衝突 | 0.20s | 低音・吸収感「ボッ」 |
 | `se_block_break.wav` | ブロック破壊 | 0.20〜0.30s | 弾けるパッ + 弱残響 |
 | `se_block_explosive.wav` | BlockExplosive 爆発 | 0.40s | 低音ボン（ヒットストップと同期） |
-| `se_block_spike.wav` | BlockSpike 接触 | 0.25s | ザリッ + 高音ピリッ |
 | `se_ball_wall.wav` | ボール壁バウンス | 0.05〜0.10s | 軽い「コッ」 |
 | `se_ball_paddle.wav` | ボールパドル反射 | 0.10s | やや重い「コッ」 |
 | `se_item_drop.wav` | アイテムドロップ出現 | 0.20s | ポロン |
@@ -60,8 +59,6 @@
 | `se_hitstop_strong.wav` | 強ヒットストップ（ラウンド / マッチ決着） | 0.50s |
 | `se_combo_milestone.wav` | コンボ 10, 20, 30... 到達時の通知音（ピッチ差分付き） | 0.20s |
 | `se_addrow_land.wav` | AttackAddRow の妨害行着弾（ドスッとした着地音） | 0.30s |
-| `se_retaliation_ready.wav` | 反撃ウィンドウ開始（妨害受信直後の点灯瞬間、短い「キン」） | 0.15s |
-| `se_retaliation.wav` | 反撃ウィンドウ中の攻撃アイテム取得成功（上昇系タダン音） | 0.40s |
 | `se_special_row.wav` | スペシャル行スポーン時の通知（落雷系短発） | 0.30s |
 
 ### 2.3 SE 実装メモ
@@ -117,7 +114,6 @@
 | BlockHard | 灰 | ヒビ（HP に応じて段階変化） |
 | BlockAbsorb | 緑 | ゼリー状吸収エフェクト |
 | BlockExplosive | 橙 | 爆発マークアイコン overlay |
-| BlockSpike | 赤 | 棘アイコン |
 | BlockHardened | 金 | 金色オーラ（既実装） |
 
 ### 4.3 パーティクルエフェクト
