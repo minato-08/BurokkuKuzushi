@@ -119,8 +119,10 @@ public class ItemDrop : MonoBehaviour
         Collider[] hits = Physics.OverlapSphere(transform.position, detectionRadius);
         foreach (var hit in hits)
         {
-            if (hit.GetComponent<PlayerController>() != null)
+            PlayerController paddle = hit.GetComponent<PlayerController>();
+            if (paddle != null)
             {
+                paddle.OnItemPickup(ItemDefinition.GetCategory(itemType));
                 BuildEffect().Apply(playerIndex, arena);
                 GameManager.Instance?.RegisterActiveItem(
                     playerIndex, ItemDefinition.GetName(itemType), GetActiveDuration());

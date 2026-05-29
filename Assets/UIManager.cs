@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -70,6 +71,14 @@ public class UIManager : MonoBehaviour
     [SerializeField] private CanvasGroup     p2ComboMilestoneOverlay;
     [SerializeField] private TextMeshProUGUI p2ComboMilestoneLabel;
 
+    [Header("[任意] Victory Bar（中央・優勢可視化）")]
+    [SerializeField] private Image           victoryBar;  // $VictoryBar fillAmount = P1HP/(P1HP+P2HP)
+
+    [Header("[任意] Incoming インジケータ（妨害予約キュー）")]
+    [SerializeField] private TextMeshProUGUI[] p1IncomingSlots;  // 左列=P1への予約（最大3, [0]=最古）
+    [SerializeField] private TextMeshProUGUI[] p2IncomingSlots;  // 右列=P2への予約
+    [SerializeField] private float           incomingDisplaySec = 3.0f;
+
     // =====================================================
     // 演出パラメータ
     // =====================================================
@@ -95,6 +104,11 @@ public class UIManager : MonoBehaviour
     private Coroutine p2SentRoutine;
     private Coroutine p1MilestoneRoutine;
     private Coroutine p2MilestoneRoutine;
+
+    // Incoming キュー（FIFO・最大3・incomingDisplaySec で自動失効）
+    private struct IncomingEntry { public string symbol; public float expireTime; }
+    private readonly List<IncomingEntry> p1Incoming = new List<IncomingEntry>();
+    private readonly List<IncomingEntry> p2Incoming = new List<IncomingEntry>();
 
     // =====================================================
     // 初期化（静的ラベルを GameManager 実値に合わせる）
@@ -130,6 +144,19 @@ public class UIManager : MonoBehaviour
                             p2EnergyFill, p2SkillName, p2RoundWins);
 
         UpdateStatusText();
+        UpdateVictoryBar();
+        UpdateIncoming();
+    }
+
+    // P1HP/(P1HP+P2HP) を毎フレーム反映。左に傾く=P1優勢（DESIGN.md 12.5）
+    private void UpdateVictoryBar()
+    {
+        if (victoryBar == null) return;
+        var gm = GameManager.Instance;
+        float p1 = gm.GetHP(1);
+        float p2 = gm.GetHP(2);
+        float total = p1 + p2;
+        victoryBar.fillAmount = total > 0f ? p1 / total : 0.5f;
     }
 
     private void UpdatePlayerHUD(int playerIndex,
@@ -276,5 +303,56 @@ public class UIManager : MonoBehaviour
         cg.alpha = 1f;
         yield return new WaitForSecondsRealtime(comboMilestoneDuration);
         cg.alpha = 0f;
+    }
+
+    // =====================================================
+    // Incoming インジケータ（妨害予約キュー。GameManager から呼ばれる）
+    //   targetPlayerIndex = 妨害を受ける側。左列=P1, 右列=P2
+    //   FIFO 最大 3、incomingDisplaySec 経過で自動失効、Playing 以外で全消去
+    // =====================================================
+
+    public void PushIncoming(int targetPlayerIndex, GameManager.InterferenceType type)
+    {
+        var list = targetPlayerIndex == 1 ? p1Incoming : p2Incoming;
+        list.Add(new IncomingEntry { symbol = IncomingSymbol(type),
+                                     expireTime = Time.unscaledTime + incomingDisplaySec });
+        while (list.Count > 3) list.RemoveAt(0); // 4個目到着で最古を押し出す
+    }
+
+    private static string IncomingSymbol(GameManager.InterferenceType type) => type switch
+    {
+        GameManager.InterferenceType.Harden => "⬛HARD",
+        GameManager.InterferenceType.AddRow => "↓ROW",
+        GameManager.InterferenceType.Poison => "☣PSION",
+        GameManager.InterferenceType.Slow   => "🐌SLOW",
+        _                                   => "?"
+    };
+
+    private void UpdateIncoming()
+    {
+        bool playing = GameManager.Instance.GetCurrentState() == GameManager.GameState.Playing;
+        if (!playing)
+        {
+            if (p1Incoming.Count > 0) p1Incoming.Clear();
+            if (p2Incoming.Count > 0) p2Incoming.Clear();
+        }
+        RenderIncoming(p1Incoming, p1IncomingSlots);
+        RenderIncoming(p2Incoming, p2IncomingSlots);
+    }
+
+    private void RenderIncoming(List<IncomingEntry> list, TextMeshProUGUI[] slots)
+    {
+        // 失効したエントリを除去（新しいほど後ろ）
+        for (int i = list.Count - 1; i >= 0; i--)
+            if (Time.unscaledTime >= list[i].expireTime) list.RemoveAt(i);
+
+        if (slots == null) return;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] == null) continue;
+            bool show = i < list.Count;
+            if (slots[i].gameObject.activeSelf != show) slots[i].gameObject.SetActive(show);
+            if (show) slots[i].text = list[i].symbol;
+        }
     }
 }

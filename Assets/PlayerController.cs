@@ -15,12 +15,22 @@ public class PlayerController : MonoBehaviour, IFreezable
     [Header("パドル衝突ヒットストップ（フレーム数・0=なし）")]
     [SerializeField] private int paddleBounceFrames = 0;
 
+    [Header("アイテム取得フラッシュ（DESIGN.md 12.17）")]
+    [SerializeField] private Color buffFlashColor   = new Color(0.306f, 0.765f, 1.000f); // Cyan
+    [SerializeField] private Color attackFlashColor = new Color(1.000f, 0.298f, 0.235f); // Red
+    [SerializeField] private Color trapFlashColor   = new Color(0.792f, 0.286f, 0.851f); // Purple
+    [SerializeField] private float pickupFlashDuration = 0.1f;
+
     private Rigidbody rb;
     private bool frozen = false;
     private Vector3 originalScale;
     private Coroutine widthRoutine;
     private bool inputReversed = false;
     private Coroutine reverseRoutine;
+
+    private Renderer paddleRenderer;
+    private Color    originalColor;
+    private Coroutine flashRoutine;
 
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
@@ -30,6 +40,31 @@ public class PlayerController : MonoBehaviour, IFreezable
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = true;
         originalScale = transform.localScale;
+
+        paddleRenderer = GetComponent<Renderer>();
+        if (paddleRenderer != null) originalColor = paddleRenderer.material.color;
+    }
+
+    // アイテム取得時にパドルを系統色で 0.1s フラッシュ（ItemDrop から呼ばれる）
+    public void OnItemPickup(ItemCategory category)
+    {
+        if (paddleRenderer == null) return;
+        Color flash = category switch
+        {
+            ItemCategory.Attack => attackFlashColor,
+            ItemCategory.Trap   => trapFlashColor,
+            _                   => buffFlashColor
+        };
+        if (flashRoutine != null) StopCoroutine(flashRoutine);
+        flashRoutine = StartCoroutine(FlashRoutine(flash));
+    }
+
+    private System.Collections.IEnumerator FlashRoutine(Color flash)
+    {
+        paddleRenderer.material.color = flash;
+        yield return new WaitForSeconds(pickupFlashDuration);
+        paddleRenderer.material.color = originalColor;
+        flashRoutine = null;
     }
 
     public void SetWidthTemporary(float multiplier, float duration)

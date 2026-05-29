@@ -178,6 +178,8 @@ _UI                                    ← トップレベルフォルダ（Tran
 - 妨害通知オーバーレイ（CanvasGroup + Label の P1/P2 ペア）
 - 攻撃送付ラベル（`p1SentLabel` / `p2SentLabel` TMP。攻撃者 HUD に `SENT → P{N}: 種別` 表示）
 - コンボマイルストーン演出（`pXComboMilestoneOverlay` CanvasGroup + `pXComboMilestoneLabel` TMP。10/20/30 到達で `{N} COMBO!!`）
+- Victory Bar（`victoryBar` Image, Horizontal Fill。fillAmount = P1HP/(P1HP+P2HP)）
+- Incoming インジケータ（`p1IncomingSlots[]` / `p2IncomingSlots[]` TMP 配列、各最大 3。受信予約のシンボル表示）
 - アイテムアイコン Image（現状は名前テキストのみ）
 
 ### Bloom 演出
@@ -241,16 +243,16 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 >
 > 実装済み:
 > - **攻撃アイテム経由モデル**: ItemType 拡張 + `EffectAttack` → `GameManager.SendInterference` 経路。コンボ自動妨害は撤廃済み。
-> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(3s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。起点は「最後のブロック破壊後」。
+> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。起点は「最後のブロック破壊後」。
 > - **罠アイテム** (Shrink/Hyper/Reversed): `Block.trapDisguiseChance` で強化枠に偽装。`PlayerController.inputReversed` 実装済み。
 > - **Dynamic Escalation**: `BlockSpawner` の base/decay/min・base/gain/max + `roundElapsedTime` 実装済み。
 > - **コンボマイルストーン / 攻撃側 SENT ラベル**: `UIManager.ShowComboMilestone` / `ShowSentLabel` とトリガー実装済み。**UI 要素は未バインド**（後述の任意セクションでバインド）。
+> - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(ItemCategory)` 実装済み。`ItemDrop` が取得時に系統色（Buff=青/Attack=赤/Trap=紫）で 0.1s フラッシュ。パドルは MeshRenderer なので `Renderer.material.color` を使用（DESIGN.md は SpriteRenderer 記述だが実体に合わせた）。**バインド不要で即動作**。
+> - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件 + `incomingDisplaySec`(3s) 自動失効 + Playing 以外で全消去。`GameManager.SendInterference` → `ArenaController.PushIncoming` → UIManager 経路。**UI 要素（`p1/p2IncomingSlots[]` TMP 配列）は未バインド**。シンボルは DESIGN.md 12.6 準拠（`⬛HARD`/`↓ROW`/`☣PSION`/`🐌SLOW`）だが絵文字グリフはバインドフォント依存。
+> - **Victory Bar** (`$VictoryBar` Image.fillAmount): `UpdateVictoryBar()` が P1HP/(P1HP+P2HP) を毎フレーム反映（両 0 のみ 0.5）。**UI 要素は未バインド**。
 > - **2026-05-28 廃止分の削除**: 反撃ウィンドウ / AttackSpike・BlockSpike / AttackHarden 降下停止 / CATCH & SHOOT (`SkillForceCatch`) — コード側も削除済み。
 >
-> 未実装（Phase F-Combat 残・別フェーズ）:
-> - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(category)` 未実装。
-> - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件管理 + 3 秒経過で自動削除。未実装。
-> - **Victory Bar** (`$VictoryBar` Image.fillAmount): P1HP/(P1HP+P2HP) を毎フレーム反映。未実装。
+> 未実装（別フェーズ）:
 > - **アイテム寿命** (`itemLifetime=8s`): 実装しない方針（2026-05-29 判断）。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Audio 追加実装（2026-05-20）**: DESIGN.md 10.4 / 10.5 で定義済みだがコードに未実装:

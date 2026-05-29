@@ -257,6 +257,7 @@ public class GameManager : MonoBehaviour
         ApplyInterference(target, type);
         target.TriggerHitStop(interferenceTriggerFrames);
         target.ShowInterferenceOverlay(label);
+        target.PushIncoming(type);
 
         // 攻撃者（受信側の相手）の HUD に SENT → 表示
         int attackerIndex = targetPlayerIndex == 1 ? 2 : 1;

@@ -184,4 +184,10 @@ public class ArenaController : MonoBehaviour
     {
         cachedUIManager?.ShowComboMilestone(playerIndex, milestone);
     }
+
+    // 妨害予約を Incoming インジケータに積む（このアリーナ＝受信側）
+    public void PushIncoming(GameManager.InterferenceType type)
+    {
+        cachedUIManager?.PushIncoming(playerIndex, type);
+    }
 }
