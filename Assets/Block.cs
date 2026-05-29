@@ -127,12 +127,12 @@ public class Block : MonoBehaviour
 
     private void OnDestroyed(BallScript ball)
     {
-        // スコア加算＆コンボ通知
+        // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)
         {
             int score = blockType == BlockType.Hard ? hardScore : normalScore;
-            GameManager.Instance.AddScore(ball.playerIndex, score);
             GameManager.Instance.RegisterBlockDestroyed(ball.playerIndex);
+            GameManager.Instance.AddScore(ball.playerIndex, score);
         }
 
         // 爆発ブロック：周囲のブロックのHPを増やして妨害 + ヒットストップ
@@ -168,7 +168,8 @@ public class Block : MonoBehaviour
     {
         float dropChance = baseDropChance;
         if (GameManager.Instance != null)
-            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul;
+            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul
+                        * GameManager.Instance.GetItemDropComboMul(ball.playerIndex);
 
         if (Random.value > dropChance) return;
 

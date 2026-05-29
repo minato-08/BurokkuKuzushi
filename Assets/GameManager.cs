@@ -34,6 +34,12 @@ public class GameManager : MonoBehaviour
     [Header("スキル・エナジー設定")]
     [SerializeField] private float energyPerBlock = 1f;
 
+    [Header("コンボ設定（DESIGN.md 5.8）")]
+    [SerializeField] private float comboTimeout   = 3.0f;  // 最後の破壊からこの秒数でリセット
+    [SerializeField] private int   comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
+    [SerializeField] private int   comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
+    [SerializeField] private int   comboItemStep  = 10;    // 何コンボ毎にドロップ +10% するか
+
     [Header("強制リスポーン設定")]
 
     [Header("ヒットストップ設定（フレーム数）")]
@@ -53,7 +59,8 @@ public class GameManager : MonoBehaviour
 
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
-    private int p1Combo, p2Combo;
+    private int   p1Combo, p2Combo;
+    private float p1ComboTimer, p2ComboTimer;  // 最後の破壊からの経過秒（combo>0 のとき加算）
 
     // アクティブアイテム表示用（最後に取得した1個のみ、コルーチン上書きと整合）
     private string p1ActiveItemName, p2ActiveItemName;
@@ -93,6 +100,21 @@ public class GameManager : MonoBehaviour
         StartSkillSelect(isNewMatch: true);
     }
 
+    void Update()
+    {
+        if (currentState != GameState.Playing) return;
+        TickComboTimer(ref p1Combo, ref p1ComboTimer);
+        TickComboTimer(ref p2Combo, ref p2ComboTimer);
+    }
+
+    // 最後のブロック破壊から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
+    private void TickComboTimer(ref int combo, ref float timer)
+    {
+        if (combo <= 0) return;
+        timer += Time.deltaTime;
+        if (timer >= comboTimeout) combo = 0;
+    }
+
     // =====================================================
     // 試合・ラウンド制御
     // =====================================================
@@ -106,8 +128,8 @@ public class GameManager : MonoBehaviour
             p1Score     = 0;
             p2Score     = 0;
         }
-        p1Combo = 0;
-        p2Combo = 0;
+        p1Combo = 0; p1ComboTimer = 0f;
+        p2Combo = 0; p2ComboTimer = 0f;
 
         p1HP.SetMaxHP(maxHP, refill: true);
         p2HP.SetMaxHP(maxHP, refill: true);
@@ -136,8 +158,8 @@ public class GameManager : MonoBehaviour
     {
         p1HP.Reset();
         p2HP.Reset();
-        p1Combo = 0;
-        p2Combo = 0;
+        p1Combo = 0; p1ComboTimer = 0f;
+        p2Combo = 0; p2ComboTimer = 0f;
 
         arena1?.GetSkillController()?.ResetEnergy();
         arena2?.GetSkillController()?.ResetEnergy();
@@ -156,6 +178,9 @@ public class GameManager : MonoBehaviour
     public void OnBallDropped(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
+        // ボール落下でコンボリセット（DESIGN.md 5.8 / 12.7）
+        if (playerIndex == 1) { p1Combo = 0; p1ComboTimer = 0f; }
+        else                  { p2Combo = 0; p2ComboTimer = 0f; }
         ApplyDamage(playerIndex, damageBallDrop);
     }
 
@@ -180,9 +205,11 @@ public class GameManager : MonoBehaviour
             EndRound(winner: playerIndex == 1 ? 2 : 1);
     }
 
+    // スコア = baseScore × HP帯 scoreMul × コンボ scoreComboMul（いずれも乗算, DESIGN.md 5.8）
+    // Block.OnDestroyed では RegisterBlockDestroyed の後に呼ばれる（コンボは加算済み）
     public void AddScore(int playerIndex, int amount)
     {
-        float mul    = GetCurrentBand(playerIndex).scoreMul;
+        float mul    = GetCurrentBand(playerIndex).scoreMul * ScoreComboMul(playerIndex);
         int   gained = Mathf.RoundToInt(amount * mul);
         if (playerIndex == 1) p1Score += gained;
         else                  p2Score += gained;
@@ -194,12 +221,23 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.Playing) return;
 
-        float rateMul = GetCurrentBand(playerIndex).gaugeRateMul;
-        GetArena(playerIndex)?.GetSkillController()?.AddEnergy(energyPerBlock * rateMul);
+        // コンボ加算 + タイマーリセット（最後の破壊起点で計測, DESIGN.md 5.8）
+        if (playerIndex == 1) { p1Combo++; p1ComboTimer = 0f; }
+        else                  { p2Combo++; p2ComboTimer = 0f; }
 
-        if (playerIndex == 1) p1Combo++;
-        else                  p2Combo++;
+        // エナジー = energyPerBlock × HP帯 gaugeRateMul × コンボ gaugeComboMul
+        float rateMul = GetCurrentBand(playerIndex).gaugeRateMul * GaugeComboMul(playerIndex);
+        GetArena(playerIndex)?.GetSkillController()?.AddEnergy(energyPerBlock * rateMul);
     }
+
+    // コンボ自己強化倍率（DESIGN.md 5.8、HP帯倍率と乗算される）
+    // step は Mathf.Max(1, ...) で 0 除算（int 例外）を防ぐ
+    private float ScoreComboMul(int playerIndex)    // 5 毎 +10%、上限 +100%
+        => 1f + Mathf.Min(1.0f, 0.10f * (GetCombo(playerIndex) / Mathf.Max(1, comboScoreStep)));
+    private float GaugeComboMul(int playerIndex)    // 5 毎 +5%、上限 +50%
+        => 1f + Mathf.Min(0.5f, 0.05f * (GetCombo(playerIndex) / Mathf.Max(1, comboGaugeStep)));
+    public  float GetItemDropComboMul(int playerIndex) // 10 毎 +10%、上限 +50%
+        => 1f + Mathf.Min(0.5f, 0.10f * (GetCombo(playerIndex) / Mathf.Max(1, comboItemStep)));
 
     // 攻撃アイテム取得時の妨害送付窓口 (DESIGN.md 5.5.2 / 7.4)
     // EffectAttack.Apply から呼ばれる。targetPlayerIndex は受信側 (= 取得者の相手)
