@@ -17,8 +17,14 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Header("スポーン・降下設定（ローカル座標）")]
     [SerializeField] private float spawnY         = 4.5f;
     [SerializeField] private float blockDeadZoneY = -4.5f; // ブロックがここを下回ったら破棄してダメージ
-    [SerializeField] private float spawnInterval  = 5f;
-    [SerializeField] private float descentSpeed   = 0.3f;
+
+    [Header("Dynamic Escalation（DESIGN.md 5.4.1・ラウンド経過で増圧）")]
+    [SerializeField] private float spawnIntervalBase         = 5.0f;  // ラウンド開始時のスポーン間隔
+    [SerializeField] private float spawnIntervalDecayPerMin  = 0.2f;  // 1分ごとに縮む量
+    [SerializeField] private float spawnIntervalMin          = 3.0f;  // 間隔の下限
+    [SerializeField] private float descentSpeedBase          = 0.3f;  // ラウンド開始時の降下速度
+    [SerializeField] private float descentSpeedGainPerMin    = 0.03f; // 1分ごとに増える量
+    [SerializeField] private float descentSpeedMax           = 0.45f; // 降下速度の上限
 
     [Header("通常行のブロック種出現率")]
     [Range(0f, 1f)] [SerializeField] private float explosiveBlockChance = 0.1f;
@@ -39,10 +45,17 @@ public class BlockSpawner : MonoBehaviour, IFreezable
 
     private List<Block> allBlocks = new List<Block>();
     private float spawnTimer = 0f;
+    private float roundElapsedTime = 0f;  // ラウンド開始からの経過秒（Escalation 算出用）
     private int   pendingSabotageRows = 0;
     private bool  frozen = false;
 
     private enum RowType { Normal, Sabotage }
+
+    // ラウンド経過時間から算出する実効値（毎フレーム再計算・基準値は上書きしない）
+    private float CurrentSpawnInterval =>
+        Mathf.Max(spawnIntervalMin, spawnIntervalBase - spawnIntervalDecayPerMin * (roundElapsedTime / 60f));
+    private float CurrentDescentSpeed =>
+        Mathf.Min(descentSpeedMax, descentSpeedBase + descentSpeedGainPerMin * (roundElapsedTime / 60f));
 
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
@@ -75,8 +88,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             GameManager.Instance.GetCurrentState() != GameManager.GameState.Playing)
             return;
 
+        roundElapsedTime += Time.deltaTime;
+
         spawnTimer += Time.deltaTime;
-        if (spawnTimer >= spawnInterval)
+        if (spawnTimer >= CurrentSpawnInterval)
         {
             spawnTimer = 0f;
             SpawnRow();
@@ -149,7 +164,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
 
     private void DescendBlocks()
     {
-        float step = descentSpeed * Time.deltaTime;
+        float step = CurrentDescentSpeed * Time.deltaTime;
 
         for (int i = allBlocks.Count - 1; i >= 0; i--)
         {
@@ -222,6 +237,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         }
         allBlocks.Clear();
         spawnTimer          = 0f;
+        roundElapsedTime    = 0f;  // Escalation をラウンドごとにリセット
         pendingSabotageRows = 0;
         SpawnRow();
     }
