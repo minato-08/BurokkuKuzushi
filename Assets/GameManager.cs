@@ -29,7 +29,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int maxHP                  = 500;
     [SerializeField] private int damageBallDrop         = 5;
     [SerializeField] private int damageBlockReachBottom = 10;
-    [SerializeField] private int damageBlockSpike       = 15;
     [SerializeField] private int damagePoisonPerSec     = 5;
 
     [Header("スキル・エナジー設定")]
@@ -69,7 +68,7 @@ public class GameManager : MonoBehaviour
         MatchOver
     }
 
-    public enum InterferenceType { AddRow, Harden, Spike, Poison, Slow }
+    public enum InterferenceType { AddRow, Harden, Poison, Slow }
     private GameState currentState = GameState.WaitingToStart;
 
     // =====================================================
@@ -166,12 +165,6 @@ public class GameManager : MonoBehaviour
         ApplyDamage(playerIndex, damageBlockReachBottom * count);
     }
 
-    public void OnSpikeHit(int playerIndex)
-    {
-        if (currentState != GameState.Playing) return;
-        ApplyDamage(playerIndex, damageBlockSpike);
-    }
-
     public void OnPoisonTick(int playerIndex, float deltaTime)
     {
         if (currentState != GameState.Playing) return;
@@ -242,9 +235,6 @@ public class GameManager : MonoBehaviour
             case InterferenceType.Harden:
                 target.HardenBlocks();
                 break;
-            case InterferenceType.Spike:
-                target.GetSpawner()?.ReceiveSpikeRow();
-                break;
             case InterferenceType.Poison:
                 target.SpawnZonePoison(target.GetRandomFloorWorldPos());
                 break;
@@ -258,7 +248,6 @@ public class GameManager : MonoBehaviour
     {
         InterferenceType.AddRow  => "妨害行",
         InterferenceType.Harden  => "ブロック硬化",
-        InterferenceType.Spike   => "スパイク",
         InterferenceType.Poison  => "毒エリア",
         InterferenceType.Slow    => "速度低下",
         _ => type.ToString()

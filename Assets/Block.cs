@@ -5,8 +5,7 @@ public enum BlockType
     Normal,    // 通常：1撃で破壊
     Hard,      // 硬い：複数撃必要
     Absorb,    // 吸収：当たるとボール減速
-    Explosive, // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
-    Spike      // 棘：ボール接触でHP減少、破壊時にZonePoisonを生成（妨害）
+    Explosive  // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
 }
 
 public class Block : MonoBehaviour
@@ -41,7 +40,6 @@ public class Block : MonoBehaviour
     [SerializeField] private Color hardColor      = new Color(0.753f, 0.769f, 0.816f); // #c0c4d0 グレー
     [SerializeField] private Color absorbColor    = new Color(0.616f, 0.427f, 1.000f); // #9d6dff 紫
     [SerializeField] private Color explosiveColor = new Color(1.000f, 0.690f, 0.290f); // #ffb04a オレンジ
-    [SerializeField] private Color spikeColor     = new Color(1.000f, 0.333f, 0.467f); // #ff5577 ピンク赤
     [SerializeField] private Color hardenedColor  = new Color(0.478f, 0.251f, 0.251f); // #7a4040 ダーク赤
 
     private int currentHp;
@@ -66,7 +64,6 @@ public class Block : MonoBehaviour
             BlockType.Hard      => hardColor,
             BlockType.Absorb    => absorbColor,
             BlockType.Explosive => explosiveColor,
-            BlockType.Spike     => spikeColor,
             _                   => normalColor
         };
     }
@@ -101,9 +98,6 @@ public class Block : MonoBehaviour
                 GetArena()?.TriggerHitStop(Mathf.RoundToInt(baseFrames * mul));
             }
         }
-
-        if (blockType == BlockType.Spike && ball != null)
-            GameManager.Instance?.OnSpikeHit(ball.playerIndex);
 
         // ボールの属性に応じたダメージ量を取得
         int damage = ball != null ? ball.GetDamage() : 1;
@@ -154,13 +148,6 @@ public class Block : MonoBehaviour
 
             float mul = ball?.GetAttributeMultiplier() ?? 1f;
             GetArena()?.TriggerHitStop(Mathf.RoundToInt(explosiveHitFrames * mul), shake: true);
-        }
-
-        if (blockType == BlockType.Spike)
-        {
-            GetArena()?.SpawnZonePoison(transform.position);
-            Destroy(gameObject);
-            return;
         }
 
         if (ball != null) TryDropItem(ball);

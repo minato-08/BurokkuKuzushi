@@ -29,9 +29,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Range(0f, 1f)] [SerializeField] private float sabotageHardRatio = 0.5f;
     [SerializeField] private int sabotageBlockHp = 2;
 
-    [Header("妨害行設定（Spike）")]
-    [SerializeField] private int spikeBlockHp = 1;
-
     [Header("妨害 Harden 設定")]
     [SerializeField] private int hardenCount    = 3;
     [SerializeField] private int hardenTargetHp = 3;
@@ -43,10 +40,9 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     private List<Block> allBlocks = new List<Block>();
     private float spawnTimer = 0f;
     private int   pendingSabotageRows = 0;
-    private int   pendingSpikeRows    = 0;
     private bool  frozen = false;
 
-    private enum RowType { Normal, Sabotage, Spike }
+    private enum RowType { Normal, Sabotage }
 
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
@@ -91,11 +87,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             pendingSabotageRows--;
             SpawnRow(RowType.Sabotage);
         }
-        else if (pendingSpikeRows > 0 && IsTopClear())
-        {
-            pendingSpikeRows--;
-            SpawnRow(RowType.Spike);
-        }
 
         DescendBlocks();
         CheckBottomReached();
@@ -127,7 +118,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             switch (rowType)
             {
                 case RowType.Sabotage: ApplySabotageRowSettings(blockScript); break;
-                case RowType.Spike:    ApplySpikeRowSettings(blockScript);    break;
                 default:               ApplyNormalRowSettings(blockScript);   break;
             }
 
@@ -155,12 +145,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             ? BlockType.Hard
             : BlockType.Absorb;
         blockScript.hp = sabotageBlockHp;
-    }
-
-    private void ApplySpikeRowSettings(Block blockScript)
-    {
-        blockScript.blockType = BlockType.Spike;
-        blockScript.hp        = spikeBlockHp;
     }
 
     private void DescendBlocks()
@@ -206,7 +190,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     }
 
     public void ReceiveSabotageRow() => pendingSabotageRows++;
-    public void ReceiveSpikeRow()    => pendingSpikeRows++;
 
     public void HardenRandomBlocks()
     {
@@ -240,7 +223,6 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         allBlocks.Clear();
         spawnTimer          = 0f;
         pendingSabotageRows = 0;
-        pendingSpikeRows    = 0;
         SpawnRow();
     }
 
