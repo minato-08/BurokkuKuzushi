@@ -75,15 +75,6 @@ public class PlayerController : MonoBehaviour, IFreezable
             float mul = ball.GetHitStopMultiplier();
             GetArena()?.TriggerHitStop(Mathf.RoundToInt(paddleBounceFrames * mul));
         }
-
-        // SkillForceCatch: パドルにボールが当たった瞬間を検出して強制キャッチ
-        SkillController sc = (transform.parent ?? transform).GetComponentInChildren<SkillController>();
-        if (sc == null || !sc.IsForceCatchActive) return;
-        if (ball == null || ball.isExtraBall) return;
-
-        sc.ConsumeForceCatch();
-        Vector3 catchLocalPos = transform.localPosition + new Vector3(0f, 0.7f, 0f);
-        ball.PrepareRespawn(catchLocalPos);
     }
 
     private ArenaController GetArena()
