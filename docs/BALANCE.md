@@ -182,7 +182,7 @@ Phase F-Playtest（2026-06-04）で以下を計測する。
 - [ ] HP 1/3 以下からの逆転は気持ちいいか / イライラするか
 - [ ] サウンドが衝突種別を識別させているか
 - [ ] Dynamic Escalation の体感: 2 分台でプレッシャーが感じられるか、3 分目に「嵐」感があるか
-- [ ] comboTimeout 3.0s の体感: 通常プレイでコンボが意図せず切れていないか（特に LaunchAimer 発射直後）
+- [ ] comboTimeout 6.0s の体感: 通常プレイでコンボが意図せず切れていないか（特に LaunchAimer 発射直後）
 - [ ] Ball Heat の視認性: 30 コンボ時の赤色が観客から見えるか
 - [ ] Danger Proximity の効果: BlockDeadLine の点滅に気づいてプレイヤーが対応できているか
 
@@ -245,7 +245,7 @@ Phase F-Playtest（2026-06-04）で以下を計測する。
 | `maxHP` | 500 | 250 | 1 ラウンド 60〜90s に収める |
 | `baseDropChance` | 0.15 | 0.50 | アイテム頻出の上限。見やすさ確認用（改訂推奨値は 0.25 — Section 11.3 参照） |
 | `dropChanceAttack` | 0.30 | 0.50 | 攻撃アイテム比率の上限（改訂推奨値は 0.40） |
-| `comboTimeout` | 3.0 | 3.0 | 変更なし |
+| `comboTimeout` | 6.0 | 6.0 | 変更なし（3.0 は短すぎてコンボが切れやすかったため改訂） |
 | `spawnIntervalBase` | 5.0 | 5.0 | Dynamic Escalation の基底値。デモ値も同じ（序盤 5s、1 分後 4.5s、2 分後 4.0s） |
 | `demoMode` | false | **true** | GO! 直後に 2 行プリスポーン。初プレイヤーが LaunchAimer を即使える |
 

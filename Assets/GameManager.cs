@@ -35,7 +35,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float energyPerBlock = 1f;
 
     [Header("コンボ設定（DESIGN.md 5.8）")]
-    [SerializeField] private float comboTimeout   = 3.0f;  // 最後の破壊からこの秒数でリセット
+    [SerializeField] private float comboTimeout   = 6.0f;  // 最後の破壊からこの秒数でリセット
     [SerializeField] private int   comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
     [SerializeField] private int   comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
     [SerializeField] private int   comboItemStep  = 10;    // 何コンボ毎にドロップ +10% するか

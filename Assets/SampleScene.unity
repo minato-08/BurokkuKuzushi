@@ -2124,14 +2124,17 @@ MonoBehaviour:
   blockHeight: 0.7
   spawnY: 7
   blockDeadZoneY: -6.85
-  spawnInterval: 6
-  descentSpeed: 0.3
+  spawnIntervalBase: 5
+  spawnIntervalDecayPerMin: 0.2
+  spawnIntervalMin: 3
+  descentSpeedBase: 0.3
+  descentSpeedGainPerMin: 0.03
+  descentSpeedMax: 0.45
   explosiveBlockChance: 0.1
   hardBlockChance: 0.2
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
-  spikeBlockHp: 1
   hardenCount: 3
   hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
@@ -8287,14 +8290,17 @@ MonoBehaviour:
   blockHeight: 0.7
   spawnY: 7
   blockDeadZoneY: -6.85
-  spawnInterval: 6
-  descentSpeed: 0.3
+  spawnIntervalBase: 5
+  spawnIntervalDecayPerMin: 0.2
+  spawnIntervalMin: 3
+  descentSpeedBase: 0.3
+  descentSpeedGainPerMin: 0.03
+  descentSpeedMax: 0.45
   explosiveBlockChance: 0.1
   hardBlockChance: 0.2
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
-  spikeBlockHp: 1
   hardenCount: 3
   hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
@@ -12187,12 +12193,21 @@ MonoBehaviour:
   p1InterferenceLabel: {fileID: 0}
   p2InterferenceOverlay: {fileID: 0}
   p2InterferenceLabel: {fileID: 0}
+  p1SentLabel: {fileID: 0}
+  p2SentLabel: {fileID: 0}
+  p1ComboMilestoneOverlay: {fileID: 0}
+  p1ComboMilestoneLabel: {fileID: 0}
+  p2ComboMilestoneOverlay: {fileID: 0}
+  p2ComboMilestoneLabel: {fileID: 0}
   hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
   hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
   hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
   midThreshold: 0.7
   lowThreshold: 0.3
   skillReadySuffix: " \xB7 READY"
+  overlayFlashDuration: 1.5
+  sentLabelDuration: 1.5
+  comboMilestoneDuration: 1.2
 --- !u!114 &1934063271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12469,12 +12484,21 @@ MonoBehaviour:
   p1InterferenceLabel: {fileID: 0}
   p2InterferenceOverlay: {fileID: 0}
   p2InterferenceLabel: {fileID: 0}
+  p1SentLabel: {fileID: 0}
+  p2SentLabel: {fileID: 0}
+  p1ComboMilestoneOverlay: {fileID: 0}
+  p1ComboMilestoneLabel: {fileID: 0}
+  p2ComboMilestoneOverlay: {fileID: 0}
+  p2ComboMilestoneLabel: {fileID: 0}
   hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
   hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
   hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
   midThreshold: 0.7
   lowThreshold: 0.3
   skillReadySuffix: " \xB7 READY"
+  overlayFlashDuration: 1.5
+  sentLabelDuration: 1.5
+  comboMilestoneDuration: 1.2
 --- !u!114 &1986847350
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13132,19 +13156,17 @@ MonoBehaviour:
   maxHP: 500
   damageBallDrop: 5
   damageBlockReachBottom: 10
-  damageBlockSpike: 15
   damagePoisonPerSec: 5
   energyPerBlock: 1
-  comboThreshold: 15
+  comboTimeout: 6
+  comboScoreStep: 5
+  comboGaugeStep: 5
+  comboItemStep: 10
+  comboMilestones: 0a000000140000001e000000
   interferenceTriggerFrames: 10
   roundEndFrames: 30
   matchEndFrames: 60
   hpStateBands: []
-  interferenceWeightAddRow: 2
-  interferenceWeightHarden: 2
-  interferenceWeightSpike: 0
-  interferenceWeightPoison: 1
-  interferenceWeightSlow: 1
   arena1: {fileID: 1342564224}
   arena2: {fileID: 1085258024}
 --- !u!4 &2074190969
