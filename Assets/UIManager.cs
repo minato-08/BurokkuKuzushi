@@ -86,12 +86,13 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance == null) return;
 
         int maxHP        = GameManager.Instance.GetMaxHP(1); // 両プレイヤー同値
-        int comboMax     = GameManager.Instance.GetComboThreshold();
 
         if (p1HpMax    != null) p1HpMax.text    = $"/{maxHP}";
         if (p2HpMax    != null) p2HpMax.text    = $"/{maxHP}";
-        if (p1ComboMax != null) p1ComboMax.text = $"× /{comboMax}";
-        if (p2ComboMax != null) p2ComboMax.text = $"× /{comboMax}";
+        // コンボは上限なし（DESIGN.md 5.8）。旧「/15」しきい値表示は撤廃し
+        // 「×」のみ表示する（コンボ数値は $ComboValue 側で更新）
+        if (p1ComboMax != null) p1ComboMax.text = "×";
+        if (p2ComboMax != null) p2ComboMax.text = "×";
     }
 
     // =====================================================

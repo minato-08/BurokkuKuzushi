@@ -35,9 +35,6 @@ public class GameManager : MonoBehaviour
     [Header("スキル・エナジー設定")]
     [SerializeField] private float energyPerBlock = 1f;
 
-    [Header("コンボ・妨害設定")]
-    [SerializeField] private int comboThreshold = 15;
-
     [Header("強制リスポーン設定")]
 
     [Header("ヒットストップ設定（フレーム数）")]
@@ -48,13 +45,6 @@ public class GameManager : MonoBehaviour
     [Header("HP帯別パラメータ（thresholdPercent 降順で設定）")]
     [SerializeField] private HPStateBand[] hpStateBands;
 
-    [Header("妨害種別の重み（0=無効）")]
-    [SerializeField] private int interferenceWeightAddRow = 2;
-    [SerializeField] private int interferenceWeightHarden = 2;
-    [SerializeField] private int interferenceWeightSpike  = 1;
-    [SerializeField] private int interferenceWeightPoison = 1;
-    [SerializeField] private int interferenceWeightSlow   = 1;
-
     [Header("アリーナ参照")]
     [SerializeField] private ArenaController arena1;
     [SerializeField] private ArenaController arena2;
@@ -64,7 +54,7 @@ public class GameManager : MonoBehaviour
 
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
-    private int p1DestroyedCount, p2DestroyedCount;
+    private int p1Combo, p2Combo;
 
     // アクティブアイテム表示用（最後に取得した1個のみ、コルーチン上書きと整合）
     private string p1ActiveItemName, p2ActiveItemName;
@@ -117,8 +107,8 @@ public class GameManager : MonoBehaviour
             p1Score     = 0;
             p2Score     = 0;
         }
-        p1DestroyedCount = 0;
-        p2DestroyedCount = 0;
+        p1Combo = 0;
+        p2Combo = 0;
 
         p1HP.SetMaxHP(maxHP, refill: true);
         p2HP.SetMaxHP(maxHP, refill: true);
@@ -147,8 +137,8 @@ public class GameManager : MonoBehaviour
     {
         p1HP.Reset();
         p2HP.Reset();
-        p1DestroyedCount = 0;
-        p2DestroyedCount = 0;
+        p1Combo = 0;
+        p2Combo = 0;
 
         arena1?.GetSkillController()?.ResetEnergy();
         arena2?.GetSkillController()?.ResetEnergy();
@@ -205,6 +195,8 @@ public class GameManager : MonoBehaviour
         else                  p2Score += gained;
     }
 
+    // ブロック破壊時にコンボ加算 + エナジー蓄積。妨害送付はしない
+    // （コンボ自動妨害は 2026-05-20 仕様刷新で撤廃。妨害は SendInterference 経由のみ）
     public void RegisterBlockDestroyed(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
@@ -212,37 +204,8 @@ public class GameManager : MonoBehaviour
         float rateMul = GetCurrentBand(playerIndex).gaugeRateMul;
         GetArena(playerIndex)?.GetSkillController()?.AddEnergy(energyPerBlock * rateMul);
 
-        if (playerIndex == 1)
-        {
-            p1DestroyedCount++;
-            if (p1DestroyedCount >= comboThreshold)
-            {
-                p1DestroyedCount = 0;
-                SendSabotageTo(2);
-            }
-        }
-        else
-        {
-            p2DestroyedCount++;
-            if (p2DestroyedCount >= comboThreshold)
-            {
-                p2DestroyedCount = 0;
-                SendSabotageTo(1);
-            }
-        }
-    }
-
-    private void SendSabotageTo(int targetPlayerIndex)
-    {
-        ArenaController target = targetPlayerIndex == 1 ? arena1 : arena2;
-        if (target == null) return;
-
-        InterferenceType type = SelectInterferenceType();
-        ApplyInterference(target, type);
-        target.TriggerHitStop(interferenceTriggerFrames);
-        target.ShowInterferenceOverlay(GetInterferenceLabel(type));
-
-        Debug.Log($"P{targetPlayerIndex} に妨害送信: {type}");
+        if (playerIndex == 1) p1Combo++;
+        else                  p2Combo++;
     }
 
     // 攻撃アイテム取得時の妨害送付窓口 (DESIGN.md 5.5.2 / 7.4)
@@ -268,24 +231,6 @@ public class GameManager : MonoBehaviour
         ItemType.AttackSlow   => InterferenceType.Slow,
         _                     => InterferenceType.AddRow
     };
-
-    private InterferenceType SelectInterferenceType()
-    {
-        int total = interferenceWeightAddRow + interferenceWeightHarden
-                  + interferenceWeightSpike  + interferenceWeightPoison
-                  + interferenceWeightSlow;
-        if (total <= 0) return InterferenceType.AddRow;
-
-        int r = Random.Range(0, total);
-        if (r < interferenceWeightAddRow) return InterferenceType.AddRow;
-        r -= interferenceWeightAddRow;
-        if (r < interferenceWeightHarden) return InterferenceType.Harden;
-        r -= interferenceWeightHarden;
-        if (r < interferenceWeightSpike)  return InterferenceType.Spike;
-        r -= interferenceWeightSpike;
-        if (r < interferenceWeightPoison) return InterferenceType.Poison;
-        return InterferenceType.Slow;
-    }
 
     private void ApplyInterference(ArenaController target, InterferenceType type)
     {
@@ -384,8 +329,7 @@ public class GameManager : MonoBehaviour
     public float GetHPRatio(int playerIndex)   => playerIndex == 1 ? p1HP.Ratio     : p2HP.Ratio;
     public int   GetScore(int playerIndex)     => playerIndex == 1 ? p1Score        : p2Score;
     public int   GetRoundWins(int playerIndex) => playerIndex == 1 ? p1RoundWins    : p2RoundWins;
-    public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1DestroyedCount : p2DestroyedCount;
-    public int   GetComboThreshold()           => comboThreshold;
+    public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1Combo : p2Combo;
     public GameState GetCurrentState()         => currentState;
 
     // =====================================================
