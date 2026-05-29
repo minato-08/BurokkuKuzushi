@@ -172,4 +172,22 @@ public class ArenaController : MonoBehaviour
     {
         cachedUIManager?.ShowInterferenceOverlay(playerIndex, label);
     }
+
+    // 攻撃アイテム送付時、攻撃者（このアリーナ）の HUD に SENT → 表示
+    public void ShowSentLabel(string interferenceLabel)
+    {
+        cachedUIManager?.ShowSentLabel(playerIndex, interferenceLabel);
+    }
+
+    // コンボマイルストーン到達演出（このアリーナのプレイヤー）
+    public void ShowComboMilestone(int milestone)
+    {
+        cachedUIManager?.ShowComboMilestone(playerIndex, milestone);
+    }
+
+    // 妨害予約を Incoming インジケータに積む（このアリーナ＝受信側）
+    public void PushIncoming(GameManager.InterferenceType type)
+    {
+        cachedUIManager?.PushIncoming(playerIndex, type);
+    }
 }

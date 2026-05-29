@@ -5,8 +5,7 @@ public enum BlockType
     Normal,    // 通常：1撃で破壊
     Hard,      // 硬い：複数撃必要
     Absorb,    // 吸収：当たるとボール減速
-    Explosive, // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
-    Spike      // 棘：ボール接触でHP減少、破壊時にZonePoisonを生成（妨害）
+    Explosive  // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
 }
 
 public class Block : MonoBehaviour
@@ -35,13 +34,14 @@ public class Block : MonoBehaviour
 
     [Header("アイテムドロップ設定")]
     [SerializeField] private float baseDropChance = 0.15f;
+    // 強化枠が出る際、この確率で「強化に偽装した罠」に置き換える（DESIGN.md 5.5.3 の紛らわしさ）
+    [Range(0f, 1f)] [SerializeField] private float trapDisguiseChance = 0.1f;
 
     [Header("ブロック色設定")]
     [SerializeField] private Color normalColor    = new Color(0.490f, 0.639f, 1.000f); // #7da3ff 青
     [SerializeField] private Color hardColor      = new Color(0.753f, 0.769f, 0.816f); // #c0c4d0 グレー
     [SerializeField] private Color absorbColor    = new Color(0.616f, 0.427f, 1.000f); // #9d6dff 紫
     [SerializeField] private Color explosiveColor = new Color(1.000f, 0.690f, 0.290f); // #ffb04a オレンジ
-    [SerializeField] private Color spikeColor     = new Color(1.000f, 0.333f, 0.467f); // #ff5577 ピンク赤
     [SerializeField] private Color hardenedColor  = new Color(0.478f, 0.251f, 0.251f); // #7a4040 ダーク赤
 
     private int currentHp;
@@ -66,7 +66,6 @@ public class Block : MonoBehaviour
             BlockType.Hard      => hardColor,
             BlockType.Absorb    => absorbColor,
             BlockType.Explosive => explosiveColor,
-            BlockType.Spike     => spikeColor,
             _                   => normalColor
         };
     }
@@ -102,9 +101,6 @@ public class Block : MonoBehaviour
             }
         }
 
-        if (blockType == BlockType.Spike && ball != null)
-            GameManager.Instance?.OnSpikeHit(ball.playerIndex);
-
         // ボールの属性に応じたダメージ量を取得
         int damage = ball != null ? ball.GetDamage() : 1;
         TakeDamage(damage, ball);
@@ -133,12 +129,12 @@ public class Block : MonoBehaviour
 
     private void OnDestroyed(BallScript ball)
     {
-        // スコア加算＆コンボ通知
+        // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)
         {
             int score = blockType == BlockType.Hard ? hardScore : normalScore;
-            GameManager.Instance.AddScore(ball.playerIndex, score);
             GameManager.Instance.RegisterBlockDestroyed(ball.playerIndex);
+            GameManager.Instance.AddScore(ball.playerIndex, score);
         }
 
         // 爆発ブロック：周囲のブロックのHPを増やして妨害 + ヒットストップ
@@ -154,13 +150,6 @@ public class Block : MonoBehaviour
 
             float mul = ball?.GetAttributeMultiplier() ?? 1f;
             GetArena()?.TriggerHitStop(Mathf.RoundToInt(explosiveHitFrames * mul), shake: true);
-        }
-
-        if (blockType == BlockType.Spike)
-        {
-            GetArena()?.SpawnZonePoison(transform.position);
-            Destroy(gameObject);
-            return;
         }
 
         if (ball != null) TryDropItem(ball);
@@ -181,25 +170,45 @@ public class Block : MonoBehaviour
     {
         float dropChance = baseDropChance;
         if (GameManager.Instance != null)
-            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul;
+            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul
+                        * GameManager.Instance.GetItemDropComboMul(ball.playerIndex);
 
         if (Random.value > dropChance) return;
 
         float bias = GameManager.Instance != null
             ? GameManager.Instance.GetCurrentBand(ball.playerIndex).goodItemBias
             : 0f;
-        ItemType type = SelectRandomItemType(bias);
+        ItemType type = SelectRandomItemType(bias, trapDisguiseChance);
 
         GetArena()?.SpawnItem(transform.position, type);
     }
 
-    private static ItemType SelectRandomItemType(float goodItemBias)
+    // DESIGN.md 5.5.2: 強化 6 : 攻撃 4 が基本比率。HPStateBand.goodItemBias で
+    // 強化偏重を加算 (劣勢時に強化が出やすくなる)
+    private const float BASE_BUFF_WEIGHT = 0.6f;
+
+    private static readonly ItemType[] BuffPool = {
+        ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce,
+        ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal
+    };
+    private static readonly ItemType[] AttackPool = {
+        ItemType.AttackHarden, ItemType.AttackAddRow,
+        ItemType.AttackPoison, ItemType.AttackSlow
+    };
+    private static readonly ItemType[] TrapPool = {
+        ItemType.Shrink, ItemType.Hyper, ItemType.Reversed
+    };
+
+    private static ItemType SelectRandomItemType(float goodItemBias, float trapDisguiseChance)
     {
-        var good = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal };
-        var all  = new[] { ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce, ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal, ItemType.Shrink, ItemType.Hyper };
-        if (goodItemBias > 0f && Random.value < goodItemBias)
-            return good[Random.Range(0, good.Length)];
-        return all[Random.Range(0, all.Length)];
+        float buffWeight = Mathf.Clamp01(BASE_BUFF_WEIGHT + goodItemBias);
+        if (Random.value < buffWeight)
+        {
+            // 強化枠だが、一部は「強化に偽装した罠」として出る（DESIGN.md 5.5.3）
+            ItemType[] pool = Random.value < trapDisguiseChance ? TrapPool : BuffPool;
+            return pool[Random.Range(0, pool.Length)];
+        }
+        return AttackPool[Random.Range(0, AttackPool.Length)];
     }
 
     private ArenaController GetArena()

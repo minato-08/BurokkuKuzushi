@@ -176,6 +176,10 @@ _UI                                    ← トップレベルフォルダ（Tran
 - Round ドット/勝利数 TMP
 - 試合状態テキスト（Round Over バナー）
 - 妨害通知オーバーレイ（CanvasGroup + Label の P1/P2 ペア）
+- 攻撃送付ラベル（`p1SentLabel` / `p2SentLabel` TMP。攻撃者 HUD に `SENT → P{N}: 種別` 表示）
+- コンボマイルストーン演出（`pXComboMilestoneOverlay` CanvasGroup + `pXComboMilestoneLabel` TMP。10/20/30 到達で `{N} COMBO!!`）
+- Victory Bar（`victoryBar` Image, Horizontal Fill。fillAmount = P1HP/(P1HP+P2HP)）
+- Incoming インジケータ（`p1IncomingSlots[]` / `p2IncomingSlots[]` TMP 配列、各最大 3。受信予約のシンボル表示）
 - アイテムアイコン Image（現状は名前テキストのみ）
 
 ### Bloom 演出
@@ -235,17 +239,21 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > ⚠️ **仕様とコードの乖離 — Phase F-Polish 追加実装**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Polish のチェックリストに含まれる:
 > - （パドル反射ゾーンは 2026-05-28 仕様変更で廃止済み — 単純な物理反射に統一）
 
-> ⚠️ **仕様とコードの乖離 — Phase F-Combat 追加実装（2026-05-20 / 2026-05-28 改訂）**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Combat のチェックリストに含まれる:
-> - **アイテム寿命** (`itemLifetime=8s`): `ItemDrop.Update()` に寿命タイマー未実装。
-> - **コンボマイルストーン**: `GameManager.comboMilestones[]` SerializeField と `UIManager` の演出未実装。
-> - **攻撃側フィードバックラベル**: `UIManager.ShowSentLabel(playerIndex, type)` 未実装。
-> - **TrapBall_Reversed**: `PlayerController.inputReversed` フラグ未実装。
-> - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(category)` 未実装。
-> - **Dynamic Escalation**: `BlockSpawner` の `spawnIntervalBase/spawnIntervalDecayPerMin/spawnIntervalMin/descentSpeedBase/descentSpeedGainPerMin/descentSpeedMax` + `roundElapsedTime` 算出未実装。
-> - **comboTimer 起点**: 現在は「パドル反射後」開始の可能性。DESIGN.md 5.8 では「最後のブロック破壊後」に修正済み。
-> - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件管理 + 3 秒経過で自動削除。未実装。
-> - **Victory Bar** (`$VictoryBar` Image.fillAmount): P1HP/(P1HP+P2HP) を毎フレーム反映。未実装。
-> - **2026-05-28 廃止**: 反撃ウィンドウ (RetaliationWindow)、AttackSpike / BlockSpike、AttackHarden 降下停止、CATCH & SHOOT (`SkillForceCatch`) — DESIGN.md から削除済み。実装側にコードが残っている場合は削除対象。
+> **Phase F-Combat 実装状況（feature/phase-f-combat ブランチ）**
+>
+> 実装済み:
+> - **攻撃アイテム経由モデル**: ItemType 拡張 + `EffectAttack` → `GameManager.SendInterference` 経路。コンボ自動妨害は撤廃済み。
+> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。起点は「最後のブロック破壊後」。
+> - **罠アイテム** (Shrink/Hyper/Reversed): `Block.trapDisguiseChance` で強化枠に偽装。`PlayerController.inputReversed` 実装済み。
+> - **Dynamic Escalation**: `BlockSpawner` の base/decay/min・base/gain/max + `roundElapsedTime` 実装済み。
+> - **コンボマイルストーン / 攻撃側 SENT ラベル**: `UIManager.ShowComboMilestone` / `ShowSentLabel` とトリガー実装済み。**UI 要素は未バインド**（後述の任意セクションでバインド）。
+> - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(ItemCategory)` 実装済み。`ItemDrop` が取得時に系統色（Buff=青/Attack=赤/Trap=紫）で 0.1s フラッシュ。パドルは MeshRenderer なので `Renderer.material.color` を使用（DESIGN.md は SpriteRenderer 記述だが実体に合わせた）。**バインド不要で即動作**。
+> - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件 + `incomingDisplaySec`(3s) 自動失効 + Playing 以外で全消去。`GameManager.SendInterference` → `ArenaController.PushIncoming` → UIManager 経路。**UI 要素（`p1/p2IncomingSlots[]` TMP 配列）は未バインド**。シンボルは DESIGN.md 12.6 準拠（`⬛HARD`/`↓ROW`/`☣PSION`/`🐌SLOW`）だが絵文字グリフはバインドフォント依存。
+> - **Victory Bar** (`$VictoryBar` Image.fillAmount): `UpdateVictoryBar()` が P1HP/(P1HP+P2HP) を毎フレーム反映（両 0 のみ 0.5）。**UI 要素は未バインド**。
+> - **2026-05-28 廃止分の削除**: 反撃ウィンドウ / AttackSpike・BlockSpike / AttackHarden 降下停止 / CATCH & SHOOT (`SkillForceCatch`) — コード側も削除済み。
+>
+> 未実装（別フェーズ）:
+> - **アイテム寿命** (`itemLifetime=8s`): 実装しない方針（2026-05-29 判断）。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Audio 追加実装（2026-05-20）**: DESIGN.md 10.4 / 10.5 で定義済みだがコードに未実装:
 > - **AudioMixer + dB 変換**: `dB = 20 × log10(value/100)` で PlayerPrefs 0-100 整数を dB に変換。
@@ -380,7 +388,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - 実装: `SkillPaddle_Enlarge` / `SkillBall_Attribute_Fire` / `SkillBall_Multi` / `SkillPanic_BlockClear`（`SkillForceCatch` は 2026-05-28 仕様から廃止）
 - すべて public フィールドでパラメータを保持（Profile 参照なし）
 
-> ⚠️ **仕様とコードの乖離（2026-05-28）**: `SkillForceCatch` (CATCH & SHOOT) は DESIGN.md から削除済み。コードに残っている場合は Phase F-Combat で削除する。
+> **`SkillForceCatch` (CATCH & SHOOT)** は 2026-05-28 仕様改訂で廃止。コード側も削除済み（`feature/phase-f-combat`）。
 
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示

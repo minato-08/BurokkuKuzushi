@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -60,6 +61,24 @@ public class UIManager : MonoBehaviour
     [SerializeField] private CanvasGroup     p2InterferenceOverlay;
     [SerializeField] private TextMeshProUGUI p2InterferenceLabel;
 
+    [Header("[任意] 攻撃送付ラベル（攻撃者 HUD に SENT → 表示）")]
+    [SerializeField] private TextMeshProUGUI p1SentLabel;
+    [SerializeField] private TextMeshProUGUI p2SentLabel;
+
+    [Header("[任意] コンボマイルストーン演出")]
+    [SerializeField] private CanvasGroup     p1ComboMilestoneOverlay;
+    [SerializeField] private TextMeshProUGUI p1ComboMilestoneLabel;
+    [SerializeField] private CanvasGroup     p2ComboMilestoneOverlay;
+    [SerializeField] private TextMeshProUGUI p2ComboMilestoneLabel;
+
+    [Header("[任意] Victory Bar（中央・優勢可視化）")]
+    [SerializeField] private Image           victoryBar;  // $VictoryBar fillAmount = P1HP/(P1HP+P2HP)
+
+    [Header("[任意] Incoming インジケータ（妨害予約キュー）")]
+    [SerializeField] private TextMeshProUGUI[] p1IncomingSlots;  // 左列=P1への予約（最大3, [0]=最古）
+    [SerializeField] private TextMeshProUGUI[] p2IncomingSlots;  // 右列=P2への予約
+    [SerializeField] private float           incomingDisplaySec = 3.0f;
+
     // =====================================================
     // 演出パラメータ
     // =====================================================
@@ -74,8 +93,22 @@ public class UIManager : MonoBehaviour
     [Header("スキル READY 表示")]
     [SerializeField] private string skillReadySuffix = " · READY";
 
+    [Header("演出時間（秒）")]
+    [SerializeField] private float overlayFlashDuration   = 1.5f;  // 妨害受信フラッシュ
+    [SerializeField] private float sentLabelDuration      = 1.5f;  // 攻撃送付ラベル
+    [SerializeField] private float comboMilestoneDuration = 1.2f;  // コンボマイルストーン
+
     private Coroutine p1OverlayRoutine;
     private Coroutine p2OverlayRoutine;
+    private Coroutine p1SentRoutine;
+    private Coroutine p2SentRoutine;
+    private Coroutine p1MilestoneRoutine;
+    private Coroutine p2MilestoneRoutine;
+
+    // Incoming キュー（FIFO・最大3・incomingDisplaySec で自動失効）
+    private struct IncomingEntry { public string symbol; public float expireTime; }
+    private readonly List<IncomingEntry> p1Incoming = new List<IncomingEntry>();
+    private readonly List<IncomingEntry> p2Incoming = new List<IncomingEntry>();
 
     // =====================================================
     // 初期化（静的ラベルを GameManager 実値に合わせる）
@@ -86,12 +119,13 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance == null) return;
 
         int maxHP        = GameManager.Instance.GetMaxHP(1); // 両プレイヤー同値
-        int comboMax     = GameManager.Instance.GetComboThreshold();
 
         if (p1HpMax    != null) p1HpMax.text    = $"/{maxHP}";
         if (p2HpMax    != null) p2HpMax.text    = $"/{maxHP}";
-        if (p1ComboMax != null) p1ComboMax.text = $"× /{comboMax}";
-        if (p2ComboMax != null) p2ComboMax.text = $"× /{comboMax}";
+        // コンボは上限なし（DESIGN.md 5.8）。旧「/15」しきい値表示は撤廃し
+        // 「×」のみ表示する（コンボ数値は $ComboValue 側で更新）
+        if (p1ComboMax != null) p1ComboMax.text = "×";
+        if (p2ComboMax != null) p2ComboMax.text = "×";
     }
 
     // =====================================================
@@ -110,6 +144,19 @@ public class UIManager : MonoBehaviour
                             p2EnergyFill, p2SkillName, p2RoundWins);
 
         UpdateStatusText();
+        UpdateVictoryBar();
+        UpdateIncoming();
+    }
+
+    // P1HP/(P1HP+P2HP) を毎フレーム反映。左に傾く=P1優勢（DESIGN.md 12.5）
+    private void UpdateVictoryBar()
+    {
+        if (victoryBar == null) return;
+        var gm = GameManager.Instance;
+        float p1 = gm.GetHP(1);
+        float p2 = gm.GetHP(2);
+        float total = p1 + p2;
+        victoryBar.fillAmount = total > 0f ? p1 / total : 0.5f;
     }
 
     private void UpdatePlayerHUD(int playerIndex,
@@ -128,7 +175,8 @@ public class UIManager : MonoBehaviour
             hpFill.color      = GetHPColor(ratio);
         }
         if (hpValue   != null) hpValue.text   = gm.GetHP(playerIndex).ToString();
-        if (comboValue != null) comboValue.text = gm.GetCombo(playerIndex).ToString();
+        // コンボは UI 上 99 で表示頭打ち（内部値は維持, DESIGN.md 5.8）
+        if (comboValue != null) comboValue.text = Mathf.Min(99, gm.GetCombo(playerIndex)).ToString();
         if (scoreValue != null) scoreValue.text = gm.GetScore(playerIndex).ToString("N0");
 
         // Active Item
@@ -208,7 +256,103 @@ public class UIManager : MonoBehaviour
     {
         if (txt != null) txt.text = $"妨害！\n{label}";
         cg.alpha = 1f;
-        yield return new WaitForSecondsRealtime(1.5f);
+        yield return new WaitForSecondsRealtime(overlayFlashDuration);
         cg.alpha = 0f;
+    }
+
+    // =====================================================
+    // 攻撃送付ラベル（攻撃者 HUD に SENT → 表示。GameManager から呼ばれる）
+    // =====================================================
+
+    public void ShowSentLabel(int attackerIndex, string interferenceLabel)
+    {
+        TextMeshProUGUI txt = attackerIndex == 1 ? p1SentLabel : p2SentLabel;
+        if (txt == null) return;
+
+        ref Coroutine slot = ref (attackerIndex == 1 ? ref p1SentRoutine : ref p2SentRoutine);
+        if (slot != null) StopCoroutine(slot);
+        slot = StartCoroutine(SentLabelRoutine(txt, interferenceLabel));
+    }
+
+    private IEnumerator SentLabelRoutine(TextMeshProUGUI txt, string label)
+    {
+        txt.text = $"SENT → {label}";
+        txt.gameObject.SetActive(true);
+        yield return new WaitForSecondsRealtime(sentLabelDuration);
+        txt.gameObject.SetActive(false);
+    }
+
+    // =====================================================
+    // コンボマイルストーン演出（10/20/30 到達時。GameManager から呼ばれる）
+    // =====================================================
+
+    public void ShowComboMilestone(int playerIndex, int milestone)
+    {
+        CanvasGroup     cg  = playerIndex == 1 ? p1ComboMilestoneOverlay : p2ComboMilestoneOverlay;
+        TextMeshProUGUI txt = playerIndex == 1 ? p1ComboMilestoneLabel   : p2ComboMilestoneLabel;
+        if (cg == null) return;
+
+        ref Coroutine slot = ref (playerIndex == 1 ? ref p1MilestoneRoutine : ref p2MilestoneRoutine);
+        if (slot != null) StopCoroutine(slot);
+        slot = StartCoroutine(ComboMilestoneRoutine(cg, txt, milestone));
+    }
+
+    private IEnumerator ComboMilestoneRoutine(CanvasGroup cg, TextMeshProUGUI txt, int milestone)
+    {
+        if (txt != null) txt.text = $"{milestone} COMBO!!";
+        cg.alpha = 1f;
+        yield return new WaitForSecondsRealtime(comboMilestoneDuration);
+        cg.alpha = 0f;
+    }
+
+    // =====================================================
+    // Incoming インジケータ（妨害予約キュー。GameManager から呼ばれる）
+    //   targetPlayerIndex = 妨害を受ける側。左列=P1, 右列=P2
+    //   FIFO 最大 3、incomingDisplaySec 経過で自動失効、Playing 以外で全消去
+    // =====================================================
+
+    public void PushIncoming(int targetPlayerIndex, GameManager.InterferenceType type)
+    {
+        var list = targetPlayerIndex == 1 ? p1Incoming : p2Incoming;
+        list.Add(new IncomingEntry { symbol = IncomingSymbol(type),
+                                     expireTime = Time.unscaledTime + incomingDisplaySec });
+        while (list.Count > 3) list.RemoveAt(0); // 4個目到着で最古を押し出す
+    }
+
+    private static string IncomingSymbol(GameManager.InterferenceType type) => type switch
+    {
+        GameManager.InterferenceType.Harden => "⬛HARD",
+        GameManager.InterferenceType.AddRow => "↓ROW",
+        GameManager.InterferenceType.Poison => "☣PSION",
+        GameManager.InterferenceType.Slow   => "🐌SLOW",
+        _                                   => "?"
+    };
+
+    private void UpdateIncoming()
+    {
+        bool playing = GameManager.Instance.GetCurrentState() == GameManager.GameState.Playing;
+        if (!playing)
+        {
+            if (p1Incoming.Count > 0) p1Incoming.Clear();
+            if (p2Incoming.Count > 0) p2Incoming.Clear();
+        }
+        RenderIncoming(p1Incoming, p1IncomingSlots);
+        RenderIncoming(p2Incoming, p2IncomingSlots);
+    }
+
+    private void RenderIncoming(List<IncomingEntry> list, TextMeshProUGUI[] slots)
+    {
+        // 失効したエントリを除去（新しいほど後ろ）
+        for (int i = list.Count - 1; i >= 0; i--)
+            if (Time.unscaledTime >= list[i].expireTime) list.RemoveAt(i);
+
+        if (slots == null) return;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] == null) continue;
+            bool show = i < list.Count;
+            if (slots[i].gameObject.activeSelf != show) slots[i].gameObject.SetActive(show);
+            if (show) slots[i].text = list[i].symbol;
+        }
     }
 }

@@ -56,17 +56,6 @@ public sealed class SkillBall_Multi : SkillDefinition
     }
 }
 
-// 次にパドルが受け止めたボールを強制キャッチ（LaunchAimer で再発射）
-public sealed class SkillForceCatch : SkillDefinition
-{
-    public override string DisplayName => "Force Catch";
-
-    public override void Activate(int playerIndex, ArenaController arena)
-    {
-        arena.GetSkillController()?.SetForceCatch(true);
-    }
-}
-
 // 上半分のブロックを全破壊。HP 1/3 以下のみ発動可
 public sealed class SkillPanic_BlockClear : SkillDefinition
 {

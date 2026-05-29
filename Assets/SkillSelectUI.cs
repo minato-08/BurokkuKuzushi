@@ -22,7 +22,6 @@ public class SkillSelectUI : MonoBehaviour
         new SkillPaddle_Enlarge(),
         new SkillBall_Attribute_Fire(),
         new SkillBall_Multi(),
-        new SkillForceCatch(),
         new SkillPanic_BlockClear()
     };
 

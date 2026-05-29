@@ -11,11 +11,9 @@ public class SkillController : MonoBehaviour
     private ArenaController arena;
     private EnergySystem    energy;
     private SkillDefinition equippedSkill;
-    private bool            forceCatchActive;
 
-    public float  EnergyRatio       => energy?.Ratio ?? 0f;
-    public bool   IsForceCatchActive => forceCatchActive;
-    public string SkillName         => equippedSkill?.DisplayName ?? "---";
+    public float  EnergyRatio => energy?.Ratio ?? 0f;
+    public string SkillName   => equippedSkill?.DisplayName ?? "---";
 
     public void Initialize(int pIndex, ArenaController a)
     {
@@ -26,8 +24,6 @@ public class SkillController : MonoBehaviour
 
     public void SetSkill(SkillDefinition skill) => equippedSkill = skill;
     public void AddEnergy(float amount)         => energy?.AddEnergy(amount);
-    public void SetForceCatch(bool active)      => forceCatchActive = active;
-    public void ConsumeForceCatch()             => forceCatchActive = false;
 
     public void ResetEnergy()
     {

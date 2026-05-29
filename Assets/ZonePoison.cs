@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// BlockSpike 破壊時または InterferencePoison で生成される毒エリア。
+// InterferencePoison（AttackPoison 取得時）で生成される毒エリア。
 // アリーナ上から落下し、パドル付近で停止。接触中のパドルに毎秒 HP ダメージを与える。
 public class ZonePoison : MonoBehaviour
 {
