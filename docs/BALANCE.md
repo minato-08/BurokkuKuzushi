@@ -78,7 +78,7 @@
 | パラメータ | 増やすと | 減らすと |
 |---|---|---|
 | `dropChanceAttack`（攻撃アイテム比率） | 攻撃の応酬、火薬庫みのある試合 | 防御中心、長期戦 |
-| `dropChanceTrap` | 取得回避ゲー、繊細なパドル操作 | 雑にアイテム取れる |
+| `Block.trapDisguiseChance`（強化枠の罠置換率） | 取得回避ゲー、繊細なパドル操作 | 雑にアイテム取れる（0 で罠無効） |
 | `comboScoreStep` | コンボ報酬↑、連打優位 | 単発火力ベース |
 | `comboTimeout` | コンボ繋ぎ楽、平均コンボ↑ | 厳密な反射技術要求 |
 | `hardenCount` | AttackHarden の威力↑ | 効果薄い、他攻撃選好 |
@@ -125,12 +125,15 @@ itemDropComboMul = 1 + 0.10 × floor(combo / 10)
   └ Random.value <= 上記の積 → ドロップ
 
 ドロップ確定後:
-  系統選択（buff/attack/trap）
-  ├ dropChanceBuff = 0.6 + dropBiasBuff
-  └ dropChanceAttack = 0.4
+  系統選択（強化 6 : 攻撃 4）
+  ├ buffWeight = 0.6 + dropBiasBuff
+  │   └ 強化枠に当選 → trapDisguiseChance(=0.1) で「罠」に置換、残りは強化
+  └ それ以外 = 攻撃
 ```
 
-> 罠アイテムはドロップ抽選の対象外（DESIGN.md 5.5.2 参照、強化:攻撃 = 6:4）。
+> 罠アイテムは独立枠を持たず、強化枠の一部を `Block.trapDisguiseChance`（=0.1）で
+> 罠に置き換える「偽装」方式（DESIGN.md 5.5.3 参照）。実効分布はデフォルトで
+> 強化 ≒54% / 罠 ≒6% / 攻撃 40%。`trapDisguiseChance = 0` で罠を無効化できる。
 
 ### 5.2 攻撃アイテム別の強弱マトリックス
 
