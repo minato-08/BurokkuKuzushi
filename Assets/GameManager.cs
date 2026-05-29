@@ -39,6 +39,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int   comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
     [SerializeField] private int   comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
     [SerializeField] private int   comboItemStep  = 10;    // 何コンボ毎にドロップ +10% するか
+    [SerializeField] private int[] comboMilestones = { 10, 20, 30 };  // 演出を出すコンボ数
 
     [Header("強制リスポーン設定")]
 
@@ -222,12 +223,17 @@ public class GameManager : MonoBehaviour
         if (currentState != GameState.Playing) return;
 
         // コンボ加算 + タイマーリセット（最後の破壊起点で計測, DESIGN.md 5.8）
-        if (playerIndex == 1) { p1Combo++; p1ComboTimer = 0f; }
-        else                  { p2Combo++; p2ComboTimer = 0f; }
+        int combo;
+        if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
+        else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
 
         // エナジー = energyPerBlock × HP帯 gaugeRateMul × コンボ gaugeComboMul
         float rateMul = GetCurrentBand(playerIndex).gaugeRateMul * GaugeComboMul(playerIndex);
         GetArena(playerIndex)?.GetSkillController()?.AddEnergy(energyPerBlock * rateMul);
+
+        // コンボマイルストーン演出（丁度その値に達した瞬間のみ。リセット後に再到達で再発火, DESIGN.md 12.10）
+        if (System.Array.IndexOf(comboMilestones, combo) >= 0)
+            GetArena(playerIndex)?.ShowComboMilestone(combo);
     }
 
     // コンボ自己強化倍率（DESIGN.md 5.8、HP帯倍率と乗算される）
@@ -246,10 +252,15 @@ public class GameManager : MonoBehaviour
         ArenaController target = GetArena(targetPlayerIndex);
         if (target == null) return;
 
-        InterferenceType type = AttackItemToInterference(attackItem);
+        InterferenceType type  = AttackItemToInterference(attackItem);
+        string           label = GetInterferenceLabel(type);
         ApplyInterference(target, type);
         target.TriggerHitStop(interferenceTriggerFrames);
-        target.ShowInterferenceOverlay(GetInterferenceLabel(type));
+        target.ShowInterferenceOverlay(label);
+
+        // 攻撃者（受信側の相手）の HUD に SENT → 表示
+        int attackerIndex = targetPlayerIndex == 1 ? 2 : 1;
+        GetArena(attackerIndex)?.ShowSentLabel($"P{targetPlayerIndex}: {label}");
 
         Debug.Log($"P{targetPlayerIndex} に妨害送信: {type} (attack={attackItem})");
     }

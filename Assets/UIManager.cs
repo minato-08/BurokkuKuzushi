@@ -60,6 +60,16 @@ public class UIManager : MonoBehaviour
     [SerializeField] private CanvasGroup     p2InterferenceOverlay;
     [SerializeField] private TextMeshProUGUI p2InterferenceLabel;
 
+    [Header("[任意] 攻撃送付ラベル（攻撃者 HUD に SENT → 表示）")]
+    [SerializeField] private TextMeshProUGUI p1SentLabel;
+    [SerializeField] private TextMeshProUGUI p2SentLabel;
+
+    [Header("[任意] コンボマイルストーン演出")]
+    [SerializeField] private CanvasGroup     p1ComboMilestoneOverlay;
+    [SerializeField] private TextMeshProUGUI p1ComboMilestoneLabel;
+    [SerializeField] private CanvasGroup     p2ComboMilestoneOverlay;
+    [SerializeField] private TextMeshProUGUI p2ComboMilestoneLabel;
+
     // =====================================================
     // 演出パラメータ
     // =====================================================
@@ -74,8 +84,17 @@ public class UIManager : MonoBehaviour
     [Header("スキル READY 表示")]
     [SerializeField] private string skillReadySuffix = " · READY";
 
+    [Header("演出時間（秒）")]
+    [SerializeField] private float overlayFlashDuration   = 1.5f;  // 妨害受信フラッシュ
+    [SerializeField] private float sentLabelDuration      = 1.5f;  // 攻撃送付ラベル
+    [SerializeField] private float comboMilestoneDuration = 1.2f;  // コンボマイルストーン
+
     private Coroutine p1OverlayRoutine;
     private Coroutine p2OverlayRoutine;
+    private Coroutine p1SentRoutine;
+    private Coroutine p2SentRoutine;
+    private Coroutine p1MilestoneRoutine;
+    private Coroutine p2MilestoneRoutine;
 
     // =====================================================
     // 初期化（静的ラベルを GameManager 実値に合わせる）
@@ -210,7 +229,52 @@ public class UIManager : MonoBehaviour
     {
         if (txt != null) txt.text = $"妨害！\n{label}";
         cg.alpha = 1f;
-        yield return new WaitForSecondsRealtime(1.5f);
+        yield return new WaitForSecondsRealtime(overlayFlashDuration);
+        cg.alpha = 0f;
+    }
+
+    // =====================================================
+    // 攻撃送付ラベル（攻撃者 HUD に SENT → 表示。GameManager から呼ばれる）
+    // =====================================================
+
+    public void ShowSentLabel(int attackerIndex, string interferenceLabel)
+    {
+        TextMeshProUGUI txt = attackerIndex == 1 ? p1SentLabel : p2SentLabel;
+        if (txt == null) return;
+
+        ref Coroutine slot = ref (attackerIndex == 1 ? ref p1SentRoutine : ref p2SentRoutine);
+        if (slot != null) StopCoroutine(slot);
+        slot = StartCoroutine(SentLabelRoutine(txt, interferenceLabel));
+    }
+
+    private IEnumerator SentLabelRoutine(TextMeshProUGUI txt, string label)
+    {
+        txt.text = $"SENT → {label}";
+        txt.gameObject.SetActive(true);
+        yield return new WaitForSecondsRealtime(sentLabelDuration);
+        txt.gameObject.SetActive(false);
+    }
+
+    // =====================================================
+    // コンボマイルストーン演出（10/20/30 到達時。GameManager から呼ばれる）
+    // =====================================================
+
+    public void ShowComboMilestone(int playerIndex, int milestone)
+    {
+        CanvasGroup     cg  = playerIndex == 1 ? p1ComboMilestoneOverlay : p2ComboMilestoneOverlay;
+        TextMeshProUGUI txt = playerIndex == 1 ? p1ComboMilestoneLabel   : p2ComboMilestoneLabel;
+        if (cg == null) return;
+
+        ref Coroutine slot = ref (playerIndex == 1 ? ref p1MilestoneRoutine : ref p2MilestoneRoutine);
+        if (slot != null) StopCoroutine(slot);
+        slot = StartCoroutine(ComboMilestoneRoutine(cg, txt, milestone));
+    }
+
+    private IEnumerator ComboMilestoneRoutine(CanvasGroup cg, TextMeshProUGUI txt, int milestone)
+    {
+        if (txt != null) txt.text = $"{milestone} COMBO!!";
+        cg.alpha = 1f;
+        yield return new WaitForSecondsRealtime(comboMilestoneDuration);
         cg.alpha = 0f;
     }
 }
