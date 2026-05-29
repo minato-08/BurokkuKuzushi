@@ -78,14 +78,17 @@ public class ItemDrop : MonoBehaviour
     public float detectionRadius = 0.5f;  // パドルとの接触判定半径
     public float bottomYOffset   = -20f;   // アリーナ下端からさらに何ユニット下で自然消滅するか
 
-    // ── アイテム効果パラメータ ───────────────────────────
+    // ── アイテム効果パラメータ（DESIGN.md 5.5）───────────
+    // ※ アイテムは AddComponent 生成のため、ここの初期値がそのまま使われる
     public float attributeDuration  = 8f;   // 属性付与 (Fire/Ice/Thunder/Heavy) 持続時間
-    public float paddleDuration     = 8f;   // パドル変化 (Enlarge/Shrink) 持続時間
-    public float speedDuration      = 8f;   // 速度変化 (SpeedUp/Hyper) 持続時間
+    public float paddleDuration     = 10f;  // パドル変化 (Enlarge/Shrink) 持続時間
+    public float speedDuration      = 10f;  // 速度変化 (SpeedUp) 持続時間
+    public float hyperDuration      = 3f;   // TrapBall_Hyperspeed 持続時間
+    public float reversedDuration   = 5f;   // TrapBall_Reversed 持続時間
     public float enlargeMultiplier  = 1.5f; // パドル拡大倍率
-    public float shrinkMultiplier   = 0.6f; // パドル縮小倍率
+    public float shrinkMultiplier   = 0.7f; // パドル縮小倍率 (Trap)
     public float speedUpMultiplier  = 1.4f; // 速度アップ倍率
-    public float hyperMultiplier    = 1.8f; // ハイパー速度倍率
+    public float hyperMultiplier    = 4f;   // ハイパー速度倍率 (Trap, 制御困難化)
     public int   healAmount         = 50;   // 回復量
 
     private ItemType        itemType;
@@ -133,7 +136,9 @@ public class ItemDrop : MonoBehaviour
         ItemType.Fire or ItemType.Ice or ItemType.Thunder
             or ItemType.Heavy or ItemType.Pierce         => attributeDuration,
         ItemType.Enlarge or ItemType.Shrink              => paddleDuration,
-        ItemType.SpeedUp or ItemType.Hyper               => speedDuration,
+        ItemType.SpeedUp                                 => speedDuration,
+        ItemType.Hyper                                   => hyperDuration,
+        ItemType.Reversed                                => reversedDuration,
         _                                                => 0f
     };
 
@@ -147,7 +152,8 @@ public class ItemDrop : MonoBehaviour
         ItemType.Enlarge => new EffectPaddleScale   { Multiplier = enlargeMultiplier, Duration = paddleDuration },
         ItemType.Shrink  => new EffectPaddleScale   { Multiplier = shrinkMultiplier,  Duration = paddleDuration },
         ItemType.SpeedUp => new EffectBallSpeed     { Multiplier = speedUpMultiplier, Duration = speedDuration  },
-        ItemType.Hyper   => new EffectBallSpeed     { Multiplier = hyperMultiplier,   Duration = speedDuration  },
+        ItemType.Hyper   => new EffectBallSpeed     { Multiplier = hyperMultiplier,   Duration = hyperDuration  },
+        ItemType.Reversed => new EffectInputReverse { Duration = reversedDuration },
         ItemType.Heal    => new EffectHeal          { Amount = healAmount },
         ItemType.AttackHarden or ItemType.AttackAddRow
             or ItemType.AttackPoison or ItemType.AttackSlow

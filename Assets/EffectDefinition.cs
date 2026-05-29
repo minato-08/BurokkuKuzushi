@@ -57,3 +57,15 @@ public sealed class EffectAttack : EffectDefinition
         GameManager.Instance?.SendInterference(opponent, AttackItem);
     }
 }
+
+// TrapBall_Reversed: 取得した側のパドル左右入力を Duration 秒だけ反転させる
+public sealed class EffectInputReverse : EffectDefinition
+{
+    public float Duration;
+
+    public override void Apply(int playerIndex, ArenaController arena)
+    {
+        Transform arenaRoot = arena.transform.parent ?? arena.transform;
+        arenaRoot.GetComponentInChildren<PlayerController>()?.SetInputReversedTemporary(Duration);
+    }
+}

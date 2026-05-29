@@ -19,6 +19,8 @@ public class PlayerController : MonoBehaviour, IFreezable
     private bool frozen = false;
     private Vector3 originalScale;
     private Coroutine widthRoutine;
+    private bool inputReversed = false;
+    private Coroutine reverseRoutine;
 
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
@@ -42,6 +44,22 @@ public class PlayerController : MonoBehaviour, IFreezable
         yield return new WaitForSeconds(duration);
         transform.localScale = originalScale;
         widthRoutine = null;
+    }
+
+    // TrapBall_Reversed: 左右入力を duration 秒反転（DESIGN.md 5.5.3 / 12.18）
+    // 発射確定キーは LaunchAimer 側で処理されるため反転の影響を受けない
+    public void SetInputReversedTemporary(float duration)
+    {
+        if (reverseRoutine != null) StopCoroutine(reverseRoutine);
+        reverseRoutine = StartCoroutine(ReverseRoutine(duration));
+    }
+
+    private System.Collections.IEnumerator ReverseRoutine(float duration)
+    {
+        inputReversed = true;
+        yield return new WaitForSeconds(duration);
+        inputReversed = false;
+        reverseRoutine = null;
     }
 
     // パドルとボールの衝突処理
@@ -95,6 +113,8 @@ public class PlayerController : MonoBehaviour, IFreezable
             if (Keyboard.current.lKey.isPressed)
                 move = 1f;
         }
+
+        if (inputReversed) move = -move;
 
         // ローカル座標で移動を管理（親Arenaの座標系で動く）
         Vector3 localPos = transform.localPosition;

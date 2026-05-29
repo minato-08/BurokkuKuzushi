@@ -34,6 +34,8 @@ public class Block : MonoBehaviour
 
     [Header("アイテムドロップ設定")]
     [SerializeField] private float baseDropChance = 0.15f;
+    // 強化枠が出る際、この確率で「強化に偽装した罠」に置き換える（DESIGN.md 5.5.3 の紛らわしさ）
+    [Range(0f, 1f)] [SerializeField] private float trapDisguiseChance = 0.1f;
 
     [Header("ブロック色設定")]
     [SerializeField] private Color normalColor    = new Color(0.490f, 0.639f, 1.000f); // #7da3ff 青
@@ -176,7 +178,7 @@ public class Block : MonoBehaviour
         float bias = GameManager.Instance != null
             ? GameManager.Instance.GetCurrentBand(ball.playerIndex).goodItemBias
             : 0f;
-        ItemType type = SelectRandomItemType(bias);
+        ItemType type = SelectRandomItemType(bias, trapDisguiseChance);
 
         GetArena()?.SpawnItem(transform.position, type);
     }
@@ -193,12 +195,20 @@ public class Block : MonoBehaviour
         ItemType.AttackHarden, ItemType.AttackAddRow,
         ItemType.AttackPoison, ItemType.AttackSlow
     };
+    private static readonly ItemType[] TrapPool = {
+        ItemType.Shrink, ItemType.Hyper, ItemType.Reversed
+    };
 
-    private static ItemType SelectRandomItemType(float goodItemBias)
+    private static ItemType SelectRandomItemType(float goodItemBias, float trapDisguiseChance)
     {
         float buffWeight = Mathf.Clamp01(BASE_BUFF_WEIGHT + goodItemBias);
-        ItemType[] pool  = Random.value < buffWeight ? BuffPool : AttackPool;
-        return pool[Random.Range(0, pool.Length)];
+        if (Random.value < buffWeight)
+        {
+            // 強化枠だが、一部は「強化に偽装した罠」として出る（DESIGN.md 5.5.3）
+            ItemType[] pool = Random.value < trapDisguiseChance ? TrapPool : BuffPool;
+            return pool[Random.Range(0, pool.Length)];
+        }
+        return AttackPool[Random.Range(0, AttackPool.Length)];
     }
 
     private ArenaController GetArena()
