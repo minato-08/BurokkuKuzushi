@@ -12,10 +12,15 @@ public class SkillSelectUI : MonoBehaviour
     [SerializeField] private GameObject panel;
 
     [Header("カードカーソル（index は AllSkills の並び順と一致させること）")]
-    // 各プレイヤーが選択中のカードにのみ表示するカーソル/ハイライト。
+    // 各プレイヤーが選択中（ホバー）のカードにのみ表示するカーソル/ハイライト。
     // 長さは AllSkills.Length（=4）に合わせてバインドする。
     [SerializeField] private GameObject[] cardP1Cursors;
     [SerializeField] private GameObject[] cardP2Cursors;
+
+    [Header("カード確定ハイライト（任意・未バインドでも可）")]
+    // 確定後に選択カードへ表示する「✓ READY」状態。バインドすると hover と確定で見た目を分ける。
+    [SerializeField] private GameObject[] cardP1Confirmed;
+    [SerializeField] private GameObject[] cardP2Confirmed;
 
     [Header("操作ガイド / 状態テキスト")]
     [SerializeField] private TextMeshProUGUI p1StatusText;
@@ -82,22 +87,29 @@ public class SkillSelectUI : MonoBehaviour
 
     private void RefreshUI()
     {
-        SetCursors(cardP1Cursors, p1Index);
-        SetCursors(cardP2Cursors, p2Index);
+        SetCardState(cardP1Cursors, cardP1Confirmed, p1Index, p1Confirmed);
+        SetCardState(cardP2Cursors, cardP2Confirmed, p2Index, p2Confirmed);
 
-        if (p1StatusText != null) p1StatusText.text = p1Confirmed ? "Ready!" : "A / D  select     S  confirm";
-        if (p2StatusText != null) p2StatusText.text = p2Confirmed ? "Ready!" : "J / L  select     K  confirm";
+        if (p1StatusText != null) p1StatusText.text = p1Confirmed ? "✓ READY ･ 相手を待機中…" : "A / D SELECT   S CONFIRM";
+        if (p2StatusText != null) p2StatusText.text = p2Confirmed ? "✓ READY ･ 相手を待機中…" : "J / L SELECT   K CONFIRM";
     }
 
-    // 選択中のカードのみカーソルを表示。未バインド/null 要素は安全にスキップ。
-    private static void SetCursors(GameObject[] cursors, int selected)
+    // 選択カードに hover / 確定 のどちらかのハイライトを表示。未バインド/null 要素は安全にスキップ。
+    private static void SetCardState(GameObject[] cursors, GameObject[] confirmed, int selected, bool isConfirmed)
     {
-        if (cursors == null) return;
-        for (int i = 0; i < cursors.Length; i++)
+        SetOnlyActive(cursors,   (isConfirmed ? -1 : selected));     // 確定後は hover カーソルを消す
+        SetOnlyActive(confirmed, (isConfirmed ? selected : -1));     // 確定中のみ確定ハイライト
+    }
+
+    // index == active のものだけ SetActive(true)、他は false。active<0 で全消灯。
+    private static void SetOnlyActive(GameObject[] arr, int active)
+    {
+        if (arr == null) return;
+        for (int i = 0; i < arr.Length; i++)
         {
-            if (cursors[i] == null) continue;
-            bool show = (i == selected);
-            if (cursors[i].activeSelf != show) cursors[i].SetActive(show);
+            if (arr[i] == null) continue;
+            bool show = (i == active);
+            if (arr[i].activeSelf != show) arr[i].SetActive(show);
         }
     }
 

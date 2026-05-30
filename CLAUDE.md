@@ -393,17 +393,18 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
-- `Start()` で `HidePanel()` を呼び、シーン既定で `_MatchResultPanel` が active 保存されていても起動時に確実に隠す（`panelShown` 初期 false で Update の Hide 分岐が初回効かない問題の対策）
-- A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
-- 再戦: `GameManager.StartRematch()` — スキル選択画面に戻る
-- SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下に**バインド済み**
+- `Start()` で `HidePanel()`（シーン既定で active 保存されていても起動時に隠す。`panelShown` 初期 false 対策）
+- **Result A デザイン（スコア分割＋勝数ピップ）**: `matchWinnerText`(勝者色) / `p1ScoreText`・`p2ScoreText`(数値) / `p1ScoreTagText`・`p2ScoreTagText`("P1 · WIN"/"P1") / `p1WinPips[]`・`p2WinPips[]`(Image, 先頭 `2r-1` 個を表示・`i<wins` を該当色で塗り) / `bestOfText` / `rematchText`・`menuText`(選択色トグル) / `hintText`
+- A/D（J/L）で再戦/メニュー選択、Space 確定。再戦→`GameManager.StartRematch()`、メニュー→シーンリロード
+- 動的要素は全て null セーフ。⚠️ **要バインド**: 上記フィールドを `_MatchResultPanel/...` 配下へ
 
 ### `SkillSelectUI.cs`
 - 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
 - **4 枚カード + P1/P2 独立カーソル方式**（DESIGN.md 5.6）。1P: A/D でカード移動・S 確定 / 2P: J/L でカード移動・K 確定。選択中カードのみ `cardP1Cursors[]` / `cardP2Cursors[]`（GameObject 配列、index=AllSkills 並び順）を SetActive(true)
 - カーソル配列は**未バインドでも安全に動作**（Figma 構築前でも入力・確定・BeginMatch は機能）。`$Card{i}P1Cursor` / `$Card{i}P2Cursor` を Figma で作成後にバインドする
+- 確定後は hover カーソルを消し `cardP1Confirmed[]` / `cardP2Confirmed[]`（任意・✓READY 状態）を表示。未バインドなら status テキストのみで確定を表現
 - カード名/説明は静的（Figma 側に固定配置）。旧 `p1SkillText`/`p2SkillText`（単一サイクル表示）は廃止
-- ⚠️ **要バインド（Figma 完成後）**: `panel` / `cardP1Cursors[4]` / `cardP2Cursors[4]` / `p1StatusText` / `p2StatusText`
+- ⚠️ **要バインド**: `panel` / `cardP1Cursors[4]` / `cardP2Cursors[4]` / `p1StatusText` / `p2StatusText`（任意: `cardP1Confirmed[4]` / `cardP2Confirmed[4]`）
 
 ### `TitleUI.cs`
 - 起動時のタイトル画面。`GameState.Title` の間 panel を表示。`_Base` にアタッチ済み
