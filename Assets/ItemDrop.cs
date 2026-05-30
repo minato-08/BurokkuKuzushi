@@ -14,6 +14,11 @@ public enum ItemType
 
 public enum ItemCategory { Buff, Attack, Trap }
 
+// 持続効果が占有する「スロット」。同一スロットの効果は重ね掛けで上書きされる
+// （BallScript / PlayerController の各コルーチンが StopCoroutine で上書きする単位と一致）。
+// None = 持続効果を持たない（Heal の即時回復 / Attack の妨害送付）。
+public enum ItemEffectSlot { None, BallAttribute, BallSpeed, PaddleScale, InputReverse }
+
 public static class ItemDefinition
 {
     public static Color GetColor(ItemType type) => type switch
@@ -65,6 +70,17 @@ public static class ItemDefinition
         ItemType.Shrink or ItemType.Hyper or
         ItemType.Reversed                               => ItemCategory.Trap,
         _                                               => ItemCategory.Buff
+    };
+
+    // 持続効果スロット（重複抑制・アクティブ効果リスト用）。
+    public static ItemEffectSlot GetEffectSlot(ItemType type) => type switch
+    {
+        ItemType.Fire or ItemType.Ice or ItemType.Thunder or
+        ItemType.Heavy or ItemType.Pierce               => ItemEffectSlot.BallAttribute,
+        ItemType.SpeedUp or ItemType.Hyper              => ItemEffectSlot.BallSpeed,
+        ItemType.Enlarge or ItemType.Shrink             => ItemEffectSlot.PaddleScale,
+        ItemType.Reversed                               => ItemEffectSlot.InputReverse,
+        _                                               => ItemEffectSlot.None, // Heal / Attack*
     };
 }
 
@@ -125,7 +141,8 @@ public class ItemDrop : MonoBehaviour
                 paddle.OnItemPickup(ItemDefinition.GetCategory(itemType));
                 BuildEffect().Apply(playerIndex, arena);
                 GameManager.Instance?.RegisterActiveItem(
-                    playerIndex, ItemDefinition.GetName(itemType), GetActiveDuration());
+                    playerIndex, ItemDefinition.GetEffectSlot(itemType),
+                    ItemDefinition.GetName(itemType), GetActiveDuration());
                 Destroy(gameObject);
                 return;
             }

@@ -23,6 +23,13 @@ public class MatchResultUI : MonoBehaviour
     private int  selectedIndex  = 0; // 0=再戦, 1=メニューへ戻る
     private bool panelShown     = false;
 
+    void Start()
+    {
+        // シーン既定でパネルが active のまま保存されていても、起動時に確実に隠す
+        // （panelShown 初期 false のため Update の HidePanel 分岐が初回に効かない問題の対策）
+        HidePanel();
+    }
+
     void Update()
     {
         if (GameManager.Instance == null) return;

@@ -106,6 +106,17 @@ public class ArenaController : MonoBehaviour
         if (ball != null)
             ball.PrepareRespawn(GetBallSpawnLocalPos());
 
+        // SkillBall_Multi で生成された追加ボールを破棄（メインボールは残す）
+        foreach (var b in ArenaRoot.GetComponentsInChildren<BallScript>())
+            if (b.isExtraBall) Object.Destroy(b.gameObject);
+
+        // 未取得の落下アイテムを破棄
+        foreach (var item in ArenaRoot.GetComponentsInChildren<ItemDrop>())
+            Object.Destroy(item.gameObject);
+
+        // パドルの一時効果（幅・入力反転）を解除
+        cachedPlayer?.ResetState();
+
         foreach (var zone in ArenaRoot.GetComponentsInChildren<ZonePoison>())
             Object.Destroy(zone.gameObject);
         foreach (var zone in ArenaRoot.GetComponentsInChildren<ZoneSlow>())

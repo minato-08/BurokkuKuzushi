@@ -154,7 +154,7 @@ _UI                                    ← トップレベルフォルダ（Tran
   - **[必須]** HP / Combo / Score / ActiveItem（新 UI に既存）→ Inspector でバインドが必要
   - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ（まだ UI 要素が無い）→ 配置後にバインド
   - **[演出]** 色閾値・スキル READY suffix 等
-- `GameManager` に `RegisterActiveItem(playerIndex, name, duration)` / `GetActiveItemName` / `GetActiveItemRemaining` を追加。`ItemDrop` が効果適用と同時に通知する（最後に取得した 1 個のみ表示・コルーチン上書きと整合）
+- `GameManager` はアクティブ効果を **`ActiveEffect` のリスト**（スロット/名前/期限）で追跡（同 `ItemEffectSlot` は上書き、期限切れ自動除去）。`RegisterActiveItem(playerIndex, slot, name, duration)` を `ItemDrop` が効果適用時に呼ぶ。HUD は当面 `GetActiveItemName` / `GetActiveItemRemaining` が**末尾（最新）1 個**を返して既存 1 スロットに表示。複数同時表示 UI は残作業（`GetActiveEffects()` で全件取得可）。`IsEffectSlotActive()` はドロップ過多抑制（`Block` の同スロット再抽選・スキップ）に使用
 
 ### 残作業（UI 連携）
 
@@ -231,10 +231,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `HPStateBand` クラスも同ファイルで定義。Inspector で hpStateBands[] 配列を設定する（空なら全倍率1.0で動作）
 - HP帯に応じた動的パラメータ参照: `GetCurrentBand(playerIndex)` → `HPStateBand`
 - `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
-- `GetCombo(playerIndex)` は「次の妨害送付までのブロック破壊カウント」を返す（`p1DestroyedCount`）
+- `GetCombo(playerIndex)` は現在のコンボ値（`p1Combo` / `p2Combo`）を返す。コンボは **ブロック接触ごと**に `RegisterBallHitBlock` で +1（破壊不要、DESIGN.md 5.8）。`RegisterBlockDestroyed` はエナジー蓄積のみ担う
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
-
-> ⚠️ **仕様とコードの乖離（2026-05-20）**: DESIGN.md 5.7 では「コンボ自動妨害を撤廃し攻撃アイテム経由に移行」と定義済みだが、上記の `p1DestroyedCount` / `SendSabotageTo` 実装はまだ旧モデルのまま。Phase F-Combat（ROADMAP.md 参照）で削除予定。実装着手時は `GameManager.SendInterference(targetPi, payload)` 経路に統一する。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Polish 追加実装**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Polish のチェックリストに含まれる:
 > - （パドル反射ゾーンは 2026-05-28 仕様変更で廃止済み — 単純な物理反射に統一）
@@ -243,7 +241,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 >
 > 実装済み:
 > - **攻撃アイテム経由モデル**: ItemType 拡張 + `EffectAttack` → `GameManager.SendInterference` 経路。コンボ自動妨害は撤廃済み。
-> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。起点は「最後のブロック破壊後」。
+> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。**ブロック接触ごとに +1**（破壊不要、`RegisterBallHitBlock`）。タイマー起点は「最後のブロック接触後」。
 > - **罠アイテム** (Shrink/Hyper/Reversed): `Block.trapDisguiseChance` で強化枠に偽装。`PlayerController.inputReversed` 実装済み。
 > - **Dynamic Escalation**: `BlockSpawner` の base/decay/min・base/gain/max + `roundElapsedTime` 実装済み。
 > - **コンボマイルストーン / 攻撃側 SENT ラベル**: `UIManager.ShowComboMilestone` / `ShowSentLabel` とトリガー実装済み。**UI 要素は未バインド**（後述の任意セクションでバインド）。
@@ -296,7 +294,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
 - `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
-- `ResetForNewRound()` は ZonePoison / ZoneSlow 両方をクリア
+- `ResetForNewRound()` は次をクリア/解除: メインボール再配置 + スポーナー再生成 / **SkillBall_Multi の追加ボール破棄** / **未取得の落下アイテム破棄** / **パドル一時効果解除 (`PlayerController.ResetState()`)** / ZonePoison / ZoneSlow。加えて `GameManager` 側で `ClearActiveItems()` を BeginMatch/StartNextRound で呼ぶ
 
 ### `LaunchAimer.cs`
 - `ArenaController` の子 GameObject にアタッチ（Setup LaunchAimer で自動生成）
@@ -336,6 +334,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `rb.isKinematic = true` + `transform.localPosition` 直接操作
 - 1P: A/D（または矢印キー）、2P: J/L
 - `SetWidthTemporary(multiplier, duration)`: アイテム効果でパドル幅を一時変更（`localScale.x` 変更、コルーチン）
+- `SetInputReversedTemporary(duration)`: 左右入力反転（TrapBall_Reversed）
+- `ResetState()`: ラウンド遷移時に幅・入力反転・フラッシュコルーチンを全停止し、スケール/色を初期値へ復元（`ArenaController.ResetForNewRound` から呼ばれる）
 
 ### `DeadZone.cs`
 - `ballSpawnOffsetY` と PlayerController.localPosition.y から動的にリスポーン位置を算出
@@ -376,7 +376,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出
 - アイテムは AddComponent で生成（Prefab なし）。public フィールドの値がそのまま使われる
 - `ArenaController.SpawnItem(worldPos, type)` から生成。底 Y を超えたら自動 Destroy
-- パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, name, duration)` を呼ぶ。`GetActiveDuration()` がアイテム種別から duration を判定（Heal は 0 で UI 表示しない）
+- パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, slot, name, duration)` を呼ぶ。`slot` は `ItemDefinition.GetEffectSlot()`、duration は `GetActiveDuration()`（Heal/Attack は slot=None・duration=0 で登録されない）
 
 ### `SkillController.cs`
 - ArenaController.Awake() で自動生成・Initialize される
@@ -392,6 +392,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
+- `Start()` で `HidePanel()` を呼び、シーン既定で `_MatchResultPanel` が active 保存されていても起動時に確実に隠す（`panelShown` 初期 false で Update の Hide 分岐が初回効かない問題の対策）
 - A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
 - 再戦: `GameManager.StartRematch()` — スキル選択画面に戻る
 - SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下に**バインド済み**

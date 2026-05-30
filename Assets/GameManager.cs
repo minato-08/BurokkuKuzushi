@@ -61,11 +61,17 @@ public class GameManager : MonoBehaviour
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
     private int   p1Combo, p2Combo;
-    private float p1ComboTimer, p2ComboTimer;  // 最後の破壊からの経過秒（combo>0 のとき加算）
+    private float p1ComboTimer, p2ComboTimer;  // 最後のブロック接触からの経過秒（combo>0 のとき加算）
 
-    // アクティブアイテム表示用（最後に取得した1個のみ、コルーチン上書きと整合）
-    private string p1ActiveItemName, p2ActiveItemName;
-    private float  p1ActiveItemEnd,  p2ActiveItemEnd;
+    // アクティブ効果リスト（複数同時効果を追跡。HUD は当面 GetActiveItemName で最新1個のみ表示）
+    public struct ActiveEffect
+    {
+        public ItemEffectSlot slot;
+        public string         name;
+        public float          endTime;
+    }
+    private readonly System.Collections.Generic.List<ActiveEffect> p1Active = new();
+    private readonly System.Collections.Generic.List<ActiveEffect> p2Active = new();
 
     public enum GameState
     {
@@ -108,7 +114,7 @@ public class GameManager : MonoBehaviour
         TickComboTimer(ref p2Combo, ref p2ComboTimer);
     }
 
-    // 最後のブロック破壊から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
+    // 最後のブロック接触から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
     private void TickComboTimer(ref int combo, ref float timer)
     {
         if (combo <= 0) return;
@@ -149,6 +155,7 @@ public class GameManager : MonoBehaviour
         currentState = GameState.Playing;
         Time.timeScale = 1f;
 
+        ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
     }
@@ -165,6 +172,7 @@ public class GameManager : MonoBehaviour
         arena1?.GetSkillController()?.ResetEnergy();
         arena2?.GetSkillController()?.ResetEnergy();
 
+        ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
 
@@ -207,7 +215,7 @@ public class GameManager : MonoBehaviour
     }
 
     // スコア = baseScore × HP帯 scoreMul × コンボ scoreComboMul（いずれも乗算, DESIGN.md 5.8）
-    // Block.OnDestroyed では RegisterBlockDestroyed の後に呼ばれる（コンボは加算済み）
+    // コンボは接触時 (RegisterBallHitBlock) に加算済みなので AddScore は更新後コンボで計算される
     public void AddScore(int playerIndex, int amount)
     {
         float mul    = GetCurrentBand(playerIndex).scoreMul * ScoreComboMul(playerIndex);
@@ -216,24 +224,31 @@ public class GameManager : MonoBehaviour
         else                  p2Score += gained;
     }
 
-    // ブロック破壊時にコンボ加算 + エナジー蓄積。妨害送付はしない
+    // ボールがブロックに接触するたびに呼ばれる（破壊有無を問わない, DESIGN.md 5.8）。
+    // コンボ加算 + タイマーリセット + マイルストーン演出を担う。
+    public void RegisterBallHitBlock(int playerIndex)
+    {
+        if (currentState != GameState.Playing) return;
+
+        // コンボ加算 + タイマーリセット（最後の接触起点で計測）
+        int combo;
+        if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
+        else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
+
+        // コンボマイルストーン演出（丁度その値に達した瞬間のみ。リセット後に再到達で再発火, DESIGN.md 12.10）
+        if (System.Array.IndexOf(comboMilestones, combo) >= 0)
+            GetArena(playerIndex)?.ShowComboMilestone(combo);
+    }
+
+    // ブロック破壊時にエナジー蓄積。コンボ加算は接触側 (RegisterBallHitBlock) に移譲。妨害送付はしない
     // （コンボ自動妨害は 2026-05-20 仕様刷新で撤廃。妨害は SendInterference 経由のみ）
     public void RegisterBlockDestroyed(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
 
-        // コンボ加算 + タイマーリセット（最後の破壊起点で計測, DESIGN.md 5.8）
-        int combo;
-        if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
-        else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
-
         // エナジー = energyPerBlock × HP帯 gaugeRateMul × コンボ gaugeComboMul
         float rateMul = GetCurrentBand(playerIndex).gaugeRateMul * GaugeComboMul(playerIndex);
         GetArena(playerIndex)?.GetSkillController()?.AddEnergy(energyPerBlock * rateMul);
-
-        // コンボマイルストーン演出（丁度その値に達した瞬間のみ。リセット後に再到達で再発火, DESIGN.md 12.10）
-        if (System.Array.IndexOf(comboMilestones, combo) >= 0)
-            GetArena(playerIndex)?.ShowComboMilestone(combo);
     }
 
     // コンボ自己強化倍率（DESIGN.md 5.8、HP帯倍率と乗算される）
@@ -372,30 +387,71 @@ public class GameManager : MonoBehaviour
     public GameState GetCurrentState()         => currentState;
 
     // =====================================================
-    // アクティブアイテム（最後に取った1個だけ表示）
+    // アクティブ効果（複数同時。HUD は当面最新1個のみ表示）
     // =====================================================
 
-    // ItemDrop が効果適用と同時に呼ぶ。duration=0 のアイテム（Heal 等）は表示しない
-    public void RegisterActiveItem(int playerIndex, string itemName, float duration)
+    private System.Collections.Generic.List<ActiveEffect> ActiveList(int playerIndex)
+        => playerIndex == 1 ? p1Active : p2Active;
+
+    // 期限切れエントリを除去
+    private void PruneActive(System.Collections.Generic.List<ActiveEffect> list)
     {
-        if (duration <= 0f) return;
-        float end = Time.time + duration;
-        if (playerIndex == 1) { p1ActiveItemName = itemName; p1ActiveItemEnd = end; }
-        else                  { p2ActiveItemName = itemName; p2ActiveItemEnd = end; }
+        for (int i = list.Count - 1; i >= 0; i--)
+            if (list[i].endTime <= Time.time) list.RemoveAt(i);
     }
 
+    // ItemDrop が効果適用と同時に呼ぶ。duration=0 のアイテム（Heal/Attack）は登録しない。
+    // 同一スロットの効果は上書き（BallScript/PlayerController のコルーチン上書きと整合）。
+    public void RegisterActiveItem(int playerIndex, ItemEffectSlot slot, string itemName, float duration)
+    {
+        if (duration <= 0f || slot == ItemEffectSlot.None) return;
+        var list = ActiveList(playerIndex);
+        PruneActive(list);
+
+        var effect = new ActiveEffect { slot = slot, name = itemName, endTime = Time.time + duration };
+        int idx = list.FindIndex(e => e.slot == slot);
+        if (idx >= 0) list[idx] = effect;   // 同スロット上書き
+        else          list.Add(effect);
+    }
+
+    // ラウンド遷移時にアクティブ効果表示をリセット（効果コルーチンはボール/パドル側で別途解除済み）
+    public void ClearActiveItems()
+    {
+        p1Active.Clear();
+        p2Active.Clear();
+    }
+
+    // 指定スロットの効果が現在有効か（ドロップ重複抑制用）
+    public bool IsEffectSlotActive(int playerIndex, ItemEffectSlot slot)
+    {
+        if (slot == ItemEffectSlot.None) return false;
+        var list = ActiveList(playerIndex);
+        PruneActive(list);
+        return list.Exists(e => e.slot == slot);
+    }
+
+    // 現在有効な効果のスナップショット（将来の HUD 複数表示用）。残り時間降順ではなく登録順。
+    public System.Collections.Generic.List<ActiveEffect> GetActiveEffects(int playerIndex)
+    {
+        var list = ActiveList(playerIndex);
+        PruneActive(list);
+        return list;
+    }
+
+    // 最新（最後に登録された）有効効果の残り時間。なければ 0。
     public float GetActiveItemRemaining(int playerIndex)
     {
-        float end = playerIndex == 1 ? p1ActiveItemEnd : p2ActiveItemEnd;
-        return Mathf.Max(0f, end - Time.time);
+        var list = ActiveList(playerIndex);
+        PruneActive(list);
+        return list.Count > 0 ? Mathf.Max(0f, list[list.Count - 1].endTime - Time.time) : 0f;
     }
 
-    // 残り 0 のときは null を返す（UI 側で表示/非表示を判定）
+    // 最新の有効効果名。なければ null（UI 側で表示/非表示を判定）
     public string GetActiveItemName(int playerIndex)
     {
-        return GetActiveItemRemaining(playerIndex) > 0f
-             ? (playerIndex == 1 ? p1ActiveItemName : p2ActiveItemName)
-             : null;
+        var list = ActiveList(playerIndex);
+        PruneActive(list);
+        return list.Count > 0 ? list[list.Count - 1].name : null;
     }
 
     // 現在のHP割合に応じた HPStateBand を返す（配列が空なら等倍のデフォルトを返す）
