@@ -399,8 +399,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `SkillSelectUI.cs`
 - 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
-- 1P: A/D でサイクル・S で確定 / 2P: J/L でサイクル・K で確定
-- SerializeField は `_UI/_CameraSpace/_Components/_SkillSelectPanel/...` 配下に**バインド済み**
+- **4 枚カード + P1/P2 独立カーソル方式**（DESIGN.md 5.6）。1P: A/D でカード移動・S 確定 / 2P: J/L でカード移動・K 確定。選択中カードのみ `cardP1Cursors[]` / `cardP2Cursors[]`（GameObject 配列、index=AllSkills 並び順）を SetActive(true)
+- カーソル配列は**未バインドでも安全に動作**（Figma 構築前でも入力・確定・BeginMatch は機能）。`$Card{i}P1Cursor` / `$Card{i}P2Cursor` を Figma で作成後にバインドする
+- カード名/説明は静的（Figma 側に固定配置）。旧 `p1SkillText`/`p2SkillText`（単一サイクル表示）は廃止
+- ⚠️ **要バインド（Figma 完成後）**: `panel` / `cardP1Cursors[4]` / `cardP2Cursors[4]` / `p1StatusText` / `p2StatusText`
 
 ### `UIManager.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。毎フレーム GameManager をポーリングして更新
