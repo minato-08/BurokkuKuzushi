@@ -259,9 +259,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > - **ブロック衝突 SE 50ms クールダウン**: `lastBlockSeTime` を保持し `unscaledTime` 差分で抑制。
 > - **BGM クロスフェード（HP 30% 帯・5% ヒステリシス）**: `bgm_match_base` と `bgm_match_tense` の同時再生 + Volume Lerp。
 
-> ⚠️ **仕様とコードの乖離 — Phase F-Title 追加実装（2026-05-28 改訂）**: DESIGN.md で定義済みだがコードに未実装:
-> - **GameState 拡張**: `Countdown` / `RoundIntermission` の 2 状態を `GameManager.GameState` enum に追加。
-> - **2026-05-28 廃止**: ポーズ機能 / 設定 UI (`SettingsPanel`) / チュートリアル / AI対戦 (`AIPlayerController`) — DESIGN.md から削除済み。実装側にコードや TODO が残っている場合は削除対象。
+> **Phase F-Title 実装状況**:
+> - **`GameState.Title` 実装済み**（旧 `WaitingToStart` を流用）。起動時 `Title`（`Time.timeScale=0`）→ `StartFromTitle()` で `SkillSelect` へ。`TitleUI` / `SettingsUI`（先取数のみ）を `_Base` に追加済み（パネル等は Figma 後にバインド）。`SetRoundsToWin/GetRoundsToWin` 追加。
+> - 未実装: **GameState 拡張** `Countdown` / `RoundIntermission` の 2 状態（DESIGN.md 定義済み）。
+> - **2026-05-28 廃止**: ポーズ機能 / チュートリアル / AI対戦 (`AIPlayerController`)。設定 UI は「先取数のみ」で最小復活（2026-05-30、音量/アクセシビリティは含めない）。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
@@ -403,6 +404,18 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - カーソル配列は**未バインドでも安全に動作**（Figma 構築前でも入力・確定・BeginMatch は機能）。`$Card{i}P1Cursor` / `$Card{i}P2Cursor` を Figma で作成後にバインドする
 - カード名/説明は静的（Figma 側に固定配置）。旧 `p1SkillText`/`p2SkillText`（単一サイクル表示）は廃止
 - ⚠️ **要バインド（Figma 完成後）**: `panel` / `cardP1Cursors[4]` / `cardP2Cursors[4]` / `p1StatusText` / `p2StatusText`
+
+### `TitleUI.cs`
+- 起動時のタイトル画面。`GameState.Title` の間 panel を表示。`_Base` にアタッチ済み
+- メニュー 0=START / 1=SETTINGS / 2=QUIT。W/S・↑/↓ で移動、Space/Enter 確定。START→`GameManager.StartFromTitle()`、SETTINGS→`settingsUI.Open()`、QUIT→`Application.Quit()`
+- 選択中項目のみ `menuCursors[]`（GameObject 配列, index=メニュー順）を SetActive。**未バインドでも安全動作**（panel/cursors 無しでも Space で START 可能）
+- ⚠️ **要バインド（Figma 完成後）**: `panel` / `menuCursors[3]`（`settingsUI` は同 `_Base` の SettingsUI に配線済み）
+
+### `SettingsUI.cs`
+- 設定画面（最小・**先取数のみ**, DESIGN.md 11.3）。`_Base` にアタッチ済み。`Open()`/`Close()`/`IsOpen`
+- 先取数 1〜5 を A/D・←/→ で増減、`$RoundsValue` に反映。Esc/Space/Enter で閉じる
+- `PlayerPrefs "match.roundsToWin"` に保存、`Start()` で `GameManager.SetRoundsToWin()` に適用
+- ⚠️ **要バインド（Figma 完成後）**: `panel` / `roundsValueText`
 
 ### `UIManager.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。毎フレーム GameManager をポーリングして更新

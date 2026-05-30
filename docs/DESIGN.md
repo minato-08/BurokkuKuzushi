@@ -1088,33 +1088,44 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 
 ---
 
-## 11. タイトル / メニュー / チュートリアル / 設定
+## 11. タイトル / メニュー / 設定
 
-現状は `SampleScene` を直接起動し SkillSelect → Playing に入る。発表（2026-06-05）に向けて最低限の「ゲームとしての枠」を整える。
+起動時は `GameState.Title` で待機し、START で SkillSelect → Playing へ進む（`TitleUI` 実装済み）。発表（2026-06-05）に向けて最低限の「ゲームとしての枠」を整える。チュートリアル / ポーズ / AI 対戦は 2026-05-28 改訂で廃止済み（このセクションには含めない）。
 
-### 11.1 シーン構成
+### 11.1 シーン構成（単一シーン / 状態切替）
+
+**単一シーン方式を採用**（発表規模ではシーン分割しない）。`SampleScene` 内で `GameState` により UI パネルを `SetActive` 切替する：
 
 ```
-[BootScene]   起動直後・ロゴ / Audio Mixer 初期化 / PlayerPrefs ロード
+[Title]        起動直後。ロゴ + メニュー（START / SETTINGS / QUIT）
+   │ START
    ▼
-[TitleScene]  メインビジュアル + メニュー（Start / Tutorial / Settings / Quit）
+[SkillSelect]  スキル選択（4枚カード）
    ▼
-[MatchScene]  既存 SampleScene を改名（SkillSelect → Playing → Result）
+[Playing → RoundOver → ... → MatchOver]
+   │ MatchOver の「メニューへ戻る」/ シーンリロード
    ▼
-[ResultScene] マッチ結果。再戦 / タイトルへ
+[Title]        へ戻る
 ```
 
-シーン分割は構造維持のためであり、実装が間に合わない場合は単一シーンで `GameObject.SetActive` 切り替えでも可。
+実装: `GameManager.GameState` に `Title` を追加（旧 `WaitingToStart` を流用）。起動時は `Title`（`Time.timeScale=0`）。`StartFromTitle()` で `SkillSelect` へ遷移。
 
-### 11.2 タイトル画面
+### 11.2 タイトル画面（最小）
 
 | 要素 | 内容 |
 |---|---|
 | ロゴ | 「BurokkuKuzushi」タイトル + サブタイトル（任意） |
-| メニュー | START / TUTORIAL / SETTINGS / QUIT |
-| 操作 | 1P/2P 共通: 矢印 or A/D で選択、Enter / Space で確定 |
-| 背景 | デモ AI 同士の試合プレビュー（任意、Phase G+） |
-| BGM | MainTheme |
+| メニュー | **START / SETTINGS / QUIT**（TUTORIAL は廃止） |
+| 操作 | 矢印 or W/S で項目選択、Enter / Space で確定。SETTINGS で 11.3 を開く |
+| BGM | MainTheme（音声実装は Phase F-Audio。未実装時は無音で可） |
+
+### 11.3 設定（最小）
+
+タイトルの SETTINGS から開くオーバーレイ。発表向けの最小項目は **先取数のみ**。音量（BGM/SE）は音声未実装のため今回は持たない。アクセシビリティ（カメラシェイク/ヒットストップ OFF）も今回スコープ外（Phase G+）。
+
+| 項目 | 内容 | 保存先 |
+|---|---|---|
+| 先取数 (rounds to win) | 1〜5 本（試合前に変更可） | `PlayerPrefs "match.roundsToWin"` → `GameManager.SetRoundsToWin()` |
 
 ---
 

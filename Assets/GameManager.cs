@@ -75,7 +75,7 @@ public class GameManager : MonoBehaviour
 
     public enum GameState
     {
-        WaitingToStart,
+        Title,          // 起動直後のタイトル画面（旧 WaitingToStart）
         SkillSelect,
         Playing,
         RoundOver,
@@ -83,7 +83,7 @@ public class GameManager : MonoBehaviour
     }
 
     public enum InterferenceType { AddRow, Harden, Poison, Slow }
-    private GameState currentState = GameState.WaitingToStart;
+    private GameState currentState = GameState.Title;
 
     // =====================================================
     // Unity ライフサイクル
@@ -104,8 +104,21 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        // 起動時はタイトル画面で待機（TitleUI が START でゲーム開始する）
+        currentState   = GameState.Title;
+        Time.timeScale = 0f;
+    }
+
+    // タイトルの START から呼ばれる。スキル選択へ進む
+    public void StartFromTitle()
+    {
+        if (currentState != GameState.Title) return;
         StartSkillSelect(isNewMatch: true);
     }
+
+    // 設定画面から先取数を変更（1〜5 にクランプ）。試合中の変更は次マッチから有効
+    public void SetRoundsToWin(int value) => roundsToWin = Mathf.Clamp(value, 1, 5);
+    public int  GetRoundsToWin()          => roundsToWin;
 
     void Update()
     {

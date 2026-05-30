@@ -3655,9 +3655,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1250055247}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 90, y: -25}
   m_SizeDelta: {x: 180, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &526614265
@@ -6088,9 +6088,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1250055247}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 370, y: -25}
   m_SizeDelta: {x: 260, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &984623665
@@ -7107,6 +7107,10 @@ MonoBehaviour:
   paddleLocalY: -10.5
   paddleLocalZ: 0.5
   paddleBounceFrames: 0
+  buffFlashColor: {r: 0.306, g: 0.765, b: 1, a: 1}
+  attackFlashColor: {r: 1, g: 0.298, b: 0.235, a: 1}
+  trapFlashColor: {r: 0.792, g: 0.286, b: 0.851, a: 1}
+  pickupFlashDuration: 0.1
 --- !u!54 &1185632019
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -9753,6 +9757,10 @@ MonoBehaviour:
   paddleLocalY: -10.5
   paddleLocalZ: 0.5
   paddleBounceFrames: 10
+  buffFlashColor: {r: 0.306, g: 0.765, b: 1, a: 1}
+  attackFlashColor: {r: 1, g: 0.298, b: 0.235, a: 1}
+  trapFlashColor: {r: 0.792, g: 0.286, b: 0.851, a: 1}
+  pickupFlashDuration: 0.1
 --- !u!54 &1592312631
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -12057,6 +12065,8 @@ GameObject:
   - component: {fileID: 1934063270}
   - component: {fileID: 1934063271}
   - component: {fileID: 1934063272}
+  - component: {fileID: 1934063274}
+  - component: {fileID: 1934063273}
   m_Layer: 5
   m_Name: _Base
   m_TagString: Untagged
@@ -12199,6 +12209,10 @@ MonoBehaviour:
   p1ComboMilestoneLabel: {fileID: 0}
   p2ComboMilestoneOverlay: {fileID: 0}
   p2ComboMilestoneLabel: {fileID: 0}
+  victoryBar: {fileID: 0}
+  p1IncomingSlots: []
+  p2IncomingSlots: []
+  incomingDisplaySec: 3
   hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
   hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
   hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
@@ -12242,10 +12256,39 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillSelectUI
   panel: {fileID: 999319047}
-  p1SkillText: {fileID: 1826476857}
-  p2SkillText: {fileID: 1854986639}
+  cardP1Cursors: []
+  cardP2Cursors: []
   p1StatusText: {fileID: 9164073}
   p2StatusText: {fileID: 1372438891}
+--- !u!114 &1934063273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1934063265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e229ac4d3d82347a4a1518b503589925, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TitleUI
+  panel: {fileID: 0}
+  menuCursors: []
+  settingsUI: {fileID: 1934063274}
+--- !u!114 &1934063274
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1934063265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1574af5028cd647098d5ffe96ce0ce7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SettingsUI
+  panel: {fileID: 0}
+  roundsValueText: {fileID: 0}
 --- !u!1 &1961787393
 GameObject:
   m_ObjectHideFlags: 0
@@ -12418,8 +12461,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillSelectUI
   panel: {fileID: 862305572}
-  p1SkillText: {fileID: 1313046857}
-  p2SkillText: {fileID: 2018286939}
+  cardP1Cursors: []
+  cardP2Cursors: []
   p1StatusText: {fileID: 1605207990}
   p2StatusText: {fileID: 281945699}
 --- !u!114 &1986847348
@@ -12490,6 +12533,10 @@ MonoBehaviour:
   p1ComboMilestoneLabel: {fileID: 0}
   p2ComboMilestoneOverlay: {fileID: 0}
   p2ComboMilestoneLabel: {fileID: 0}
+  victoryBar: {fileID: 0}
+  p1IncomingSlots: []
+  p2IncomingSlots: []
+  incomingDisplaySec: 3
   hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
   hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
   hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
