@@ -7,8 +7,9 @@ using UnityEngine;
 //
 // 表示:
 //   p1RoundBanner / p2RoundBanner … そのラウンドの勝者側を表示（GameObject 切替）
-//   tallyText … 現在の勝数（既定 "P1  a - b  P2" 形式）
-//   p1WinsText / p2WinsText … 各プレイヤーの勝数を個別に出したい場合（任意）
+//   p1WinsText / p2WinsText … 各プレイヤーの勝数（$P1RoundTally / $P2RoundTally）
+//   tallyText … 勝数をまとめて出したい場合（任意, "P1 a - b P2"）
+//   nextRoundTimeText … 次ラウンドまでの残り秒（$NextRoundTime, カウントダウン）
 public class RoundResultUI : MonoBehaviour
 {
     [Header("パネル")]
@@ -19,9 +20,12 @@ public class RoundResultUI : MonoBehaviour
     [SerializeField] private GameObject p2RoundBanner;
 
     [Header("勝数表示（TMP・任意）")]
-    [SerializeField] private TextMeshProUGUI tallyText;   // "P1  a - b  P2"
-    [SerializeField] private TextMeshProUGUI p1WinsText;  // "a"
-    [SerializeField] private TextMeshProUGUI p2WinsText;  // "b"
+    [SerializeField] private TextMeshProUGUI p1WinsText;  // $P1RoundTally
+    [SerializeField] private TextMeshProUGUI p2WinsText;  // $P2RoundTally
+    [SerializeField] private TextMeshProUGUI tallyText;   // 任意: "P1 a - b P2"
+
+    [Header("カウントダウン（TMP・任意）")]
+    [SerializeField] private TextMeshProUGUI nextRoundTimeText; // $NextRoundTime
 
     private bool shown;
 
@@ -32,6 +36,13 @@ public class RoundResultUI : MonoBehaviour
         bool isRoundOver = GameManager.Instance.GetCurrentState() == GameManager.GameState.RoundOver;
         if (isRoundOver && !shown)      Show();
         else if (!isRoundOver && shown) Hide();
+
+        // 表示中はカウントダウンを毎フレーム更新
+        if (shown && nextRoundTimeText != null)
+        {
+            int sec = Mathf.CeilToInt(Mathf.Max(0f, GameManager.Instance.RoundIntermissionRemaining));
+            nextRoundTimeText.text = sec.ToString();
+        }
     }
 
     private void Show()
@@ -47,9 +58,9 @@ public class RoundResultUI : MonoBehaviour
         Set(p1RoundBanner,  p1Won);
         Set(p2RoundBanner, !p1Won);
 
-        if (tallyText  != null) tallyText.text  = $"P1   {p1W} - {p2W}   P2";
         if (p1WinsText != null) p1WinsText.text = p1W.ToString();
         if (p2WinsText != null) p2WinsText.text = p2W.ToString();
+        if (tallyText  != null) tallyText.text  = $"P1   {p1W} - {p2W}   P2";
     }
 
     private void Hide()

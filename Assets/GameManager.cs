@@ -353,6 +353,8 @@ public class GameManager : MonoBehaviour
 
     // 直近に終わったラウンドの勝者（1 or 2）。RoundResultUI が参照する
     public int LastRoundWinner { get; private set; }
+    // ラウンド間インターミッションの残り秒数（カウントダウン表示用）
+    public float RoundIntermissionRemaining { get; private set; }
 
     private void EndRound(int winner)
     {
@@ -376,6 +378,7 @@ public class GameManager : MonoBehaviour
         else
         {
             currentState = GameState.RoundOver;
+            RoundIntermissionRemaining = nextRoundDelay;
             ArenaController loserArena  = winner == 1 ? arena2 : arena1;
             ArenaController winnerArena = winner == 1 ? arena1 : arena2;
             loserArena?.TriggerHitStop(roundEndFrames,  strong: true,  shake: true);
@@ -395,7 +398,14 @@ public class GameManager : MonoBehaviour
         // ヒットストップ演出を少し見せてから停止し、ラウンド結果を表示（RoundResultUI）
         yield return new WaitForSecondsRealtime(roundEndFrames / 60f);
         Time.timeScale = 0f;
-        yield return new WaitForSecondsRealtime(nextRoundDelay);
+        // 残り秒数をカウントダウン（unscaled。RoundResultUI が $NextRoundTime に表示）
+        RoundIntermissionRemaining = nextRoundDelay;
+        while (RoundIntermissionRemaining > 0f)
+        {
+            RoundIntermissionRemaining -= Time.unscaledDeltaTime;
+            yield return null;
+        }
+        RoundIntermissionRemaining = 0f;
         StartNextRound(); // timeScale=1 に戻る
     }
 
