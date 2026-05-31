@@ -2109,7 +2109,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -379, y: -116.5}
+  m_AnchoredPosition: {x: -379, y: -80.4}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &230937755
@@ -2132,10 +2132,12 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4E8C\u4EBA\u5BFE\u6226\u578B\n\u30D6\u30ED\u30C3\u30AF\u5D29\u3057"
+  m_text: 'DUAL
+
+    BREAK'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 7518cef3c77214ca79f7bd02662bf8ce, type: 2}
-  m_sharedMaterial: {fileID: 826596978508836109, guid: 7518cef3c77214ca79f7bd02662bf8ce, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
+  m_sharedMaterial: {fileID: 4929398677040182365, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2159,8 +2161,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 134.55
-  m_fontSizeBase: 134.55
+  m_fontSize: 166.86
+  m_fontSizeBase: 166.86
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -4205,7 +4207,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &501990991
 RectTransform:
   m_ObjectHideFlags: 0
