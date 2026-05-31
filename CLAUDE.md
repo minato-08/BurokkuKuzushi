@@ -66,9 +66,10 @@ SampleScene
 │   └── ArenaController
 │       ├── HitStopController
 │       └── LaunchAimer
-├── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
-└── CenterUI_Old (inactive)  ← 旧 UI バックアップ。最終確認後に削除予定
+└── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
 ```
+
+> `CenterUI_Old` は 2026-05-31 に削除済み（新 UI へ完全移行）。重複していた UIManager/MatchResultUI/SkillSelectUI も一掃。
 
 ### カメラ構成（単カメラ Ortho 化）
 
@@ -112,6 +113,8 @@ _UI                                    ← トップレベルフォルダ（Tran
 │   │   └── _BloomyFrames/
 │   │       ├── Bloom Left / Bloom Right
 │   └── _Components                    ← 機能 UI
+│       ├── _TitlePanel                (モーダル、TitleUI が制御。START/SETTINGS/QUIT)
+│       ├── _SettingsPanel             (モーダル、SettingsUI が制御。先取数のみ)
 │       ├── _SkillSelectPanel          (モーダル、SkillSelectUI が制御)
 │       ├── _MatchResultPanel          (モーダル、MatchResultUI が制御)
 │       ├── _P1Components/             ← P1 HUD（左側）
@@ -148,13 +151,14 @@ _UI                                    ← トップレベルフォルダ（Tran
 
 ### UI 連携の現状
 
-- `_UI/_CameraSpace/_Base` が rootCanvas（Screen Space - Camera / MainCamera 参照）。`UIManager` / `MatchResultUI` / `SkillSelectUI` はここにアタッチ
-- `MatchResultUI` / `SkillSelectUI` は新パネル (`_MatchResultPanel` / `_SkillSelectPanel`) に**バインド済み** → そのまま動く
+- `_UI/_CameraSpace/_Base` が rootCanvas（Screen Space - Camera / MainCamera 参照）。`UIManager` / `MatchResultUI` / `SkillSelectUI` / `TitleUI` / `SettingsUI` はここにアタッチ
+- `MatchResultUI`（→`_MatchResultPanel`）/ `TitleUI`（→`_TitlePanel`）/ `SettingsUI`（→`_SettingsPanel`）は **バインド済み・実機表示確認済み**（2026-05-31）
+- `SkillSelectUI` は `panel` / `p1StatusText` / `p2StatusText` バインド済みで機能するが、**`cardP1Highlights[4]` / `cardP2Highlights[4]`（4枚カードのハイライト Image）は未バインド**。カードは手動配置後にバインドする
 - `UIManager` は新 UI 構造に合わせて refactor 済み。SerializeField を 3 区分に整理:
   - **[必須]** HP / Combo / Score / ActiveItem（新 UI に既存）→ Inspector でバインドが必要
   - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ（まだ UI 要素が無い）→ 配置後にバインド
   - **[演出]** 色閾値・スキル READY suffix 等
-- `GameManager` に `RegisterActiveItem(playerIndex, name, duration)` / `GetActiveItemName` / `GetActiveItemRemaining` を追加。`ItemDrop` が効果適用と同時に通知する（最後に取得した 1 個のみ表示・コルーチン上書きと整合）
+- `GameManager` はアクティブ効果を **`ActiveEffect` のリスト**（スロット/名前/期限）で追跡（同 `ItemEffectSlot` は上書き、期限切れ自動除去）。`RegisterActiveItem(playerIndex, slot, name, duration)` を `ItemDrop` が効果適用時に呼ぶ。HUD は当面 `GetActiveItemName` / `GetActiveItemRemaining` が**末尾（最新）1 個**を返して既存 1 スロットに表示。複数同時表示 UI は残作業（`GetActiveEffects()` で全件取得可）。`IsEffectSlotActive()` はドロップ過多抑制（`Block` の同スロット再抽選・スキップ）に使用
 
 ### 残作業（UI 連携）
 
@@ -231,10 +235,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `HPStateBand` クラスも同ファイルで定義。Inspector で hpStateBands[] 配列を設定する（空なら全倍率1.0で動作）
 - HP帯に応じた動的パラメータ参照: `GetCurrentBand(playerIndex)` → `HPStateBand`
 - `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
-- `GetCombo(playerIndex)` は「次の妨害送付までのブロック破壊カウント」を返す（`p1DestroyedCount`）
+- `GetCombo(playerIndex)` は現在のコンボ値（`p1Combo` / `p2Combo`）を返す。コンボは **ブロック接触ごと**に `RegisterBallHitBlock` で +1（破壊不要、DESIGN.md 5.8）。`RegisterBlockDestroyed` はエナジー蓄積のみ担う
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
-
-> ⚠️ **仕様とコードの乖離（2026-05-20）**: DESIGN.md 5.7 では「コンボ自動妨害を撤廃し攻撃アイテム経由に移行」と定義済みだが、上記の `p1DestroyedCount` / `SendSabotageTo` 実装はまだ旧モデルのまま。Phase F-Combat（ROADMAP.md 参照）で削除予定。実装着手時は `GameManager.SendInterference(targetPi, payload)` 経路に統一する。
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Polish 追加実装**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Polish のチェックリストに含まれる:
 > - （パドル反射ゾーンは 2026-05-28 仕様変更で廃止済み — 単純な物理反射に統一）
@@ -243,7 +245,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 >
 > 実装済み:
 > - **攻撃アイテム経由モデル**: ItemType 拡張 + `EffectAttack` → `GameManager.SendInterference` 経路。コンボ自動妨害は撤廃済み。
-> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。起点は「最後のブロック破壊後」。
+> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。**ブロック接触ごとに +1**（破壊不要、`RegisterBallHitBlock`）。タイマー起点は「最後のブロック接触後」。
 > - **罠アイテム** (Shrink/Hyper/Reversed): `Block.trapDisguiseChance` で強化枠に偽装。`PlayerController.inputReversed` 実装済み。
 > - **Dynamic Escalation**: `BlockSpawner` の base/decay/min・base/gain/max + `roundElapsedTime` 実装済み。
 > - **コンボマイルストーン / 攻撃側 SENT ラベル**: `UIManager.ShowComboMilestone` / `ShowSentLabel` とトリガー実装済み。**UI 要素は未バインド**（後述の任意セクションでバインド）。
@@ -261,9 +263,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 > - **ブロック衝突 SE 50ms クールダウン**: `lastBlockSeTime` を保持し `unscaledTime` 差分で抑制。
 > - **BGM クロスフェード（HP 30% 帯・5% ヒステリシス）**: `bgm_match_base` と `bgm_match_tense` の同時再生 + Volume Lerp。
 
-> ⚠️ **仕様とコードの乖離 — Phase F-Title 追加実装（2026-05-28 改訂）**: DESIGN.md で定義済みだがコードに未実装:
-> - **GameState 拡張**: `Countdown` / `RoundIntermission` の 2 状態を `GameManager.GameState` enum に追加。
-> - **2026-05-28 廃止**: ポーズ機能 / 設定 UI (`SettingsPanel`) / チュートリアル / AI対戦 (`AIPlayerController`) — DESIGN.md から削除済み。実装側にコードや TODO が残っている場合は削除対象。
+> **Phase F-Title 実装状況**:
+> - **`GameState.Title` 実装済み**（旧 `WaitingToStart` を流用）。起動時 `Title`（`Time.timeScale=0`）→ `StartFromTitle()` で `SkillSelect` へ。`TitleUI` / `SettingsUI`（先取数のみ）を `_Base` に追加済み（パネル等は Figma 後にバインド）。`SetRoundsToWin/GetRoundsToWin` 追加。
+> - 未実装: **GameState 拡張** `Countdown` / `RoundIntermission` の 2 状態（DESIGN.md 定義済み）。
+> - **2026-05-28 廃止**: ポーズ機能 / チュートリアル / AI対戦 (`AIPlayerController`)。設定 UI は「先取数のみ」で最小復活（2026-05-30、音量/アクセシビリティは含めない）。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
@@ -296,7 +299,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
 - `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
-- `ResetForNewRound()` は ZonePoison / ZoneSlow 両方をクリア
+- `ResetForNewRound()` は次をクリア/解除: メインボール再配置 + スポーナー再生成 / **SkillBall_Multi の追加ボール破棄** / **未取得の落下アイテム破棄** / **パドル一時効果解除 (`PlayerController.ResetState()`)** / ZonePoison / ZoneSlow。加えて `GameManager` 側で `ClearActiveItems()` を BeginMatch/StartNextRound で呼ぶ
 
 ### `LaunchAimer.cs`
 - `ArenaController` の子 GameObject にアタッチ（Setup LaunchAimer で自動生成）
@@ -336,6 +339,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `rb.isKinematic = true` + `transform.localPosition` 直接操作
 - 1P: A/D（または矢印キー）、2P: J/L
 - `SetWidthTemporary(multiplier, duration)`: アイテム効果でパドル幅を一時変更（`localScale.x` 変更、コルーチン）
+- `SetInputReversedTemporary(duration)`: 左右入力反転（TrapBall_Reversed）
+- `ResetState()`: ラウンド遷移時に幅・入力反転・フラッシュコルーチンを全停止し、スケール/色を初期値へ復元（`ArenaController.ResetForNewRound` から呼ばれる）
 
 ### `DeadZone.cs`
 - `ballSpawnOffsetY` と PlayerController.localPosition.y から動的にリスポーン位置を算出
@@ -376,7 +381,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出
 - アイテムは AddComponent で生成（Prefab なし）。public フィールドの値がそのまま使われる
 - `ArenaController.SpawnItem(worldPos, type)` から生成。底 Y を超えたら自動 Destroy
-- パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, name, duration)` を呼ぶ。`GetActiveDuration()` がアイテム種別から duration を判定（Heal は 0 で UI 表示しない）
+- パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, slot, name, duration)` を呼ぶ。`slot` は `ItemDefinition.GetEffectSlot()`、duration は `GetActiveDuration()`（Heal/Attack は slot=None・duration=0 で登録されない）
 
 ### `SkillController.cs`
 - ArenaController.Awake() で自動生成・Initialize される
@@ -392,14 +397,29 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
-- A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
-- 再戦: `GameManager.StartRematch()` — スキル選択画面に戻る
-- SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下に**バインド済み**
+- `Start()` で `HidePanel()`（シーン既定で active 保存されていても起動時に隠す。`panelShown` 初期 false 対策）
+- **サマリー版**（2026-05-31 簡素化、Result A の勝数ピップ/スコア分割は廃止）: `matchWinnerText`("P{N} WINS!") / `scoreSummaryText`("P1: x pts  P2: y pts") / `winsSummaryText`("P1: a wins  P2: b wins") / `rematchText`・`menuText`(選択色トグル) / `hintText`
+- A/D（J/L）で再戦/メニュー選択、Space 確定。再戦→`GameManager.StartRematch()`、メニュー→シーンリロード
+- 動的要素は全て null セーフ。シーンの `_MatchResultPanel/...` 配下にバインド（`scoreSummaryText`/`winsSummaryText` は再バインドが必要）
 
 ### `SkillSelectUI.cs`
 - 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
-- 1P: A/D でサイクル・S で確定 / 2P: J/L でサイクル・K で確定
-- SerializeField は `_UI/_CameraSpace/_Components/_SkillSelectPanel/...` 配下に**バインド済み**
+- **4 枚カード方式（カード色で選択表現）**（DESIGN.md 5.6, 2026-05-31 簡素化）。1P: A/D でカード移動・S 確定 / 2P: J/L でカード移動・K 確定。別カーソル GameObject は置かず、各カードに重ねた P1/P2 ハイライト Image の **色**を切り替える（選択=点灯 P1水色/P2赤、未選択=透明、確定=不透明）
+- `cardP1Highlights[4]` / `cardP2Highlights[4]`（Image 配列、index=AllSkills 並び順）。**未バインドでも安全に動作**（入力・確定・BeginMatch は機能）
+- カード名/説明は静的（シーン側に固定配置）。旧 `p1SkillText`/`p2SkillText`（単一サイクル表示）・旧 `cardP1Cursors`/`cardP1Confirmed`（SetActive 方式）は廃止
+- ⚠️ **要バインド**: `panel` / `cardP1Highlights[4]` / `cardP2Highlights[4]` / `p1StatusText` / `p2StatusText`
+
+### `TitleUI.cs`
+- 起動時のタイトル画面。`GameState.Title` の間 panel を表示。`_Base` にアタッチ済み
+- メニュー 0=START / 1=SETTINGS / 2=QUIT。W/S・↑/↓ で移動、Space/Enter 確定。START→`GameManager.StartFromTitle()`、SETTINGS→`settingsUI.Open()`、QUIT→`Application.Quit()`
+- **選択中項目はテキスト色で表現**（2026-05-31 簡素化、別カーソル不要）: `startText`/`settingsText`/`quitText` の色を `selectedColor`/`normalColor` で切替。設定を開いている間は panel を隠す
+- ⚠️ **要バインド**: `panel` / `startText` / `settingsText` / `quitText`（`settingsUI` は同 `_Base` の SettingsUI に配線）
+
+### `SettingsUI.cs`
+- 設定画面（最小・**先取数のみ**, DESIGN.md 11.3）。`_Base` にアタッチ済み。`Open()`/`Close()`/`IsOpen`
+- 先取数 1〜5 を A/D・←/→ で増減、`roundsValueText` に反映。Esc/Space/Enter で閉じる
+- `PlayerPrefs "match.roundsToWin"` に保存、`Start()` で `GameManager.SetRoundsToWin()` に適用
+- ⚠️ **要バインド**: `panel` / `roundsValueText`
 
 ### `UIManager.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。毎フレーム GameManager をポーリングして更新

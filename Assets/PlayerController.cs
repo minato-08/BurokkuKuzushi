@@ -35,6 +35,18 @@ public class PlayerController : MonoBehaviour, IFreezable
     public void Freeze()   => frozen = true;
     public void Unfreeze() => frozen = false;
 
+    // ラウンド遷移時にパドルの一時効果（幅・入力反転・フラッシュ）を全て解除する。
+    // ArenaController.ResetForNewRound から呼ばれる。
+    public void ResetState()
+    {
+        if (widthRoutine   != null) { StopCoroutine(widthRoutine);   widthRoutine   = null; }
+        if (reverseRoutine != null) { StopCoroutine(reverseRoutine); reverseRoutine = null; }
+        if (flashRoutine   != null) { StopCoroutine(flashRoutine);   flashRoutine   = null; }
+        inputReversed = false;
+        transform.localScale = originalScale;
+        if (paddleRenderer != null) paddleRenderer.material.color = originalColor;
+    }
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();

@@ -36,6 +36,9 @@ public class Block : MonoBehaviour
     [SerializeField] private float baseDropChance = 0.15f;
     // 強化枠が出る際、この確率で「強化に偽装した罠」に置き換える（DESIGN.md 5.5.3 の紛らわしさ）
     [Range(0f, 1f)] [SerializeField] private float trapDisguiseChance = 0.1f;
+    // 抽選した持続効果が既に有効なスロットだった場合の再抽選上限。
+    // 上限まで再抽選しても同スロットなら、そのドロップはスキップする（DESIGN.md 5.5 ドロップ過多抑制）
+    [SerializeField] private int maxSlotRerolls = 2;
 
     [Header("ブロック色設定")]
     [SerializeField] private Color normalColor    = new Color(0.490f, 0.639f, 1.000f); // #7da3ff 青
@@ -75,6 +78,10 @@ public class Block : MonoBehaviour
         if (!collision.gameObject.CompareTag("BallTag")) return;
 
         BallScript ball = collision.gameObject.GetComponent<BallScript>();
+
+        // コンボはブロック接触ごとに +1（破壊しなくても加算, DESIGN.md 5.8）
+        if (ball != null && GameManager.Instance != null)
+            GameManager.Instance.RegisterBallHitBlock(ball.playerIndex);
 
         // 吸収ブロック：ボールを減速
         if (blockType == BlockType.Absorb)
@@ -179,6 +186,19 @@ public class Block : MonoBehaviour
             ? GameManager.Instance.GetCurrentBand(ball.playerIndex).goodItemBias
             : 0f;
         ItemType type = SelectRandomItemType(bias, trapDisguiseChance);
+
+        // ドロップ過多抑制: 抽選結果の持続効果スロットが既に有効なら再抽選。
+        // maxSlotRerolls 回試しても解消しなければドロップをスキップ（DESIGN.md 5.5）。
+        // Heal / Attack 系はスロット None なので抑制対象外。
+        if (GameManager.Instance != null)
+        {
+            int rerolls = 0;
+            while (GameManager.Instance.IsEffectSlotActive(ball.playerIndex, ItemDefinition.GetEffectSlot(type)))
+            {
+                if (++rerolls > maxSlotRerolls) return;
+                type = SelectRandomItemType(bias, trapDisguiseChance);
+            }
+        }
 
         GetArena()?.SpawnItem(transform.position, type);
     }
