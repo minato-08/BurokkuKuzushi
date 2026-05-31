@@ -222,21 +222,17 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator CountdownCoroutine()
     {
-        (string label, float dur)[] steps =
-        {
-            ("3",   countdownStepSec),
-            ("2",   countdownStepSec),
-            ("1",   countdownStepSec),
-            ("GO!", countdownGoSec),
-        };
-        foreach (var (label, dur) in steps)
-        {
-            CountdownLabel = label;
-            yield return new WaitForSecondsRealtime(dur);
-        }
-        CountdownLabel = "";
+        // 3 → 2 → 1（停止したまま）
+        CountdownLabel = "3"; yield return new WaitForSecondsRealtime(countdownStepSec);
+        CountdownLabel = "2"; yield return new WaitForSecondsRealtime(countdownStepSec);
+        CountdownLabel = "1"; yield return new WaitForSecondsRealtime(countdownStepSec);
+
+        // GO! を出した瞬間にゲーム開始（GO! は表示したまま countdownGoSec 残す）
+        CountdownLabel = "GO!";
         currentState   = GameState.Playing;
         Time.timeScale = 1f;
+        yield return new WaitForSecondsRealtime(countdownGoSec);
+        CountdownLabel = "";
     }
 
     // =====================================================

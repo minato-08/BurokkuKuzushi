@@ -12,16 +12,17 @@ public class CountdownUI : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
-        bool isCountdown = GameManager.Instance.GetCurrentState() == GameManager.GameState.Countdown;
-        string label = isCountdown ? GameManager.Instance.CountdownLabel : "";
+        // ラベルが出ている間だけ表示（GO! 表示中は Playing でも出し続ける）
+        string label = GameManager.Instance.CountdownLabel;
+        bool show = !string.IsNullOrEmpty(label);
 
         if (countdownTexts == null) return;
         for (int i = 0; i < countdownTexts.Length; i++)
         {
             var t = countdownTexts[i];
             if (t == null) continue;
-            if (t.gameObject.activeSelf != isCountdown) t.gameObject.SetActive(isCountdown);
-            if (isCountdown) t.text = label;
+            if (t.gameObject.activeSelf != show) t.gameObject.SetActive(show);
+            if (show) t.text = label;
         }
     }
 }
