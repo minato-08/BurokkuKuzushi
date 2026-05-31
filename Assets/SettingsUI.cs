@@ -12,6 +12,8 @@ public class SettingsUI : MonoBehaviour
 
     [SerializeField] private GameObject      panel;
     [SerializeField] private TextMeshProUGUI roundsValueText; // 先取数の数値表示（"3" 等）
+    [SerializeField] private GameObject      arrowLeft;        // 最小値(1)では非表示
+    [SerializeField] private GameObject      arrowRight;       // 最大値(5)では非表示
 
     private int  rounds = 1;
     private bool prevSettings;
@@ -64,5 +66,7 @@ public class SettingsUI : MonoBehaviour
     private void RefreshUI()
     {
         if (roundsValueText != null) roundsValueText.text = rounds.ToString();
+        if (arrowLeft  != null && arrowLeft.activeSelf  != (rounds > 1)) arrowLeft.SetActive(rounds > 1);
+        if (arrowRight != null && arrowRight.activeSelf != (rounds < 5)) arrowRight.SetActive(rounds < 5);
     }
 }

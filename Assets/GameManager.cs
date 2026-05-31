@@ -78,6 +78,7 @@ public class GameManager : MonoBehaviour
         Title,          // 起動直後のタイトル画面（旧 WaitingToStart）
         Settings,       // スキル選択前の設定（先取数）
         SkillSelect,
+        Countdown,      // ラウンド開始前のカウントダウン（3,2,1,GO!）
         Playing,
         RoundOver,
         MatchOver
@@ -181,12 +182,11 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.SkillSelect) return;
 
-        currentState = GameState.Playing;
-        Time.timeScale = 1f;
-
         ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
+
+        BeginCountdown();
     }
 
     public void StartRematch() => StartSkillSelect(isNewMatch: true);
@@ -205,8 +205,36 @@ public class GameManager : MonoBehaviour
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
 
+        BeginCountdown();
+    }
+
+    // ラウンド開始前のカウントダウン（3,2,1,GO!）。終わると Playing へ
+    public string CountdownLabel { get; private set; }
+
+    private void BeginCountdown()
+    {
+        currentState   = GameState.Countdown;
+        Time.timeScale = 0f;
+        StartCoroutine(CountdownCoroutine());
+    }
+
+    private IEnumerator CountdownCoroutine()
+    {
+        (string label, float dur)[] steps =
+        {
+            ("3",   0.7f),
+            ("2",   0.7f),
+            ("1",   0.7f),
+            ("GO!", 0.5f),
+        };
+        foreach (var (label, dur) in steps)
+        {
+            CountdownLabel = label;
+            yield return new WaitForSecondsRealtime(dur);
+        }
+        CountdownLabel = "";
+        currentState   = GameState.Playing;
         Time.timeScale = 1f;
-        currentState = GameState.Playing;
     }
 
     // =====================================================
