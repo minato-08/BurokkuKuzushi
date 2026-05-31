@@ -66,9 +66,10 @@ SampleScene
 │   └── ArenaController
 │       ├── HitStopController
 │       └── LaunchAimer
-├── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
-└── CenterUI_Old (inactive)  ← 旧 UI バックアップ。最終確認後に削除予定
+└── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
 ```
+
+> `CenterUI_Old` は 2026-05-31 に削除済み（新 UI へ完全移行）。重複していた UIManager/MatchResultUI/SkillSelectUI も一掃。
 
 ### カメラ構成（単カメラ Ortho 化）
 
@@ -112,6 +113,8 @@ _UI                                    ← トップレベルフォルダ（Tran
 │   │   └── _BloomyFrames/
 │   │       ├── Bloom Left / Bloom Right
 │   └── _Components                    ← 機能 UI
+│       ├── _TitlePanel                (モーダル、TitleUI が制御。START/SETTINGS/QUIT)
+│       ├── _SettingsPanel             (モーダル、SettingsUI が制御。先取数のみ)
 │       ├── _SkillSelectPanel          (モーダル、SkillSelectUI が制御)
 │       ├── _MatchResultPanel          (モーダル、MatchResultUI が制御)
 │       ├── _P1Components/             ← P1 HUD（左側）
@@ -148,8 +151,9 @@ _UI                                    ← トップレベルフォルダ（Tran
 
 ### UI 連携の現状
 
-- `_UI/_CameraSpace/_Base` が rootCanvas（Screen Space - Camera / MainCamera 参照）。`UIManager` / `MatchResultUI` / `SkillSelectUI` はここにアタッチ
-- `MatchResultUI` / `SkillSelectUI` は新パネル (`_MatchResultPanel` / `_SkillSelectPanel`) に**バインド済み** → そのまま動く
+- `_UI/_CameraSpace/_Base` が rootCanvas（Screen Space - Camera / MainCamera 参照）。`UIManager` / `MatchResultUI` / `SkillSelectUI` / `TitleUI` / `SettingsUI` はここにアタッチ
+- `MatchResultUI`（→`_MatchResultPanel`）/ `TitleUI`（→`_TitlePanel`）/ `SettingsUI`（→`_SettingsPanel`）は **バインド済み・実機表示確認済み**（2026-05-31）
+- `SkillSelectUI` は `panel` / `p1StatusText` / `p2StatusText` バインド済みで機能するが、**`cardP1Highlights[4]` / `cardP2Highlights[4]`（4枚カードのハイライト Image）は未バインド**。カードは手動配置後にバインドする
 - `UIManager` は新 UI 構造に合わせて refactor 済み。SerializeField を 3 区分に整理:
   - **[必須]** HP / Combo / Score / ActiveItem（新 UI に既存）→ Inspector でバインドが必要
   - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ（まだ UI 要素が無い）→ 配置後にバインド
