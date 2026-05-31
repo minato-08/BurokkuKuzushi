@@ -5971,7 +5971,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -14299,8 +14299,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7cfd52ba66214a769e88d8b4a325ecb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CountdownUI
-  root: {fileID: 783352307}
-  countdownText: {fileID: 783352309}
+  countdownTexts:
+  - {fileID: 783352309}
 --- !u!1 &1955153302
 GameObject:
   m_ObjectHideFlags: 0
@@ -15428,6 +15428,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   roundsToWin: 1
   nextRoundDelay: 2
+  countdownStepSec: 1
+  countdownGoSec: 0.6
   maxHP: 500
   damageBallDrop: 5
   damageBlockReachBottom: 10

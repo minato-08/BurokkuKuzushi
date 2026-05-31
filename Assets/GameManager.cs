@@ -24,6 +24,8 @@ public class GameManager : MonoBehaviour
     [Header("試合設定")]
     [SerializeField] private int   roundsToWin    = 1;
     [SerializeField] private float nextRoundDelay = 2f;
+    [SerializeField] private float countdownStepSec = 1.0f;  // 3/2/1 各数字の表示秒
+    [SerializeField] private float countdownGoSec   = 0.6f;  // GO! の表示秒
 
     [Header("HP設定")]
     [SerializeField] private int maxHP                  = 500;
@@ -222,10 +224,10 @@ public class GameManager : MonoBehaviour
     {
         (string label, float dur)[] steps =
         {
-            ("3",   0.7f),
-            ("2",   0.7f),
-            ("1",   0.7f),
-            ("GO!", 0.5f),
+            ("3",   countdownStepSec),
+            ("2",   countdownStepSec),
+            ("1",   countdownStepSec),
+            ("GO!", countdownGoSec),
         };
         foreach (var (label, dur) in steps)
         {
