@@ -76,6 +76,7 @@ public class GameManager : MonoBehaviour
     public enum GameState
     {
         Title,          // 起動直後のタイトル画面（旧 WaitingToStart）
+        Settings,       // スキル選択前の設定（先取数）
         SkillSelect,
         Playing,
         RoundOver,
@@ -109,11 +110,26 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f;
     }
 
-    // タイトルの START から呼ばれる。スキル選択へ進む
+    // タイトルの START から呼ばれる。設定画面（先取数）へ進む
     public void StartFromTitle()
     {
         if (currentState != GameState.Title) return;
+        currentState   = GameState.Settings;
+        Time.timeScale = 0f;
+    }
+
+    // 設定画面の確定で呼ばれる。スキル選択へ進む（新規マッチ）
+    public void ConfirmSettings()
+    {
+        if (currentState != GameState.Settings) return;
         StartSkillSelect(isNewMatch: true);
+    }
+
+    // 設定画面からタイトルへ戻る
+    public void ReturnToTitle()
+    {
+        currentState   = GameState.Title;
+        Time.timeScale = 0f;
     }
 
     // 設定画面から先取数を変更（1〜5 にクランプ）。試合中の変更は次マッチから有効
