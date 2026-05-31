@@ -30,7 +30,14 @@ public class BackdropBlur : MonoBehaviour
     [Header("品質 / 見た目")]
     [SerializeField, Range(0, 4)] private int   downsample = 2;     // 解像度を 1/2^n に（大きいほど軽く・ぼける）
     [SerializeField, Range(0, 10)] private int  iterations = 5;     // ブラー反復回数（多いほど強い）
-    [SerializeField, Range(0f, 1f)] private float darken   = 0.5f;  // 暗転度（0=そのまま, 1=真っ黒）
+    [SerializeField, Range(0f, 1f)] private float darken   = 0.35f; // 暗転度（手動Capture用の既定。0=そのまま, 1=真っ黒）
+
+    [Header("状態別の暗さ（自動ドライブ時に適用。0=そのまま 1=真っ黒）")]
+    [SerializeField, Range(0f, 1f)] private float darkenTitle       = 0.30f;
+    [SerializeField, Range(0f, 1f)] private float darkenSettings    = 0.40f;
+    [SerializeField, Range(0f, 1f)] private float darkenSkillSelect = 0.40f;
+    [SerializeField, Range(0f, 1f)] private float darkenRoundOver   = 0.25f;
+    [SerializeField, Range(0f, 1f)] private float darkenMatchOver   = 0.55f;
 
     [Header("自動ドライブ")]
     // true なら GameManager の状態を監視し、メニュー状態(Title/SkillSelect/MatchOver)で Capture、
@@ -53,9 +60,19 @@ public class BackdropBlur : MonoBehaviour
                    || s == GameManager.GameState.SkillSelect
                    || s == GameManager.GameState.RoundOver
                    || s == GameManager.GameState.MatchOver;
-        if (isMenu) Capture();
+        if (isMenu) { darken = DarkenFor(s); Capture(); }
         else        Clear();
     }
+
+    private float DarkenFor(GameManager.GameState s) => s switch
+    {
+        GameManager.GameState.Title       => darkenTitle,
+        GameManager.GameState.Settings    => darkenSettings,
+        GameManager.GameState.SkillSelect => darkenSkillSelect,
+        GameManager.GameState.RoundOver   => darkenRoundOver,
+        GameManager.GameState.MatchOver   => darkenMatchOver,
+        _ => darken,
+    };
 
     public bool IsShown => backdropImage != null && backdropImage.enabled;
 

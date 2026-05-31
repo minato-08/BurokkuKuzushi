@@ -1,7 +1,6 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
 // マッチ終了時の結果画面（GameObject 表示切替方式）。_UI/_CameraSpace/_Base にアタッチ。
 // GameState.MatchOver でパネルを表示。A/D（J/L）で 再戦/メニュー を選択、Space/Enter で確定。
@@ -106,14 +105,9 @@ public class MatchResultUI : MonoBehaviour
     {
         HidePanel();
         if (selectedIndex == 0)
-        {
             GameManager.Instance.StartRematch(); // 再戦 → スキル選択へ
-        }
         else
-        {
-            Time.timeScale = 1f;
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name); // メニュー → シーンリロード
-        }
+            GameManager.Instance.ReturnToTitle(); // メニュー → タイトルへ（シーンはリロードしない）
     }
 
     private static void Set(GameObject go, bool on)

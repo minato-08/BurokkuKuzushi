@@ -20,18 +20,21 @@ public class SettingsUI : MonoBehaviour
     {
         bool isSettings = GameManager.Instance?.GetCurrentState() == GameManager.GameState.Settings;
 
-        // 設定に入った瞬間に現在値をロードして表示
-        if (isSettings && !prevSettings)
+        if (panel != null && panel.activeSelf != isSettings) panel.SetActive(isSettings);
+
+        if (!isSettings) { prevSettings = false; return; }
+
+        // 設定に入った最初のフレームは現在値をロードして表示し、入力は処理しない
+        // （タイトルで押した Space をこのフレームの「確定」として消費しないため）
+        if (!prevSettings)
         {
+            prevSettings = true;
             int def = GameManager.Instance != null ? GameManager.Instance.GetRoundsToWin() : 1;
             rounds = Mathf.Clamp(PlayerPrefs.GetInt(PrefKey, def), 1, 5);
             GameManager.Instance?.SetRoundsToWin(rounds);
             RefreshUI();
+            return;
         }
-        prevSettings = isSettings;
-
-        if (panel != null && panel.activeSelf != isSettings) panel.SetActive(isSettings);
-        if (!isSettings) return;
 
         HandleInput();
     }
