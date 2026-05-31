@@ -8,7 +8,7 @@ using UnityEngine.UI;
 // セットアップ:
 //   1) いずれかの常駐 GameObject（例: _UI/_CameraSpace/_Panels）に本コンポーネントを 1 個付ける。
 //   2) パネル群の最背面に全画面 RawImage を 1 枚置き、backdropImage にバインド。
-//   3) KawaseBlur.shader からマテリアルを作り（Create > Material → Shader: Hidden/KawaseBlur）、blurMaterial にバインド。
+//   3) KawaseBlur.shader からマテリアルを作り（Create > Material → Shader: Custom/KawaseBlur）、blurMaterial にバインド。
 //   4) メニューを開く瞬間に Capture()、閉じる時に Clear() を呼ぶ（各 UI スクリプトから）。
 //
 // 呼び出し例（TitleUI など）:
@@ -25,7 +25,7 @@ public class BackdropBlur : MonoBehaviour
 {
     [Header("バインド")]
     [SerializeField] private RawImage backdropImage;   // パネル最背面の全画面 RawImage
-    [SerializeField] private Material blurMaterial;     // Hidden/KawaseBlur から作ったマテリアル
+    [SerializeField] private Material blurMaterial;     // Custom/KawaseBlur から作ったマテリアル
 
     [Header("品質 / 見た目")]
     [SerializeField, Range(0, 4)] private int   downsample = 2;     // 解像度を 1/2^n に（大きいほど軽く・ぼける）

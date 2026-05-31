@@ -1,7 +1,7 @@
 // Kawase ブラー。Graphics.Blit(src, dst, mat) で複数回呼び、_Offset を 0,1,2... と増やすと
 // 軽量できれいなブラーになる。BackdropBlur.cs から使う想定（メニュー背景の磨りガラス用）。
 // Graphics.Blit 用の素朴なイメージエフェクトシェーダ（URP でも手動 Blit なら問題なく動く）。
-Shader "Hidden/KawaseBlur"
+Shader "Custom/KawaseBlur"
 {
     Properties
     {
