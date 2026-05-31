@@ -14477,10 +14477,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BackdropBlur
   backdropImage: {fileID: 1870739314}
-  blurMaterial: {fileID: 2100000, guid: 56f57e8e25c6e4664bdc60d945bd7978, type: 2}
+  blurMaterial: {fileID: 2100000, guid: 3ea32aafd970c4706bdd305ff457f476, type: 2}
   downsample: 2
   iterations: 5
   darken: 0.5
+  autoDriveByGameState: 1
 --- !u!114 &2096451848
 MonoBehaviour:
   m_ObjectHideFlags: 0

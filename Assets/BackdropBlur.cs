@@ -32,8 +32,28 @@ public class BackdropBlur : MonoBehaviour
     [SerializeField, Range(0, 10)] private int  iterations = 5;     // ブラー反復回数（多いほど強い）
     [SerializeField, Range(0f, 1f)] private float darken   = 0.5f;  // 暗転度（0=そのまま, 1=真っ黒）
 
+    [Header("自動ドライブ")]
+    // true なら GameManager の状態を監視し、メニュー状態(Title/SkillSelect/MatchOver)で Capture、
+    // それ以外(Playing/RoundOver)で Clear する。各 UI スクリプトから手動で呼ぶ必要がなくなる。
+    [SerializeField] private bool autoDriveByGameState = true;
+
     private RenderTexture current;
     private bool warned;
+    private GameManager.GameState? prevState;
+
+    private void Update()
+    {
+        if (!autoDriveByGameState || GameManager.Instance == null) return;
+        var s = GameManager.Instance.GetCurrentState();
+        if (prevState.HasValue && prevState.Value == s) return;
+        prevState = s;
+
+        bool isMenu = s == GameManager.GameState.Title
+                   || s == GameManager.GameState.SkillSelect
+                   || s == GameManager.GameState.MatchOver;
+        if (isMenu) Capture();
+        else        Clear();
+    }
 
     public bool IsShown => backdropImage != null && backdropImage.enabled;
 
