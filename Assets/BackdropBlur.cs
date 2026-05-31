@@ -2,67 +2,96 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-// メニュー背景の「磨りガラス」演出の仕組み（止め画キャプチャ → ブラー → 暗転）。
-// ゲームはメニュー中 Time.timeScale=0 で止まっているので、開いた瞬間に 1 回生成すれば足りる（激軽）。
+// メニュー背景の「磨りガラス」演出（止め画キャプチャ → ブラー → 暗転 → フェード）。
+// ゲームはメニュー中 Time.timeScale=0 で止まっているので、メニューに入った時に 1 回だけ撮れば足りる。
 //
-// セットアップ:
-//   1) いずれかの常駐 GameObject（例: _UI/_CameraSpace/_Panels）に本コンポーネントを 1 個付ける。
-//   2) パネル群の最背面に全画面 RawImage を 1 枚置き、backdropImage にバインド。
-//   3) KawaseBlur.shader からマテリアルを作り（Create > Material → Shader: Custom/KawaseBlur）、blurMaterial にバインド。
-//   4) メニューを開く瞬間に Capture()、閉じる時に Clear() を呼ぶ（各 UI スクリプトから）。
+// 自動ドライブ(autoDriveByGameState):
+//   非メニュー(Playing/Countdown) → メニュー(Title/Settings/SkillSelect/RoundOver/MatchOver) に入った時だけ Capture し、
+//   フェードインで表示。メニュー間の遷移では撮り直さない(暗さの色だけ更新)＝素のゲーム画面が挟まらない。
+//   メニュー → 非メニュー でフェードアウトして消す。
 //
-// 呼び出し例（TitleUI など）:
-//   [SerializeField] BackdropBlur backdrop;
-//   ... Open 時:  backdrop?.Capture();
-//   ... Close 時: backdrop?.Clear();
-//
-// 注意: Capture() は「その瞬間に画面に映っているもの」を取り込む。パネルの前景が既に表示されていると
-//       それも写り込むので、Capture() は前景を出す前（メニュー遷移の瞬間）に呼ぶこと。backdropImage は
-//       キャプチャ中だけ自動で隠すので自分自身は写り込まない。
-// 何もバインドされていなくても安全（警告を 1 回だけ出して何もしない）。
+// セットアップ: 常駐 GameObject(例 _Panels)に付け、パネル最背面の全画面 RawImage を backdropImage に、
+//   Custom/KawaseBlur マテリアルを blurMaterial にバインド。未バインドでも安全。
 [DisallowMultipleComponent]
 public class BackdropBlur : MonoBehaviour
 {
     [Header("バインド")]
-    [SerializeField] private RawImage backdropImage;   // パネル最背面の全画面 RawImage
-    [SerializeField] private Material blurMaterial;     // Custom/KawaseBlur から作ったマテリアル
+    [SerializeField] private RawImage backdropImage;
+    [SerializeField] private Material blurMaterial;
 
     [Header("品質 / 見た目")]
-    [SerializeField, Range(0, 4)] private int   downsample = 2;     // 解像度を 1/2^n に（大きいほど軽く・ぼける）
-    [SerializeField, Range(0, 10)] private int  iterations = 5;     // ブラー反復回数（多いほど強い）
-    [SerializeField, Range(0f, 1f)] private float darken   = 0.35f; // 暗転度（手動Capture用の既定。0=そのまま, 1=真っ黒）
+    [SerializeField, Range(0, 4)] private int   downsample = 2;
+    [SerializeField, Range(0, 10)] private int  iterations = 5;
+    [SerializeField, Range(0f, 1f)] private float darken   = 0.35f;
 
-    [Header("状態別の暗さ（自動ドライブ時に適用。0=そのまま 1=真っ黒）")]
+    [Header("状態別の暗さ（0=そのまま 1=真っ黒）")]
     [SerializeField, Range(0f, 1f)] private float darkenTitle       = 0.30f;
     [SerializeField, Range(0f, 1f)] private float darkenSettings    = 0.40f;
     [SerializeField, Range(0f, 1f)] private float darkenSkillSelect = 0.40f;
     [SerializeField, Range(0f, 1f)] private float darkenRoundOver   = 0.25f;
     [SerializeField, Range(0f, 1f)] private float darkenMatchOver   = 0.55f;
 
+    [Header("フェード（秒・unscaled）")]
+    [SerializeField] private float fadeInSeconds  = 0.22f;
+    [SerializeField] private float fadeOutSeconds = 0.18f;
+
     [Header("自動ドライブ")]
-    // true なら GameManager の状態を監視し、メニュー状態(Title/SkillSelect/MatchOver)で Capture、
-    // それ以外(Playing/RoundOver)で Clear する。各 UI スクリプトから手動で呼ぶ必要がなくなる。
     [SerializeField] private bool autoDriveByGameState = true;
 
     private RenderTexture current;
     private bool warned;
     private GameManager.GameState? prevState;
+    private bool  menuActive;     // 背景を出すべき状態か
+    private float alpha;          // 現在のフェード値
+    private float targetAlpha;    // 目標フェード値
 
     private void Update()
     {
-        if (!autoDriveByGameState || GameManager.Instance == null) return;
-        var s = GameManager.Instance.GetCurrentState();
-        if (prevState.HasValue && prevState.Value == s) return;
-        prevState = s;
+        if (autoDriveByGameState && GameManager.Instance != null)
+        {
+            var s = GameManager.Instance.GetCurrentState();
+            if (!prevState.HasValue || prevState.Value != s)
+            {
+                prevState = s;
+                bool isMenu = IsMenu(s);
+                darken = DarkenFor(s); // 暗さは毎状態で更新（メニュー間でも色は変わる）
 
-        bool isMenu = s == GameManager.GameState.Title
-                   || s == GameManager.GameState.Settings
-                   || s == GameManager.GameState.SkillSelect
-                   || s == GameManager.GameState.RoundOver
-                   || s == GameManager.GameState.MatchOver;
-        if (isMenu) { darken = DarkenFor(s); Capture(); }
-        else        Clear();
+                if (isMenu && !menuActive)       { menuActive = true;  targetAlpha = 1f; Capture(); } // 入場：撮影＋フェードイン
+                else if (!isMenu && menuActive)  { menuActive = false; targetAlpha = 0f; }            // 退場：フェードアウト
+                // メニュー間(isMenu && menuActive)は撮り直さない（暗さ色のみ上で更新済み）
+            }
+        }
+
+        ApplyFade();
     }
+
+    private void ApplyFade()
+    {
+        if (backdropImage == null) return;
+
+        float speed = targetAlpha > alpha
+            ? (fadeInSeconds  > 0f ? Time.unscaledDeltaTime / fadeInSeconds  : 1f)
+            : (fadeOutSeconds > 0f ? Time.unscaledDeltaTime / fadeOutSeconds : 1f);
+        alpha = Mathf.MoveTowards(alpha, targetAlpha, speed);
+
+        if (alpha <= 0.001f && targetAlpha <= 0f)
+        {
+            if (backdropImage.enabled) backdropImage.enabled = false;
+            ReleaseCurrent();
+            return;
+        }
+
+        if (!backdropImage.enabled) backdropImage.enabled = true;
+        float v = 1f - Mathf.Clamp01(darken);
+        backdropImage.color = new Color(v, v, v, alpha);
+    }
+
+    private static bool IsMenu(GameManager.GameState s) =>
+        s == GameManager.GameState.Title
+     || s == GameManager.GameState.Settings
+     || s == GameManager.GameState.SkillSelect
+     || s == GameManager.GameState.RoundOver
+     || s == GameManager.GameState.MatchOver;
 
     private float DarkenFor(GameManager.GameState s) => s switch
     {
@@ -76,47 +105,43 @@ public class BackdropBlur : MonoBehaviour
 
     public bool IsShown => backdropImage != null && backdropImage.enabled;
 
-    // メニューを開く瞬間に呼ぶ。現在の画面を取り込み、ぼかし・暗転して backdropImage に表示する。
+    // 現在の画面を取り込み、ぼかして表示する（フェードインは ApplyFade が担当）。
     public void Capture()
     {
         if (backdropImage == null || blurMaterial == null) { WarnOnce(); return; }
         if (!isActiveAndEnabled) return;
+        targetAlpha = 1f;
         StartCoroutine(CaptureRoutine());
     }
 
-    // メニューを閉じる時に呼ぶ。背景を隠して RT を解放する。
+    // フェードアウトして消す（実際の無効化・解放は ApplyFade が alpha=0 で行う）。
     public void Clear()
     {
-        if (backdropImage != null) backdropImage.enabled = false;
-        ReleaseCurrent();
+        menuActive = false;
+        targetAlpha = 0f;
     }
 
     private IEnumerator CaptureRoutine()
     {
-        // 自分自身を写さないようキャプチャ中は隠す
-        backdropImage.enabled = false;
-
-        // 描画完了後でないと画面を取得できない（timeScale=0 でもフレームは進むので発火する）
+        alpha = 0f;                      // 透明から開始（フェードイン）
+        backdropImage.enabled = false;   // 自分を写さない
         yield return new WaitForEndOfFrame();
 
         Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
-
         int w = Mathf.Max(1, shot.width  >> downsample);
         int h = Mathf.Max(1, shot.height >> downsample);
 
         var a = RenderTexture.GetTemporary(w, h, 0);
         var b = RenderTexture.GetTemporary(w, h, 0);
-
-        Graphics.Blit(shot, a);                 // 縮小しつつ取り込み
+        Graphics.Blit(shot, a);
         RenderTexture from = a, to = b;
-        for (int i = 0; i < iterations; i++)    // Kawase ブラー ping-pong
+        for (int i = 0; i < iterations; i++)
         {
             blurMaterial.SetFloat("_Offset", i);
             Graphics.Blit(from, to, blurMaterial);
             (from, to) = (to, from);
         }
 
-        // 表示用 RT に確定（メニュー表示中ずっと保持するので GetTemporary ではなく専用に確保）
         ReleaseCurrent();
         current = new RenderTexture(w, h, 0);
         current.Create();
@@ -127,9 +152,9 @@ public class BackdropBlur : MonoBehaviour
         Destroy(shot);
 
         backdropImage.texture = current;
-        float v = 1f - Mathf.Clamp01(darken); // 頂点カラー乗算で暗転
-        backdropImage.color = new Color(v, v, v, 1f);
-        backdropImage.enabled = true;
+        float v = 1f - Mathf.Clamp01(darken);
+        backdropImage.color = new Color(v, v, v, alpha);
+        backdropImage.enabled = true; // 以降は ApplyFade が alpha を上げる
     }
 
     private void ReleaseCurrent()
