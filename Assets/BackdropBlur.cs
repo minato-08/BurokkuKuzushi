@@ -51,6 +51,7 @@ public class BackdropBlur : MonoBehaviour
         bool isMenu = s == GameManager.GameState.Title
                    || s == GameManager.GameState.Settings
                    || s == GameManager.GameState.SkillSelect
+                   || s == GameManager.GameState.RoundOver
                    || s == GameManager.GameState.MatchOver;
         if (isMenu) Capture();
         else        Clear();

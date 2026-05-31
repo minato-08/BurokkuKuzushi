@@ -351,8 +351,12 @@ public class GameManager : MonoBehaviour
     // ラウンド・試合終了
     // =====================================================
 
+    // 直近に終わったラウンドの勝者（1 or 2）。RoundResultUI が参照する
+    public int LastRoundWinner { get; private set; }
+
     private void EndRound(int winner)
     {
+        LastRoundWinner = winner;
         if (winner == 1) p1RoundWins++;
         else             p2RoundWins++;
 
@@ -388,8 +392,11 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator NextRoundCoroutine()
     {
+        // ヒットストップ演出を少し見せてから停止し、ラウンド結果を表示（RoundResultUI）
+        yield return new WaitForSecondsRealtime(roundEndFrames / 60f);
+        Time.timeScale = 0f;
         yield return new WaitForSecondsRealtime(nextRoundDelay);
-        StartNextRound();
+        StartNextRound(); // timeScale=1 に戻る
     }
 
     // =====================================================
