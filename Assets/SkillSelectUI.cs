@@ -1,26 +1,31 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
-// 試合開始前のスキル選択画面（4 枚カード + P1/P2 独立カーソル, DESIGN.md 5.6）。
+// 試合開始前のスキル選択画面（4 枚カード, DESIGN.md 5.6）。
 // GameState.SkillSelect のあいだ panel を表示し、両者が確定すると BeginMatch する。
 // カードの並び順は AllSkills の index と一致させる（左→右で 0,1,2,3）。
-// カーソル配列は未バインドでも安全に動作する（Figma 構築前でも入力・確定は機能する）。
+//
+// 選択表現は「カードの色」で行う（別カーソル GameObject は置かない）:
+//   各カードに P1 用 / P2 用のハイライト Image を 1 枚ずつ置き、
+//   選択中カードのみ色を点灯（hoverColor）、未選択は透明（offColor）、確定後は confirmedColor。
+// ハイライト配列は未バインドでも安全に動作する（入力・確定・BeginMatch は機能する）。
 public class SkillSelectUI : MonoBehaviour
 {
     [Header("パネル")]
     [SerializeField] private GameObject panel;
 
-    [Header("カードカーソル（index は AllSkills の並び順と一致させること）")]
-    // 各プレイヤーが選択中（ホバー）のカードにのみ表示するカーソル/ハイライト。
-    // 長さは AllSkills.Length（=4）に合わせてバインドする。
-    [SerializeField] private GameObject[] cardP1Cursors;
-    [SerializeField] private GameObject[] cardP2Cursors;
+    [Header("カードハイライト Image（index は AllSkills の並び順 = 左→右 0..3）")]
+    [SerializeField] private Image[] cardP1Highlights; // 長さ 4
+    [SerializeField] private Image[] cardP2Highlights; // 長さ 4
 
-    [Header("カード確定ハイライト（任意・未バインドでも可）")]
-    // 確定後に選択カードへ表示する「✓ READY」状態。バインドすると hover と確定で見た目を分ける。
-    [SerializeField] private GameObject[] cardP1Confirmed;
-    [SerializeField] private GameObject[] cardP2Confirmed;
+    [Header("ハイライト色")]
+    [SerializeField] private Color p1HoverColor     = new Color(0.306f, 0.765f, 1.000f, 0.85f); // 水色
+    [SerializeField] private Color p2HoverColor     = new Color(1.000f, 0.306f, 0.455f, 0.85f); // 赤
+    [SerializeField] private Color p1ConfirmedColor = new Color(0.306f, 0.765f, 1.000f, 1.000f);
+    [SerializeField] private Color p2ConfirmedColor = new Color(1.000f, 0.306f, 0.455f, 1.000f);
+    [SerializeField] private Color offColor         = new Color(1f, 1f, 1f, 0f);                // 透明
 
     [Header("操作ガイド / 状態テキスト")]
     [SerializeField] private TextMeshProUGUI p1StatusText;
@@ -87,29 +92,21 @@ public class SkillSelectUI : MonoBehaviour
 
     private void RefreshUI()
     {
-        SetCardState(cardP1Cursors, cardP1Confirmed, p1Index, p1Confirmed);
-        SetCardState(cardP2Cursors, cardP2Confirmed, p2Index, p2Confirmed);
+        SetHighlights(cardP1Highlights, p1Index, p1Confirmed, p1HoverColor, p1ConfirmedColor);
+        SetHighlights(cardP2Highlights, p2Index, p2Confirmed, p2HoverColor, p2ConfirmedColor);
 
-        if (p1StatusText != null) p1StatusText.text = p1Confirmed ? "✓ READY ･ 相手を待機中…" : "A / D SELECT   S CONFIRM";
-        if (p2StatusText != null) p2StatusText.text = p2Confirmed ? "✓ READY ･ 相手を待機中…" : "J / L SELECT   K CONFIRM";
+        if (p1StatusText != null) p1StatusText.text = p1Confirmed ? "READY!" : "A / D  選択      S  決定";
+        if (p2StatusText != null) p2StatusText.text = p2Confirmed ? "READY!" : "J / L  選択      K  決定";
     }
 
-    // 選択カードに hover / 確定 のどちらかのハイライトを表示。未バインド/null 要素は安全にスキップ。
-    private static void SetCardState(GameObject[] cursors, GameObject[] confirmed, int selected, bool isConfirmed)
+    // 選択中カードのみ色を点灯。未バインド/null 要素は安全にスキップ。
+    private void SetHighlights(Image[] highlights, int selected, bool confirmed, Color hover, Color confirmedColor)
     {
-        SetOnlyActive(cursors,   (isConfirmed ? -1 : selected));     // 確定後は hover カーソルを消す
-        SetOnlyActive(confirmed, (isConfirmed ? selected : -1));     // 確定中のみ確定ハイライト
-    }
-
-    // index == active のものだけ SetActive(true)、他は false。active<0 で全消灯。
-    private static void SetOnlyActive(GameObject[] arr, int active)
-    {
-        if (arr == null) return;
-        for (int i = 0; i < arr.Length; i++)
+        if (highlights == null) return;
+        for (int i = 0; i < highlights.Length; i++)
         {
-            if (arr[i] == null) continue;
-            bool show = (i == active);
-            if (arr[i].activeSelf != show) arr[i].SetActive(show);
+            if (highlights[i] == null) continue;
+            highlights[i].color = (i == selected) ? (confirmed ? confirmedColor : hover) : offColor;
         }
     }
 

@@ -394,29 +394,28 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `MatchResultUI.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
 - `Start()` で `HidePanel()`（シーン既定で active 保存されていても起動時に隠す。`panelShown` 初期 false 対策）
-- **Result A デザイン（スコア分割＋勝数ピップ）**: `matchWinnerText`(勝者色) / `p1ScoreText`・`p2ScoreText`(数値) / `p1ScoreTagText`・`p2ScoreTagText`("P1 · WIN"/"P1") / `p1WinPips[]`・`p2WinPips[]`(Image, 先頭 `2r-1` 個を表示・`i<wins` を該当色で塗り) / `bestOfText` / `rematchText`・`menuText`(選択色トグル) / `hintText`
+- **サマリー版**（2026-05-31 簡素化、Result A の勝数ピップ/スコア分割は廃止）: `matchWinnerText`("P{N} WINS!") / `scoreSummaryText`("P1: x pts  P2: y pts") / `winsSummaryText`("P1: a wins  P2: b wins") / `rematchText`・`menuText`(選択色トグル) / `hintText`
 - A/D（J/L）で再戦/メニュー選択、Space 確定。再戦→`GameManager.StartRematch()`、メニュー→シーンリロード
-- 動的要素は全て null セーフ。⚠️ **要バインド**: 上記フィールドを `_MatchResultPanel/...` 配下へ
+- 動的要素は全て null セーフ。シーンの `_MatchResultPanel/...` 配下にバインド（`scoreSummaryText`/`winsSummaryText` は再バインドが必要）
 
 ### `SkillSelectUI.cs`
 - 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
-- **4 枚カード + P1/P2 独立カーソル方式**（DESIGN.md 5.6）。1P: A/D でカード移動・S 確定 / 2P: J/L でカード移動・K 確定。選択中カードのみ `cardP1Cursors[]` / `cardP2Cursors[]`（GameObject 配列、index=AllSkills 並び順）を SetActive(true)
-- カーソル配列は**未バインドでも安全に動作**（Figma 構築前でも入力・確定・BeginMatch は機能）。`$Card{i}P1Cursor` / `$Card{i}P2Cursor` を Figma で作成後にバインドする
-- 確定後は hover カーソルを消し `cardP1Confirmed[]` / `cardP2Confirmed[]`（任意・✓READY 状態）を表示。未バインドなら status テキストのみで確定を表現
-- カード名/説明は静的（Figma 側に固定配置）。旧 `p1SkillText`/`p2SkillText`（単一サイクル表示）は廃止
-- ⚠️ **要バインド**: `panel` / `cardP1Cursors[4]` / `cardP2Cursors[4]` / `p1StatusText` / `p2StatusText`（任意: `cardP1Confirmed[4]` / `cardP2Confirmed[4]`）
+- **4 枚カード方式（カード色で選択表現）**（DESIGN.md 5.6, 2026-05-31 簡素化）。1P: A/D でカード移動・S 確定 / 2P: J/L でカード移動・K 確定。別カーソル GameObject は置かず、各カードに重ねた P1/P2 ハイライト Image の **色**を切り替える（選択=点灯 P1水色/P2赤、未選択=透明、確定=不透明）
+- `cardP1Highlights[4]` / `cardP2Highlights[4]`（Image 配列、index=AllSkills 並び順）。**未バインドでも安全に動作**（入力・確定・BeginMatch は機能）
+- カード名/説明は静的（シーン側に固定配置）。旧 `p1SkillText`/`p2SkillText`（単一サイクル表示）・旧 `cardP1Cursors`/`cardP1Confirmed`（SetActive 方式）は廃止
+- ⚠️ **要バインド**: `panel` / `cardP1Highlights[4]` / `cardP2Highlights[4]` / `p1StatusText` / `p2StatusText`
 
 ### `TitleUI.cs`
 - 起動時のタイトル画面。`GameState.Title` の間 panel を表示。`_Base` にアタッチ済み
 - メニュー 0=START / 1=SETTINGS / 2=QUIT。W/S・↑/↓ で移動、Space/Enter 確定。START→`GameManager.StartFromTitle()`、SETTINGS→`settingsUI.Open()`、QUIT→`Application.Quit()`
-- 選択中項目のみ `menuCursors[]`（GameObject 配列, index=メニュー順）を SetActive。**未バインドでも安全動作**（panel/cursors 無しでも Space で START 可能）
-- ⚠️ **要バインド（Figma 完成後）**: `panel` / `menuCursors[3]`（`settingsUI` は同 `_Base` の SettingsUI に配線済み）
+- **選択中項目はテキスト色で表現**（2026-05-31 簡素化、別カーソル不要）: `startText`/`settingsText`/`quitText` の色を `selectedColor`/`normalColor` で切替。設定を開いている間は panel を隠す
+- ⚠️ **要バインド**: `panel` / `startText` / `settingsText` / `quitText`（`settingsUI` は同 `_Base` の SettingsUI に配線）
 
 ### `SettingsUI.cs`
 - 設定画面（最小・**先取数のみ**, DESIGN.md 11.3）。`_Base` にアタッチ済み。`Open()`/`Close()`/`IsOpen`
-- 先取数 1〜5 を A/D・←/→ で増減、`$RoundsValue` に反映。Esc/Space/Enter で閉じる
+- 先取数 1〜5 を A/D・←/→ で増減、`roundsValueText` に反映。Esc/Space/Enter で閉じる
 - `PlayerPrefs "match.roundsToWin"` に保存、`Start()` で `GameManager.SetRoundsToWin()` に適用
-- ⚠️ **要バインド（Figma 完成後）**: `panel` / `roundsValueText`
+- ⚠️ **要バインド**: `panel` / `roundsValueText`
 
 ### `UIManager.cs`
 - `_UI/_CameraSpace/_Base` Canvas にアタッチ。毎フレーム GameManager をポーリングして更新
