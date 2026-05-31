@@ -56,7 +56,7 @@ public class MatchResultUI : MonoBehaviour
         if (matchWinnerText  != null) matchWinnerText.text  = $"P{winner} WINS!";
         if (scoreSummaryText != null) scoreSummaryText.text = $"P1: {gm.GetScore(1)} pts    P2: {gm.GetScore(2)} pts";
         if (winsSummaryText  != null) winsSummaryText.text  = $"P1: {p1W} wins    P2: {p2W} wins";
-        if (hintText         != null) hintText.text         = "A / D ( J / L ) 選択   Space 決定";
+        if (hintText         != null) hintText.text         = "A / D ( J / L )  SELECT    SPACE  CONFIRM";
 
         UpdateSelectionVisual();
     }

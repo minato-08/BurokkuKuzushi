@@ -95,8 +95,8 @@ public class SkillSelectUI : MonoBehaviour
         SetHighlights(cardP1Highlights, p1Index, p1Confirmed, p1HoverColor, p1ConfirmedColor);
         SetHighlights(cardP2Highlights, p2Index, p2Confirmed, p2HoverColor, p2ConfirmedColor);
 
-        if (p1StatusText != null) p1StatusText.text = p1Confirmed ? "READY!" : "A / D  選択      S  決定";
-        if (p2StatusText != null) p2StatusText.text = p2Confirmed ? "READY!" : "J / L  選択      K  決定";
+        if (p1StatusText != null) p1StatusText.text = p1Confirmed ? "READY!" : "A / D  SELECT     S  CONFIRM";
+        if (p2StatusText != null) p2StatusText.text = p2Confirmed ? "READY!" : "J / L  SELECT     K  CONFIRM";
     }
 
     // 選択中カードのみ色を点灯。未バインド/null 要素は安全にスキップ。
