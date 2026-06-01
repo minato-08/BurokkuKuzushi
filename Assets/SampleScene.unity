@@ -16713,11 +16713,9 @@ MonoBehaviour:
   p1BlockDeadLine: {fileID: 416321623}
   p2BlockDeadLine: {fileID: 108257251}
   dangerRange: 1.5
-  dangerBlinkSlow: 0.4
-  dangerBlinkFast: 0.15
+  dangerBlinkSlow: 1
+  dangerBlinkFast: 0.4
   dangerColor: {r: 1, g: 0.18, b: 0.18, a: 1}
-  dangerIntensityMin: 0
-  dangerIntensityMax: 4.5
   deadLineFlashDuration: 0.2
   deadLineFlashThickenMul: 3
   deadLineFlashColor: {r: 1, g: 1, b: 1, a: 1}

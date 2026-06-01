@@ -104,9 +104,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float dangerRange         = 1.5f; // blockDeadZoneY + これ以内で点滅開始
     [SerializeField] private float dangerBlinkSlow     = 0.4f; // 入った瞬間の点滅周期（秒）
     [SerializeField] private float dangerBlinkFast     = 0.15f;// 死線直前の点滅周期（秒）
-    [SerializeField] private Color dangerColor         = new Color(1f, 0.10f, 0.10f, 1f); // 点滅の色相
-    [SerializeField] private float dangerIntensityMin  = 0.8f;  // 点滅 HDR Intensity 下限（太さは変えない）
-    [SerializeField] private float dangerIntensityMax  = 4.5f;  // 点滅 HDR Intensity 上限（Bloom 発光）
+    [SerializeField] private Color dangerColor         = new Color(1f, 0.18f, 0.18f, 1f); // 点滅の色相（赤）
     [SerializeField] private float deadLineFlashDuration   = 0.2f; // 底到達ペナルティ白フラッシュの片道秒
     [SerializeField] private float deadLineFlashThickenMul = 3.0f; // 白フラッシュ時の太さ倍率
     [SerializeField] private Color deadLineFlashColor      = Color.white; // フラッシュ色相
@@ -346,15 +344,12 @@ public class UIManager : MonoBehaviour
         float period = Mathf.Lerp(dangerBlinkSlow, dangerBlinkFast, t);
         float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
 
-        // 色相は SpriteRenderer.color（赤）、alpha は wave で谷に向けて 0 まで（完全に消える）
+        // 点滅は「色相=赤のまま、SpriteRenderer の alpha だけ」を 0↔1 で脈動（シンプルなチカチカ）。
+        // 発光 _TintColor は通常のまま（Intensity はいじらない）。
         Color v = dangerColor;
         v.a = dangerColor.a * wave;
         line.color = v;
-        // 発光は _TintColor を「白 × Intensity」で（太さは変えない）。Intensity が Bloom をまたぐ
-        float intensity = Mathf.Lerp(dangerIntensityMin, dangerIntensityMax, wave);
-        Color tint = Color.white * intensity;
-        tint.a = 1f;
-        mat.SetColor(deadLineTintProperty, tint);
+        mat.SetColor(deadLineTintProperty, tintOrig);
     }
 
     // 底到達でペナルティが発生した瞬間、死線ラインを 1s 白くフラッシュ（ArenaController 経由で呼ばれる）
