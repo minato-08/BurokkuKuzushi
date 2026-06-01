@@ -24,6 +24,10 @@ public class RoundResultUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI p2WinsText;  // $P2RoundTally
     [SerializeField] private TextMeshProUGUI tallyText;   // 任意: "P1 a - b P2"
 
+    [Header("今ラウンドの最大コンボ（TMP・任意, DESIGN.md 5.10）")]
+    [SerializeField] private TextMeshProUGUI p1BestComboText;  // $P1RoundBestCombo
+    [SerializeField] private TextMeshProUGUI p2BestComboText;  // $P2RoundBestCombo
+
     [Header("カウントダウン（TMP・任意）")]
     [SerializeField] private TextMeshProUGUI nextRoundTimeText; // $NextRoundTime
 
@@ -61,6 +65,9 @@ public class RoundResultUI : MonoBehaviour
         if (p1WinsText != null) p1WinsText.text = p1W.ToString();
         if (p2WinsText != null) p2WinsText.text = p2W.ToString();
         if (tallyText  != null) tallyText.text  = $"P1   {p1W} - {p2W}   P2";
+
+        if (p1BestComboText != null) p1BestComboText.text = gm.GetMaxComboRound(1).ToString();
+        if (p2BestComboText != null) p2BestComboText.text = gm.GetMaxComboRound(2).ToString();
     }
 
     private void Hide()

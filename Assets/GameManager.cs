@@ -65,6 +65,13 @@ public class GameManager : MonoBehaviour
     private int   p1Combo, p2Combo;
     private float p1ComboTimer, p2ComboTimer;  // 最後のブロック接触からの経過秒（combo>0 のとき加算）
 
+    // マッチ統計（DESIGN.md 5.10）。Round=今ラウンド（リザルト用、ラウンド開始でリセット）、
+    // Match=マッチ全体（最終リザルト用、新規マッチ/再戦でリセット）。
+    private int p1MaxComboRound,        p2MaxComboRound;
+    private int p1MaxComboMatch,        p2MaxComboMatch;
+    private int p1BlocksDestroyed,      p2BlocksDestroyed;      // マッチ全体の総破壊ブロック数
+    private int p1InterferenceReceived, p2InterferenceReceived; // マッチ全体の被妨害回数
+
     // アクティブ効果リスト（複数同時効果を追跡。HUD は当面 GetActiveItemName で最新1個のみ表示）
     public struct ActiveEffect
     {
@@ -166,9 +173,13 @@ public class GameManager : MonoBehaviour
             p2RoundWins = 0;
             p1Score     = 0;
             p2Score     = 0;
+            // マッチ統計をリセット
+            p1MaxComboMatch = 0; p2MaxComboMatch = 0;
+            p1BlocksDestroyed = 0; p2BlocksDestroyed = 0;
+            p1InterferenceReceived = 0; p2InterferenceReceived = 0;
         }
-        p1Combo = 0; p1ComboTimer = 0f;
-        p2Combo = 0; p2ComboTimer = 0f;
+        p1Combo = 0; p1ComboTimer = 0f; p1MaxComboRound = 0;
+        p2Combo = 0; p2ComboTimer = 0f; p2MaxComboRound = 0;
 
         p1HP.SetMaxHP(maxHP, refill: true);
         p2HP.SetMaxHP(maxHP, refill: true);
@@ -197,8 +208,8 @@ public class GameManager : MonoBehaviour
     {
         p1HP.Reset();
         p2HP.Reset();
-        p1Combo = 0; p1ComboTimer = 0f;
-        p2Combo = 0; p2ComboTimer = 0f;
+        p1Combo = 0; p1ComboTimer = 0f; p1MaxComboRound = 0;
+        p2Combo = 0; p2ComboTimer = 0f; p2MaxComboRound = 0;
 
         arena1?.GetSkillController()?.ResetEnergy();
         arena2?.GetSkillController()?.ResetEnergy();
@@ -290,6 +301,18 @@ public class GameManager : MonoBehaviour
         if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
         else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
 
+        // 最大コンボ統計を更新（ラウンド / マッチ）
+        if (playerIndex == 1)
+        {
+            if (combo > p1MaxComboRound) p1MaxComboRound = combo;
+            if (combo > p1MaxComboMatch) p1MaxComboMatch = combo;
+        }
+        else
+        {
+            if (combo > p2MaxComboRound) p2MaxComboRound = combo;
+            if (combo > p2MaxComboMatch) p2MaxComboMatch = combo;
+        }
+
         // コンボマイルストーン演出（丁度その値に達した瞬間のみ。リセット後に再到達で再発火, DESIGN.md 12.10）
         if (System.Array.IndexOf(comboMilestones, combo) >= 0)
             GetArena(playerIndex)?.ShowComboMilestone(combo);
@@ -300,6 +323,10 @@ public class GameManager : MonoBehaviour
     public void RegisterBlockDestroyed(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
+
+        // 総破壊ブロック数を集計（マッチ統計, DESIGN.md 5.10）
+        if (playerIndex == 1) p1BlocksDestroyed++;
+        else                  p2BlocksDestroyed++;
 
         // エナジー = energyPerBlock × HP帯 gaugeRateMul × コンボ gaugeComboMul
         float rateMul = GetCurrentBand(playerIndex).gaugeRateMul * GaugeComboMul(playerIndex);
@@ -321,6 +348,10 @@ public class GameManager : MonoBehaviour
     {
         ArenaController target = GetArena(targetPlayerIndex);
         if (target == null) return;
+
+        // 被妨害回数を集計（マッチ統計, DESIGN.md 5.10）
+        if (targetPlayerIndex == 1) p1InterferenceReceived++;
+        else                        p2InterferenceReceived++;
 
         InterferenceType type  = AttackItemToInterference(attackItem);
         string           label = GetInterferenceLabel(type);
@@ -457,6 +488,12 @@ public class GameManager : MonoBehaviour
     public int   GetRoundWins(int playerIndex) => playerIndex == 1 ? p1RoundWins    : p2RoundWins;
     public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1Combo : p2Combo;
     public GameState GetCurrentState()         => currentState;
+
+    // マッチ統計（DESIGN.md 5.10。RoundResultUI / MatchResultUI が参照）
+    public int GetMaxComboRound(int playerIndex)        => playerIndex == 1 ? p1MaxComboRound        : p2MaxComboRound;
+    public int GetMaxComboMatch(int playerIndex)        => playerIndex == 1 ? p1MaxComboMatch        : p2MaxComboMatch;
+    public int GetBlocksDestroyed(int playerIndex)      => playerIndex == 1 ? p1BlocksDestroyed      : p2BlocksDestroyed;
+    public int GetInterferenceReceived(int playerIndex) => playerIndex == 1 ? p1InterferenceReceived : p2InterferenceReceived;
 
     // =====================================================
     // アクティブ効果（複数同時。HUD は当面最新1個のみ表示）
