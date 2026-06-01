@@ -19,6 +19,9 @@ public class TitleUI : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
         if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
+        {
+            AudioManager.Instance?.PlayUiConfirm();
             GameManager.Instance.StartFromTitle();
+        }
     }
 }

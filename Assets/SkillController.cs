@@ -29,15 +29,26 @@ public class SkillController : MonoBehaviour
     {
         energy?.SetMax(maxEnergy);
         energy?.Reset();
+        wasReady = false;
     }
+
+    private bool wasReady;
 
     void Update()
     {
         if (GameManager.Instance?.GetCurrentState() != GameManager.GameState.Playing) return;
-        if (equippedSkill == null || energy == null || !energy.IsFull) return;
+        if (equippedSkill == null || energy == null) return;
+
+        // チャージ完了の立ち上がりで READY SE（DESIGN.md 10.4）
+        bool ready = energy.IsFull;
+        if (ready && !wasReady) AudioManager.Instance?.PlaySkillReady();
+        wasReady = ready;
+
+        if (!ready) return;
         if (!IsSkillKeyPressed()) return;
         if (!equippedSkill.CanActivate(playerIndex)) return;
 
+        AudioManager.Instance?.PlaySkillActivate(); // スキル発動 SE
         energy.ConsumeAll();
         equippedSkill.Activate(playerIndex, arena);
     }

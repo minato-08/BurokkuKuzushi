@@ -118,6 +118,7 @@ public class GameManager : MonoBehaviour
         // 起動時はタイトル画面で待機（TitleUI が START でゲーム開始する）
         currentState   = GameState.Title;
         Time.timeScale = 0f;
+        AudioManager.Instance?.PlayTitleBGM();
     }
 
     // タイトルの START から呼ばれる。設定画面（先取数）へ進む
@@ -140,6 +141,7 @@ public class GameManager : MonoBehaviour
     {
         currentState   = GameState.Title;
         Time.timeScale = 0f;
+        AudioManager.Instance?.PlayTitleBGM();
     }
 
     // 設定画面から先取数を変更（1〜5 にクランプ）。試合中の変更は次マッチから有効
@@ -151,6 +153,11 @@ public class GameManager : MonoBehaviour
         if (currentState != GameState.Playing) return;
         TickComboTimer(ref p1Combo, ref p1ComboTimer);
         TickComboTimer(ref p2Combo, ref p2ComboTimer);
+
+        // HP30% 帯で緊迫 BGM レイヤーを重ねる（5% ヒステリシス, DESIGN.md 10.5）
+        float r1 = GetHPRatio(1), r2 = GetHPRatio(2);
+        if (r1 <= 0.30f || r2 <= 0.30f)      AudioManager.Instance?.SetTenseLayer(true);
+        else if (r1 >= 0.35f && r2 >= 0.35f) AudioManager.Instance?.SetTenseLayer(false);
     }
 
     // 最後のブロック接触から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
@@ -195,6 +202,7 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.SkillSelect) return;
 
+        AudioManager.Instance?.PlayMatchBGM(); // マッチ中 BGM 開始（ラウンド遷移では止めない, DESIGN.md 10.5）
         ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
@@ -233,6 +241,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator CountdownCoroutine()
     {
+        AudioManager.Instance?.PlayRoundStart(); // 3-2-1-GO! を 1 ファイルで再生（DESIGN.md 10.4）
         // 3 → 2 → 1（停止したまま）
         CountdownLabel = "3"; yield return new WaitForSecondsRealtime(countdownStepSec);
         CountdownLabel = "2"; yield return new WaitForSecondsRealtime(countdownStepSec);
@@ -378,6 +387,7 @@ public class GameManager : MonoBehaviour
 
     private void ApplyInterference(ArenaController target, InterferenceType type)
     {
+        AudioManager.Instance?.PlayInterferenceRecv(); // 妨害受信 SE（DESIGN.md 10.4）
         switch (type)
         {
             case InterferenceType.AddRow:
@@ -424,6 +434,8 @@ public class GameManager : MonoBehaviour
         if (p1RoundWins >= roundsToWin || p2RoundWins >= roundsToWin)
         {
             currentState = GameState.MatchOver;
+            AudioManager.Instance?.PlayMatchWin();
+            AudioManager.Instance?.PlayResultJingle(); // 試合 BGM フェードアウト + 結果ジングル
             // 勝者はフリーズのみ、敗者にのみカメラシェイクを適用する
             ArenaController matchWinnerArena = winner == 1 ? arena1 : arena2;
             ArenaController matchLoserArena  = winner == 1 ? arena2 : arena1;
@@ -435,6 +447,7 @@ public class GameManager : MonoBehaviour
         else
         {
             currentState = GameState.RoundOver;
+            AudioManager.Instance?.PlayRoundWin();
             RoundIntermissionRemaining = nextRoundDelay;
             ArenaController loserArena  = winner == 1 ? arena2 : arena1;
             ArenaController winnerArena = winner == 1 ? arena1 : arena2;

@@ -83,6 +83,10 @@ public class Block : MonoBehaviour
         if (ball != null && GameManager.Instance != null)
             GameManager.Instance.RegisterBallHitBlock(ball.playerIndex);
 
+        // ブロック衝突 SE（アリーナごと 50ms クールダウン, DESIGN.md 10.4）
+        if (ball != null)
+            AudioManager.Instance?.PlayBlockHit((int)blockType, ball.playerIndex);
+
         // 吸収ブロック：ボールを減速
         if (blockType == BlockType.Absorb)
         {
@@ -136,6 +140,9 @@ public class Block : MonoBehaviour
 
     private void OnDestroyed(BallScript ball)
     {
+        // ブロック破壊 SE（Explosive は専用音, DESIGN.md 10.4）
+        AudioManager.Instance?.PlayBlockBreak(blockType == BlockType.Explosive);
+
         // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)
         {

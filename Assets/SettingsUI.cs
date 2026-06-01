@@ -46,11 +46,14 @@ public class SettingsUI : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
 
-        if (kb.aKey.wasPressedThisFrame || kb.leftArrowKey.wasPressedThisFrame)  SetRounds(rounds - 1);
-        if (kb.dKey.wasPressedThisFrame || kb.rightArrowKey.wasPressedThisFrame) SetRounds(rounds + 1);
+        if (kb.aKey.wasPressedThisFrame || kb.leftArrowKey.wasPressedThisFrame)  { AudioManager.Instance?.PlayUiMove(); SetRounds(rounds - 1); }
+        if (kb.dKey.wasPressedThisFrame || kb.rightArrowKey.wasPressedThisFrame) { AudioManager.Instance?.PlayUiMove(); SetRounds(rounds + 1); }
 
         if (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame)
+        {
+            AudioManager.Instance?.PlayUiConfirm();
             GameManager.Instance?.ConfirmSettings();      // → スキル選択へ
+        }
         else if (kb.escapeKey.wasPressedThisFrame)
             GameManager.Instance?.ReturnToTitle();        // → タイトルへ戻る
     }

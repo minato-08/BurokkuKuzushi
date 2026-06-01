@@ -182,14 +182,21 @@ public class BallScript : MonoBehaviour, IFreezable
         float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
         rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * effectiveSpeed;
 
-        // 壁バウンスヒットストップ（Block・PlayerController 以外への衝突 = 壁）
-        if (wallBounceFrames > 0
-            && collision.gameObject.GetComponent<Block>() == null
-            && collision.gameObject.GetComponent<PlayerController>() == null)
+        // 壁判定（Block・PlayerController 以外への衝突 = 壁）
+        bool isWall = collision.gameObject.GetComponent<Block>() == null
+                   && collision.gameObject.GetComponent<PlayerController>() == null;
+        if (isWall)
         {
-            float mul = GetHitStopMultiplier();
-            if (mul > 0f)
-                GetArena()?.TriggerHitStop(Mathf.RoundToInt(wallBounceFrames * mul), shake: true);
+            // 壁反射 SE（ピッチを速度層で可変, DESIGN.md 10.4）
+            AudioManager.Instance?.PlayBallWall(baseSpeed > 0f ? naturalSpeed / baseSpeed : 1f);
+
+            // 壁バウンスヒットストップ
+            if (wallBounceFrames > 0)
+            {
+                float mul = GetHitStopMultiplier();
+                if (mul > 0f)
+                    GetArena()?.TriggerHitStop(Mathf.RoundToInt(wallBounceFrames * mul), shake: true);
+            }
         }
     }
 

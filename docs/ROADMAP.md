@@ -213,19 +213,23 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 
 DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂しい」と思われないライン。
 
-- [ ] `AudioMixer` 作成（Master / BGM / SE / Voice）+ dB 変換式 `dB = 20 × log10(value/100)` 実装
-- [ ] ボール反射 SE（速度層でピッチ可変、`pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2`）
-- [ ] ブロック衝突 SE（Normal/Hard/Absorb/Explosive で音色差、50ms クールダウン実装）
-- [ ] ブロック破壊 SE
-- [ ] アイテム取得 SE（系統別: 強化 / 攻撃 / 罠 で 3 音）
-- [ ] スキル発動 SE + チャージ完了 SE（`EnergySystem.OnEnergyFull` イベント追加）
-- [ ] 妨害受信 SE（種別ごとに短発ラベル発音）
-- [ ] コンボマイルストーン SE（ピッチ +N 半音、10/20/30）
-- [ ] ラウンド開始 / 勝利 / マッチ勝利 ジングル
-- [ ] BGM: タイトル 1 曲 + 試合中 1 曲（クロスフェード規則: DESIGN.md 10.5 参照）
-- [ ] HP30% 帯クロスフェード実装（5% ヒステリシス付き、両者が 35% 以上で通常戻し）
-- [ ] PlayerPrefs ベースの音量設定（vol.master/bgm/se）
-- [ ] 設定 UI と連動（リアルタイム反映、戻る時に PlayerPrefs 保存）
+> **2026-06-01 土台実装済み**: `AudioManager.cs`（シングルトン、SE プール、dB 音量、50ms クールダウン、BGM クロスフェード）を新設し、`AudioManager` GameObject をシーンに配置。下記の発火点は**全てコード配線済み**。**残るは (1) 音源クリップを Inspector に割り当て (2) `Assets/Audio/MasterMixer.mixer` を作成して Expose Param をバインド** の 2 点（どちらもユーザー依存。未割り当てでも null セーフに無音動作する）。
+
+- [~] `AudioMixer`（Master/BGM/SE/Voice）+ dB 変換 `20×log10(v/100)` ← **dB 変換・`ApplyVolumes` 実装済み。Mixer asset 作成と Expose Param バインドが残**
+- [x] ボール反射 SE 配線（`BallScript`/`PlayerController`、壁はピッチ可変 `1+(ratio-1)×0.2`）
+- [x] ブロック衝突 SE 配線（Normal/Hard/Absorb 音色差、Hard -2 半音、アリーナごと 50ms クールダウン）
+- [x] ブロック破壊 SE 配線（Explosive 専用音, `Block.OnDestroyed`）
+- [x] アイテム取得 SE 配線（系統別 3 音, `PlayerController.OnItemPickup`）+ アイテム出現 SE（`ArenaController.SpawnItem`）
+- [x] スキル発動 SE + チャージ完了 SE 配線（`SkillController` で `IsFull` 立ち上がり検出）
+- [x] 妨害受信 SE 配線（`GameManager.ApplyInterference`）
+- [x] コンボマイルストーン SE 配線（ピッチ +N 半音, `UIManager.ShowComboMilestone`）
+- [x] ラウンド開始 / 勝利 / マッチ勝利 SE 配線（`CountdownCoroutine`/`EndRound`）
+- [x] BGM: タイトル / 試合 クロスフェード scaffold（`PlayTitleBGM`/`PlayMatchBGM`/`PlayResultJingle`）
+- [x] HP30% 帯クロスフェード（5% ヒステリシス, `GameManager.Update` → `SetTenseLayer`）
+- [x] PlayerPrefs 音量（vol.master/bgm/se）→ `ApplyVolumes` で dB 反映
+- [ ] 設定 UI と連動（現状 Settings は先取数のみ。音量スライダー追加は要判断）
+- [ ] **音源クリップ未割り当て**（ユーザー調達, ASSETS.md）/ **Mixer asset 未作成**
+- [ ] 未配線: `se_addrow_land`（妨害行着弾）/ UI 確定音の一部画面 ← 必要なら追補
 
 音源は自作 or フリー素材（CC0/Creative Commons）から調達。生成優先順位はブロック衝突から。SE コードトリガーマッピングは DESIGN.md 10.4 を参照。
 

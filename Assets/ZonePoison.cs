@@ -11,6 +11,7 @@ public class ZonePoison : MonoBehaviour
     private int   playerIndex;
     private float targetWorldY;
     private bool  landed;
+    private bool  loopStarted;
 
     private readonly Collider[] _overlapBuffer = new Collider[4];
 
@@ -31,6 +32,8 @@ public class ZonePoison : MonoBehaviour
                 p.y = targetWorldY;
                 transform.position = p;
                 landed = true;
+                loopStarted = true;
+                AudioManager.Instance?.StartPoisonLoop(); // 滞在中ループ SE（DESIGN.md 10.4）
                 Destroy(gameObject, duration);
             }
             return;
@@ -47,5 +50,10 @@ public class ZonePoison : MonoBehaviour
                 break;
             }
         }
+    }
+
+    void OnDestroy()
+    {
+        if (loopStarted) AudioManager.Instance?.StopPoisonLoop();
     }
 }

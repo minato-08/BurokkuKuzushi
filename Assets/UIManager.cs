@@ -288,6 +288,7 @@ public class UIManager : MonoBehaviour
 
     public void ShowComboMilestone(int playerIndex, int milestone)
     {
+        AudioManager.Instance?.PlayComboMilestone(milestone); // マイルストーン番号でピッチ可変（DESIGN.md 10.4）
         CanvasGroup     cg  = playerIndex == 1 ? p1ComboMilestoneOverlay : p2ComboMilestoneOverlay;
         TextMeshProUGUI txt = playerIndex == 1 ? p1ComboMilestoneLabel   : p2ComboMilestoneLabel;
         if (cg == null) return;

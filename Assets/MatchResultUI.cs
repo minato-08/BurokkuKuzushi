@@ -110,9 +110,9 @@ public class MatchResultUI : MonoBehaviour
         bool right = kb.dKey.wasPressedThisFrame || kb.rightArrowKey.wasPressedThisFrame || kb.lKey.wasPressedThisFrame;
         bool confirm = kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame;
 
-        if (left  && selectedIndex != 0) { selectedIndex = 0; UpdateSelectionVisual(); }
-        if (right && selectedIndex != 1) { selectedIndex = 1; UpdateSelectionVisual(); }
-        if (confirm) Confirm();
+        if (left  && selectedIndex != 0) { selectedIndex = 0; UpdateSelectionVisual(); AudioManager.Instance?.PlayUiMove(); }
+        if (right && selectedIndex != 1) { selectedIndex = 1; UpdateSelectionVisual(); AudioManager.Instance?.PlayUiMove(); }
+        if (confirm) { AudioManager.Instance?.PlayUiConfirm(); Confirm(); }
     }
 
     private void UpdateSelectionVisual()

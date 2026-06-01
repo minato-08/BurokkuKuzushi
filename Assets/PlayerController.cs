@@ -60,6 +60,9 @@ public class PlayerController : MonoBehaviour, IFreezable
     // アイテム取得時にパドルを系統色で 0.1s フラッシュ（ItemDrop から呼ばれる）
     public void OnItemPickup(ItemCategory category)
     {
+        // アイテム取得 SE（系統別: 強化/攻撃/罠, DESIGN.md 10.4）
+        AudioManager.Instance?.PlayItemPickup(category);
+
         if (paddleRenderer == null) return;
         Color flash = category switch
         {
@@ -115,6 +118,9 @@ public class PlayerController : MonoBehaviour, IFreezable
         if (!collision.gameObject.CompareTag("BallTag")) return;
 
         BallScript ball = collision.gameObject.GetComponent<BallScript>();
+
+        // パドル反射 SE（DESIGN.md 10.4）
+        AudioManager.Instance?.PlayBallPaddle();
 
         // パドルバウンスヒットストップ（0フレームはスキップ）
         if (paddleBounceFrames > 0 && ball != null)
