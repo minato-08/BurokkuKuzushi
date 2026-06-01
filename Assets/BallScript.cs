@@ -100,6 +100,9 @@ public class BallScript : MonoBehaviour, IFreezable
         frozen = true;
         frozenVelocity = rb.linearVelocity;
         rb.linearVelocity = Vector3.zero;
+        // ヒットストップ中のシェイクでアリーナ Transform が揺れると、ボールのワールド座標が
+        // 毎フレーム飛んでトレイルがジグザグに散る。Freeze 中は発光を止めて散乱を防ぐ。
+        if (trail != null) trail.emitting = false;
     }
 
     public void Unfreeze()
@@ -108,6 +111,8 @@ public class BallScript : MonoBehaviour, IFreezable
         if (rb == null) return;
         rb.linearVelocity = frozenVelocity;
         lastVelocity = frozenVelocity;
+        // 発射待ちでなければトレイル発光を再開（待機中は PrepareRespawn が false にしている）
+        if (trail != null) trail.emitting = !IsWaitingToLaunch;
     }
 
     void Start()
