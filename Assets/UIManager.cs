@@ -104,7 +104,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float dangerRange         = 1.5f; // blockDeadZoneY + これ以内で点滅開始
     [SerializeField] private float dangerBlinkSlow     = 0.4f; // 入った瞬間の点滅周期（秒）
     [SerializeField] private float dangerBlinkFast     = 0.15f;// 死線直前の点滅周期（秒）
-    [SerializeField] private Color dangerColor         = new Color(1f, 0.18f, 0.18f, 1f);
+    [SerializeField] private Color dangerColor         = new Color(1f, 0.10f, 0.10f, 1f);
+    [SerializeField] private float dangerThickenMul    = 3.0f; // 点滅時に死線ラインを太くする倍率（視認性）
     [SerializeField] private float deadLineFlashDuration = 1.0f; // 底到達ペナルティ時の白フラッシュ長
 
     [Header("[演出] Last Stand（HP10%, DESIGN.md 5.10）")]
@@ -112,11 +113,13 @@ public class UIManager : MonoBehaviour
     [SerializeField] private SpriteRenderer p2ArenaFrame;      // P2ArenaFrame
     [Range(0f, 1f)] [SerializeField] private float lastStandThreshold = 0.10f;
     [SerializeField] private Color lastStandColor      = new Color(1f, 0.12f, 0.18f, 1f);
-    [SerializeField] private float lastStandBlinkPeriod = 0.3f;
+    [SerializeField] private float lastStandBlinkPeriod = 0.55f; // 明滅周期（消えかけ電球風・ゆっくりめ）
+    [Range(0f, 1f)] [SerializeField] private float lastStandDimFloor = 0.28f; // 明るさを落とす下限
     [SerializeField] private string panicReadyLabel    = "PANIC READY";
 
-    // Danger / Last Stand のランタイム状態（元色キャッシュ・フラッシュ制御）
-    private Color p1DeadLineOrig, p2DeadLineOrig, p1FrameOrig, p2FrameOrig;
+    // Danger / Last Stand のランタイム状態（元色・元スケールキャッシュ・フラッシュ制御）
+    private Color   p1DeadLineOrig, p2DeadLineOrig, p1FrameOrig, p2FrameOrig;
+    private Vector3 p1DeadLineScale = Vector3.one, p2DeadLineScale = Vector3.one;
     private bool  p1DeadLineFlashing, p2DeadLineFlashing;
     private Coroutine p1DeadLineFlashRoutine, p2DeadLineFlashRoutine;
     private bool  p1WasLastStand, p2WasLastStand;
@@ -150,9 +153,9 @@ public class UIManager : MonoBehaviour
         if (p1ComboMax != null) p1ComboMax.text = "×";
         if (p2ComboMax != null) p2ComboMax.text = "×";
 
-        // Danger / Last Stand の元色をキャッシュ（演出終了時に復元する）
-        if (p1BlockDeadLine != null) p1DeadLineOrig = p1BlockDeadLine.color;
-        if (p2BlockDeadLine != null) p2DeadLineOrig = p2BlockDeadLine.color;
+        // Danger / Last Stand の元色・元スケールをキャッシュ（演出終了時に復元する）
+        if (p1BlockDeadLine != null) { p1DeadLineOrig = p1BlockDeadLine.color; p1DeadLineScale = p1BlockDeadLine.transform.localScale; }
+        if (p2BlockDeadLine != null) { p2DeadLineOrig = p2BlockDeadLine.color; p2DeadLineScale = p2BlockDeadLine.transform.localScale; }
         if (p1ArenaFrame    != null) p1FrameOrig    = p1ArenaFrame.color;
         if (p2ArenaFrame    != null) p2FrameOrig    = p2ArenaFrame.color;
     }
@@ -291,7 +294,8 @@ public class UIManager : MonoBehaviour
         if (playerIndex == 1 ? p1DeadLineFlashing : p2DeadLineFlashing) return;
 
         var gm   = GameManager.Instance;
-        Color orig = playerIndex == 1 ? p1DeadLineOrig : p2DeadLineOrig;
+        Color   orig      = playerIndex == 1 ? p1DeadLineOrig  : p2DeadLineOrig;
+        Vector3 origScale = playerIndex == 1 ? p1DeadLineScale : p2DeadLineScale;
 
         float lowestY     = gm.GetLowestBlockY(playerIndex);
         float dangerStart = gm.GetBlockDeadZoneY(playerIndex) + dangerRange;
@@ -299,6 +303,7 @@ public class UIManager : MonoBehaviour
         if (gm.GetCurrentState() != GameManager.GameState.Playing || lowestY > dangerStart)
         {
             line.color = orig;
+            line.transform.localScale = origScale;
             return;
         }
 
@@ -308,8 +313,12 @@ public class UIManager : MonoBehaviour
         float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
 
         Color c = dangerColor;
-        c.a = Mathf.Lerp(0.2f, 1f, wave); // 完全には消えない点滅
+        c.a = Mathf.Lerp(0.25f, 1f, wave); // 鮮やかな赤で明滅
         line.color = c;
+        // 細い 2px ラインなので太さも脈動させて視認性を上げる
+        Vector3 s = origScale;
+        s.y = origScale.y * Mathf.Lerp(1f, dangerThickenMul, wave);
+        line.transform.localScale = s;
     }
 
     // 底到達でペナルティが発生した瞬間、死線ラインを 1s 白くフラッシュ（ArenaController 経由で呼ばれる）
@@ -332,7 +341,8 @@ public class UIManager : MonoBehaviour
 
     private IEnumerator DeadLineFlashRoutine(int playerIndex, SpriteRenderer line)
     {
-        Color orig = playerIndex == 1 ? p1DeadLineOrig : p2DeadLineOrig;
+        Color   orig      = playerIndex == 1 ? p1DeadLineOrig  : p2DeadLineOrig;
+        Vector3 origScale = playerIndex == 1 ? p1DeadLineScale : p2DeadLineScale;
         if (playerIndex == 1) p1DeadLineFlashing = true; else p2DeadLineFlashing = true;
 
         float t = 0f;
@@ -340,10 +350,14 @@ public class UIManager : MonoBehaviour
         {
             float k = 1f - (t / deadLineFlashDuration); // 1→0 で白から元色へ減衰
             line.color = Color.Lerp(orig, Color.white, k);
+            Vector3 s = origScale;
+            s.y = origScale.y * Mathf.Lerp(1f, dangerThickenMul, k); // 太く→元の太さへ
+            line.transform.localScale = s;
             t += Time.unscaledDeltaTime;
             yield return null;
         }
         line.color = orig;
+        line.transform.localScale = origScale;
 
         if (playerIndex == 1) { p1DeadLineFlashing = false; p1DeadLineFlashRoutine = null; }
         else                  { p2DeadLineFlashing = false; p2DeadLineFlashRoutine = null; }
@@ -363,16 +377,20 @@ public class UIManager : MonoBehaviour
         if (last)
         {
             float wave = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, lastStandBlinkPeriod)) * 0.5f + 0.5f;
+            // 赤を保ったまま明るさだけ周期的に落とす（消えかけの電球風）
+            float bright = Mathf.Lerp(lastStandDimFloor, 1f, wave);
 
             if (frame != null)
             {
-                Color orig = playerIndex == 1 ? p1FrameOrig : p2FrameOrig;
-                frame.color = Color.Lerp(orig, lastStandColor, wave); // 元色↔赤で明滅
+                Color c = lastStandColor * bright;
+                c.a = lastStandColor.a;
+                frame.color = c;
             }
             if (hpFill != null)
             {
-                Color dim = lastStandColor * 0.45f; dim.a = lastStandColor.a;
-                hpFill.color = Color.Lerp(dim, lastStandColor, wave); // 暗赤↔赤で点滅
+                Color c = lastStandColor * bright;
+                c.a = lastStandColor.a;
+                hpFill.color = c;
             }
         }
         else if (was && frame != null)
