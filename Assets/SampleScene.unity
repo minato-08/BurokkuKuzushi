@@ -16293,7 +16293,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1870739313
 RectTransform:
   m_ObjectHideFlags: 0
@@ -16716,7 +16716,7 @@ MonoBehaviour:
   dangerBlinkSlow: 0.4
   dangerBlinkFast: 0.15
   dangerColor: {r: 1, g: 0.18, b: 0.18, a: 1}
-  dangerIntensityMin: 0.8
+  dangerIntensityMin: 0
   dangerIntensityMax: 4.5
   deadLineFlashDuration: 0.2
   deadLineFlashThickenMul: 3

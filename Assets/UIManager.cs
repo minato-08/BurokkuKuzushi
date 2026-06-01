@@ -339,10 +339,11 @@ public class UIManager : MonoBehaviour
         float period = Mathf.Lerp(dangerBlinkSlow, dangerBlinkFast, t);
         float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
 
-        // 太さは変えず、HDR _TintColor の Intensity（明るさ）だけ脈動させて Bloom で発光させる
+        // 太さは変えず、HDR _TintColor の Intensity（明るさ）だけ脈動させて Bloom で発光させる。
+        // alpha も wave に連動させ、谷で完全に消える（0 まで下がる）on/off 点滅にする
         float intensity = Mathf.Lerp(dangerIntensityMin, dangerIntensityMax, wave);
         Color c = dangerColor * intensity;
-        c.a = dangerColor.a;
+        c.a = dangerColor.a * wave;
         mat.SetColor(deadLineTintProperty, c);
     }
 
