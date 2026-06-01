@@ -131,6 +131,7 @@ public class UIManager : MonoBehaviour
     private Color   p1DeadLineVtxOrig  = Color.white, p2DeadLineVtxOrig  = Color.white; // 元 SpriteRenderer.color（色相）
     private bool  p1DeadLineFlashing, p2DeadLineFlashing;
     private Coroutine p1DeadLineFlashRoutine, p2DeadLineFlashRoutine;
+    private float p1DangerPhase, p2DangerPhase; // 点滅位相の累積（period 変化で位相が飛ぶのを防ぐ）
     private bool  p1WasLastStand, p2WasLastStand;
 
     private Coroutine p1OverlayRoutine;
@@ -336,13 +337,19 @@ public class UIManager : MonoBehaviour
             // 平常時の見た目へ（色相=頂点色 / 発光=_TintColor）
             line.color = vtxOrig;
             mat.SetColor(deadLineTintProperty, tintOrig);
+            if (playerIndex == 1) p1DangerPhase = 0f; else p2DangerPhase = 0f;
             return;
         }
 
         // 0 = 危険域に入った瞬間, 1 = 死線到達。近いほど点滅周期が短い（速い）
         float t      = Mathf.Clamp01((dangerStart - lowestY) / Mathf.Max(0.001f, dangerRange));
         float period = Mathf.Lerp(dangerBlinkSlow, dangerBlinkFast, t);
-        float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
+        // 位相を累積する（period を直接 unscaledTime に掛けると、period 変化時に位相が飛んで
+        // 異常に速く点滅してしまう）。周波数 = 1/period を毎フレーム積分する。
+        float phase = (playerIndex == 1 ? p1DangerPhase : p2DangerPhase)
+                      + Time.unscaledDeltaTime * Mathf.PI * 2f / Mathf.Max(0.01f, period);
+        if (playerIndex == 1) p1DangerPhase = phase; else p2DangerPhase = phase;
+        float wave   = Mathf.Sin(phase) * 0.5f + 0.5f;
 
         // 点滅は「色相=赤のまま、SpriteRenderer の alpha だけ」を 0↔1 で脈動（シンプルなチカチカ）。
         // 発光 _TintColor は通常のまま（Intensity はいじらない）。
