@@ -245,7 +245,8 @@ public class UIManager : MonoBehaviour
         if (hpValue   != null) hpValue.text   = gm.GetHP(playerIndex).ToString();
         // コンボは UI 上 99 で表示頭打ち（内部値は維持, DESIGN.md 5.8）
         if (comboValue != null) comboValue.text = Mathf.Min(99, gm.GetCombo(playerIndex)).ToString();
-        if (scoreValue != null) scoreValue.text = gm.GetScore(playerIndex).ToString("N0");
+        // 表示スコアは内部値の 10 倍（見映え用。内部処理は変えない, 2026-06-01）
+        if (scoreValue != null) scoreValue.text = (gm.GetScore(playerIndex) * 10).ToString("N0");
 
         // Active Item
         UpdateActiveItem(playerIndex, itemRoot, itemName, itemDuration);

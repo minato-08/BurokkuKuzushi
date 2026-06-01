@@ -16701,7 +16701,7 @@ MonoBehaviour:
   p1IncomingSlots: []
   p2IncomingSlots: []
   incomingDisplaySec: 3
-  hpColorFull: {r: 0.4, g: 1, b: 0.4, a: 1}
+  hpColorFull: {r: 1, g: 1, b: 1, a: 1}
   hpColorMid: {r: 1, g: 0.9, b: 0.3, a: 1}
   hpColorLow: {r: 1, g: 0.4, b: 0.3, a: 1}
   midThreshold: 0.7
@@ -16713,8 +16713,8 @@ MonoBehaviour:
   p1BlockDeadLine: {fileID: 416321623}
   p2BlockDeadLine: {fileID: 108257251}
   dangerRange: 1.5
-  dangerBlinkSlow: 1
-  dangerBlinkFast: 0.4
+  dangerBlinkSlow: 0.4
+  dangerBlinkFast: 0.15
   dangerColor: {r: 1, g: 0.18, b: 0.18, a: 1}
   deadLineFlashDuration: 0.2
   deadLineFlashThickenMul: 3
@@ -16808,6 +16808,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TitleUI
   panel: {fileID: 501990990}
+  pressToStartText: {fileID: 730542715}
+  blinkPeriod: 1
+  blinkMinAlpha: 0.15
 --- !u!114 &1934063274
 MonoBehaviour:
   m_ObjectHideFlags: 0

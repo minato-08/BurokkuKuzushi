@@ -79,8 +79,9 @@ public class MatchResultUI : MonoBehaviour
         Set(p1TagWin,  p1Win);  Set(p1TagLose, !p1Win);
         Set(p2TagWin, !p1Win);  Set(p2TagLose,  p1Win);
 
-        if (p1ScoreText != null) p1ScoreText.text = gm.GetScore(1).ToString("N0");
-        if (p2ScoreText != null) p2ScoreText.text = gm.GetScore(2).ToString("N0");
+        // 表示スコアは内部値の 10 倍（HUD と同じ見映え, 2026-06-01）
+        if (p1ScoreText != null) p1ScoreText.text = (gm.GetScore(1) * 10).ToString("N0");
+        if (p2ScoreText != null) p2ScoreText.text = (gm.GetScore(2) * 10).ToString("N0");
 
         if (p1RoundsWonText != null) p1RoundsWonText.text = p1W.ToString();
         if (p2RoundsWonText != null) p2RoundsWonText.text = p2W.ToString();

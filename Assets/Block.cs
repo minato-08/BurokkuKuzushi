@@ -79,9 +79,7 @@ public class Block : MonoBehaviour
 
         BallScript ball = collision.gameObject.GetComponent<BallScript>();
 
-        // コンボはブロック接触ごとに +1（破壊しなくても加算, DESIGN.md 5.8）
-        if (ball != null && GameManager.Instance != null)
-            GameManager.Instance.RegisterBallHitBlock(ball.playerIndex);
+        // コンボは破壊時に加算（DESIGN.md 5.8, OnDestroyed → RegisterBlockDestroyed）。接触では加算しない。
 
         // ブロック衝突 SE（アリーナごと 50ms クールダウン, DESIGN.md 10.4）
         if (ball != null)

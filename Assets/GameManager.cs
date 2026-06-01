@@ -63,7 +63,7 @@ public class GameManager : MonoBehaviour
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
     private int   p1Combo, p2Combo;
-    private float p1ComboTimer, p2ComboTimer;  // 最後のブロック接触からの経過秒（combo>0 のとき加算）
+    private float p1ComboTimer, p2ComboTimer;  // 最後のブロック破壊からの経過秒（combo>0 のとき加算）
 
     // マッチ統計（DESIGN.md 5.10）。Round=今ラウンド（リザルト用、ラウンド開始でリセット）、
     // Match=マッチ全体（最終リザルト用、新規マッチ/再戦でリセット）。
@@ -160,7 +160,7 @@ public class GameManager : MonoBehaviour
         else if (r1 >= 0.35f && r2 >= 0.35f) AudioManager.Instance?.SetTenseLayer(false);
     }
 
-    // 最後のブロック接触から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
+    // 最後のブロック破壊から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
     private void TickComboTimer(ref int combo, ref float timer)
     {
         if (combo <= 0) return;
@@ -291,7 +291,7 @@ public class GameManager : MonoBehaviour
     }
 
     // スコア = baseScore × HP帯 scoreMul × コンボ scoreComboMul（いずれも乗算, DESIGN.md 5.8）
-    // コンボは接触時 (RegisterBallHitBlock) に加算済みなので AddScore は更新後コンボで計算される
+    // コンボは破壊時 (RegisterBlockDestroyed) に加算済みなので AddScore は更新後コンボで計算される
     public void AddScore(int playerIndex, int amount)
     {
         float mul    = GetCurrentBand(playerIndex).scoreMul * ScoreComboMul(playerIndex);
@@ -300,13 +300,19 @@ public class GameManager : MonoBehaviour
         else                  p2Score += gained;
     }
 
-    // ボールがブロックに接触するたびに呼ばれる（破壊有無を問わない, DESIGN.md 5.8）。
-    // コンボ加算 + タイマーリセット + マイルストーン演出を担う。
-    public void RegisterBallHitBlock(int playerIndex)
+    // ブロック破壊ごとに呼ばれる（DESIGN.md 5.8, 2026-06-01 接触ベース→破壊ベースに戻した）。
+    // コンボ加算（破壊数ぶん）+ タイマーリセット + マイルストーン演出 + エナジー蓄積を担う。
+    // Fire/Thunder 等が複数破壊すれば、破壊ごとに本メソッドが呼ばれてコンボが一気に伸びる。
+    // 妨害送付はしない（コンボ自動妨害は 2026-05-20 撤廃。妨害は SendInterference 経由のみ）。
+    public void RegisterBlockDestroyed(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
 
-        // コンボ加算 + タイマーリセット（最後の接触起点で計測）
+        // 総破壊ブロック数を集計（マッチ統計, DESIGN.md 5.10）
+        if (playerIndex == 1) p1BlocksDestroyed++;
+        else                  p2BlocksDestroyed++;
+
+        // コンボ加算 + タイマーリセット（最後の破壊起点で計測）
         int combo;
         if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
         else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
@@ -326,17 +332,6 @@ public class GameManager : MonoBehaviour
         // コンボマイルストーン演出（丁度その値に達した瞬間のみ。リセット後に再到達で再発火, DESIGN.md 12.10）
         if (System.Array.IndexOf(comboMilestones, combo) >= 0)
             GetArena(playerIndex)?.ShowComboMilestone(combo);
-    }
-
-    // ブロック破壊時にエナジー蓄積。コンボ加算は接触側 (RegisterBallHitBlock) に移譲。妨害送付はしない
-    // （コンボ自動妨害は 2026-05-20 仕様刷新で撤廃。妨害は SendInterference 経由のみ）
-    public void RegisterBlockDestroyed(int playerIndex)
-    {
-        if (currentState != GameState.Playing) return;
-
-        // 総破壊ブロック数を集計（マッチ統計, DESIGN.md 5.10）
-        if (playerIndex == 1) p1BlocksDestroyed++;
-        else                  p2BlocksDestroyed++;
 
         // エナジー = energyPerBlock × HP帯 gaugeRateMul × コンボ gaugeComboMul
         float rateMul = GetCurrentBand(playerIndex).gaugeRateMul * GaugeComboMul(playerIndex);
