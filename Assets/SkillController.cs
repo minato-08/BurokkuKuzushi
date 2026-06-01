@@ -15,6 +15,11 @@ public class SkillController : MonoBehaviour
     public float  EnergyRatio => energy?.Ratio ?? 0f;
     public string SkillName   => equippedSkill?.DisplayName ?? "---";
 
+    // 緊急スキル（SkillPanic_BlockClear）が今まさに発動可能か（PANIC READY 表示用, DESIGN.md 5.10）
+    public bool   PanicReady  => equippedSkill is SkillPanic_BlockClear
+                                 && (energy?.IsFull ?? false)
+                                 && equippedSkill.CanActivate(playerIndex);
+
     public void Initialize(int pIndex, ArenaController a)
     {
         playerIndex = pIndex;

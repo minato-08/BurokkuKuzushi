@@ -98,6 +98,29 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float sentLabelDuration      = 1.5f;  // 攻撃送付ラベル
     [SerializeField] private float comboMilestoneDuration = 1.2f;  // コンボマイルストーン
 
+    [Header("[演出] Danger Proximity（死線接近, DESIGN.md 5.4）")]
+    [SerializeField] private SpriteRenderer p1BlockDeadLine;   // P1BlockDeadLine
+    [SerializeField] private SpriteRenderer p2BlockDeadLine;   // P2BlockDeadLine
+    [SerializeField] private float dangerRange         = 1.5f; // blockDeadZoneY + これ以内で点滅開始
+    [SerializeField] private float dangerBlinkSlow     = 0.4f; // 入った瞬間の点滅周期（秒）
+    [SerializeField] private float dangerBlinkFast     = 0.15f;// 死線直前の点滅周期（秒）
+    [SerializeField] private Color dangerColor         = new Color(1f, 0.18f, 0.18f, 1f);
+    [SerializeField] private float deadLineFlashDuration = 1.0f; // 底到達ペナルティ時の白フラッシュ長
+
+    [Header("[演出] Last Stand（HP10%, DESIGN.md 5.10）")]
+    [SerializeField] private SpriteRenderer p1ArenaFrame;      // P1ArenaFrame（アラーム赤化）
+    [SerializeField] private SpriteRenderer p2ArenaFrame;      // P2ArenaFrame
+    [Range(0f, 1f)] [SerializeField] private float lastStandThreshold = 0.10f;
+    [SerializeField] private Color lastStandColor      = new Color(1f, 0.12f, 0.18f, 1f);
+    [SerializeField] private float lastStandBlinkPeriod = 0.3f;
+    [SerializeField] private string panicReadyLabel    = "PANIC READY";
+
+    // Danger / Last Stand のランタイム状態（元色キャッシュ・フラッシュ制御）
+    private Color p1DeadLineOrig, p2DeadLineOrig, p1FrameOrig, p2FrameOrig;
+    private bool  p1DeadLineFlashing, p2DeadLineFlashing;
+    private Coroutine p1DeadLineFlashRoutine, p2DeadLineFlashRoutine;
+    private bool  p1WasLastStand, p2WasLastStand;
+
     private Coroutine p1OverlayRoutine;
     private Coroutine p2OverlayRoutine;
     private Coroutine p1SentRoutine;
@@ -126,6 +149,12 @@ public class UIManager : MonoBehaviour
         // 「×」のみ表示する（コンボ数値は $ComboValue 側で更新）
         if (p1ComboMax != null) p1ComboMax.text = "×";
         if (p2ComboMax != null) p2ComboMax.text = "×";
+
+        // Danger / Last Stand の元色をキャッシュ（演出終了時に復元する）
+        if (p1BlockDeadLine != null) p1DeadLineOrig = p1BlockDeadLine.color;
+        if (p2BlockDeadLine != null) p2DeadLineOrig = p2BlockDeadLine.color;
+        if (p1ArenaFrame    != null) p1FrameOrig    = p1ArenaFrame.color;
+        if (p2ArenaFrame    != null) p2FrameOrig    = p2ArenaFrame.color;
     }
 
     // =====================================================
@@ -146,6 +175,11 @@ public class UIManager : MonoBehaviour
         UpdateStatusText();
         UpdateVictoryBar();
         UpdateIncoming();
+
+        UpdateDangerLine(1);
+        UpdateDangerLine(2);
+        UpdateLastStand(1, p1HpFill, p1ArenaFrame);
+        UpdateLastStand(2, p2HpFill, p2ArenaFrame);
     }
 
     // P1HP/(P1HP+P2HP) を毎フレーム反映。左に傾く=P1優勢（DESIGN.md 12.5）
@@ -186,9 +220,17 @@ public class UIManager : MonoBehaviour
         if (energyFill != null) energyFill.fillAmount = gm.GetEnergyRatio(playerIndex);
         if (skillName != null)
         {
-            string name = gm.GetEquippedSkillName(playerIndex);
-            bool ready = gm.GetEnergyRatio(playerIndex) >= 1f;
-            skillName.text = ready ? name + skillReadySuffix : name;
+            // 緊急スキル（SkillPanic_BlockClear）が発動可能になったら PANIC READY で上書き（DESIGN.md 5.10）
+            if (gm.IsPanicReady(playerIndex))
+            {
+                skillName.text = panicReadyLabel;
+            }
+            else
+            {
+                string name = gm.GetEquippedSkillName(playerIndex);
+                bool ready = gm.GetEnergyRatio(playerIndex) >= 1f;
+                skillName.text = ready ? name + skillReadySuffix : name;
+            }
         }
         if (roundWins != null) roundWins.text = gm.GetRoundWins(playerIndex).ToString();
     }
@@ -235,6 +277,111 @@ public class UIManager : MonoBehaviour
         if (ratio <= lowThreshold) return hpColorLow;
         if (ratio <= midThreshold) return hpColorMid;
         return hpColorFull;
+    }
+
+    // =====================================================
+    // Danger Proximity（死線接近で死線ラインを赤点滅, DESIGN.md 5.4）
+    // =====================================================
+
+    private void UpdateDangerLine(int playerIndex)
+    {
+        SpriteRenderer line = playerIndex == 1 ? p1BlockDeadLine : p2BlockDeadLine;
+        if (line == null) return;
+        // 底到達ペナルティの白フラッシュ中はそちらが色を制御するので触らない
+        if (playerIndex == 1 ? p1DeadLineFlashing : p2DeadLineFlashing) return;
+
+        var gm   = GameManager.Instance;
+        Color orig = playerIndex == 1 ? p1DeadLineOrig : p2DeadLineOrig;
+
+        float lowestY     = gm.GetLowestBlockY(playerIndex);
+        float dangerStart = gm.GetBlockDeadZoneY(playerIndex) + dangerRange;
+
+        if (gm.GetCurrentState() != GameManager.GameState.Playing || lowestY > dangerStart)
+        {
+            line.color = orig;
+            return;
+        }
+
+        // 0 = 危険域に入った瞬間, 1 = 死線到達。近いほど点滅周期が短い（速い）
+        float t      = Mathf.Clamp01((dangerStart - lowestY) / Mathf.Max(0.001f, dangerRange));
+        float period = Mathf.Lerp(dangerBlinkSlow, dangerBlinkFast, t);
+        float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
+
+        Color c = dangerColor;
+        c.a = Mathf.Lerp(0.2f, 1f, wave); // 完全には消えない点滅
+        line.color = c;
+    }
+
+    // 底到達でペナルティが発生した瞬間、死線ラインを 1s 白くフラッシュ（ArenaController 経由で呼ばれる）
+    public void FlashDangerLine(int playerIndex)
+    {
+        SpriteRenderer line = playerIndex == 1 ? p1BlockDeadLine : p2BlockDeadLine;
+        if (line == null) return;
+
+        if (playerIndex == 1)
+        {
+            if (p1DeadLineFlashRoutine != null) StopCoroutine(p1DeadLineFlashRoutine);
+            p1DeadLineFlashRoutine = StartCoroutine(DeadLineFlashRoutine(1, line));
+        }
+        else
+        {
+            if (p2DeadLineFlashRoutine != null) StopCoroutine(p2DeadLineFlashRoutine);
+            p2DeadLineFlashRoutine = StartCoroutine(DeadLineFlashRoutine(2, line));
+        }
+    }
+
+    private IEnumerator DeadLineFlashRoutine(int playerIndex, SpriteRenderer line)
+    {
+        Color orig = playerIndex == 1 ? p1DeadLineOrig : p2DeadLineOrig;
+        if (playerIndex == 1) p1DeadLineFlashing = true; else p2DeadLineFlashing = true;
+
+        float t = 0f;
+        while (t < deadLineFlashDuration)
+        {
+            float k = 1f - (t / deadLineFlashDuration); // 1→0 で白から元色へ減衰
+            line.color = Color.Lerp(orig, Color.white, k);
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        line.color = orig;
+
+        if (playerIndex == 1) { p1DeadLineFlashing = false; p1DeadLineFlashRoutine = null; }
+        else                  { p2DeadLineFlashing = false; p2DeadLineFlashRoutine = null; }
+    }
+
+    // =====================================================
+    // Last Stand（HP10% 以下でアリーナ枠と HP バーを赤アラーム, DESIGN.md 5.10）
+    // =====================================================
+
+    private void UpdateLastStand(int playerIndex, Image hpFill, SpriteRenderer frame)
+    {
+        var gm = GameManager.Instance;
+        bool last = gm.GetCurrentState() == GameManager.GameState.Playing
+                    && gm.GetHPRatio(playerIndex) <= lastStandThreshold;
+        bool was  = playerIndex == 1 ? p1WasLastStand : p2WasLastStand;
+
+        if (last)
+        {
+            float wave = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, lastStandBlinkPeriod)) * 0.5f + 0.5f;
+
+            if (frame != null)
+            {
+                Color orig = playerIndex == 1 ? p1FrameOrig : p2FrameOrig;
+                frame.color = Color.Lerp(orig, lastStandColor, wave); // 元色↔赤で明滅
+            }
+            if (hpFill != null)
+            {
+                Color dim = lastStandColor * 0.45f; dim.a = lastStandColor.a;
+                hpFill.color = Color.Lerp(dim, lastStandColor, wave); // 暗赤↔赤で点滅
+            }
+        }
+        else if (was && frame != null)
+        {
+            // 脱出フレームで枠を元色に戻す（HP バーは UpdatePlayerHUD が通常色へ戻す）
+            frame.color = playerIndex == 1 ? p1FrameOrig : p2FrameOrig;
+        }
+
+        if (playerIndex == 1) p1WasLastStand = last; else p2WasLastStand = last;
     }
 
     // =====================================================

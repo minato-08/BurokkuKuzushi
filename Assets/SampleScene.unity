@@ -7836,6 +7836,13 @@ MonoBehaviour:
   iceColor: {r: 0.4, g: 0.8, b: 1, a: 1}
   heavyColor: {r: 0.6, g: 0.3, b: 0.8, a: 1}
   pierceColor: {r: 0.6, g: 1, b: 1, a: 1}
+  heatStage1: 20
+  heatStage2: 40
+  heatStage3: 60
+  heatColorLow: {r: 1, g: 0.949, b: 0.69, a: 1}
+  heatColorMid: {r: 1, g: 0.69, b: 0.29, a: 1}
+  heatColorHigh: {r: 1, g: 0.29, b: 0.2, a: 1}
+  heatLerpSpeed: 6
   trailTime: 0.18
   trailStartWidth: 0.22
   playerIndex: 2
@@ -14823,6 +14830,13 @@ MonoBehaviour:
   iceColor: {r: 0.4, g: 0.8, b: 1, a: 1}
   heavyColor: {r: 0.6, g: 0.3, b: 0.8, a: 1}
   pierceColor: {r: 0.6, g: 1, b: 1, a: 1}
+  heatStage1: 20
+  heatStage2: 40
+  heatStage3: 60
+  heatColorLow: {r: 1, g: 0.949, b: 0.69, a: 1}
+  heatColorMid: {r: 1, g: 0.69, b: 0.29, a: 1}
+  heatColorHigh: {r: 1, g: 0.29, b: 0.2, a: 1}
+  heatLerpSpeed: 6
   trailTime: 0.18
   trailStartWidth: 0.22
   playerIndex: 1
@@ -16696,6 +16710,19 @@ MonoBehaviour:
   overlayFlashDuration: 1.5
   sentLabelDuration: 1.5
   comboMilestoneDuration: 1.2
+  p1BlockDeadLine: {fileID: 416321623}
+  p2BlockDeadLine: {fileID: 108257251}
+  dangerRange: 1.5
+  dangerBlinkSlow: 0.4
+  dangerBlinkFast: 0.15
+  dangerColor: {r: 1, g: 0.18, b: 0.18, a: 1}
+  deadLineFlashDuration: 1
+  p1ArenaFrame: {fileID: 1140853218}
+  p2ArenaFrame: {fileID: 1634476744}
+  lastStandThreshold: 0.1
+  lastStandColor: {r: 1, g: 0.12, b: 0.18, a: 1}
+  lastStandBlinkPeriod: 0.3
+  panicReadyLabel: PANIC READY
 --- !u!114 &1934063271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18205,15 +18232,15 @@ MonoBehaviour:
   countdownStepSec: 1
   countdownGoSec: 1.5
   maxHP: 500
-  damageBallDrop: 5
+  damageBallDrop: 0
   damageBlockReachBottom: 10
   damagePoisonPerSec: 5
   energyPerBlock: 1
   comboTimeout: 6
   comboScoreStep: 5
   comboGaugeStep: 5
-  comboItemStep: 10
-  comboMilestones: 0a000000140000001e000000
+  comboItemStep: 20
+  comboMilestones: 14000000280000003c000000
   interferenceTriggerFrames: 10
   roundEndFrames: 30
   matchEndFrames: 60

@@ -271,6 +271,7 @@ public class GameManager : MonoBehaviour
     public void OnBlocksReachedBottom(int playerIndex, int count = 1)
     {
         if (currentState != GameState.Playing) return;
+        GetArena(playerIndex)?.FlashDangerLine(); // 死線ラインを白フラッシュ（DESIGN.md 5.4）
         ApplyDamage(playerIndex, damageBlockReachBottom * count);
     }
 
@@ -486,6 +487,11 @@ public class GameManager : MonoBehaviour
     public ArenaController GetArena(int playerIndex)        => playerIndex == 1 ? arena1 : arena2;
     public float  GetEnergyRatio(int playerIndex)           => GetArena(playerIndex)?.GetSkillController()?.EnergyRatio ?? 0f;
     public string GetEquippedSkillName(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.SkillName    ?? "---";
+
+    // Danger Proximity / Last Stand 用アクセサ（UIManager がポーリング, DESIGN.md 5.4 / 5.10）
+    public float  GetLowestBlockY(int playerIndex)          => GetArena(playerIndex)?.GetSpawner()?.GetLowestBlockY()    ?? float.MaxValue;
+    public float  GetBlockDeadZoneY(int playerIndex)        => GetArena(playerIndex)?.GetSpawner()?.GetBlockDeadZoneY()  ?? 0f;
+    public bool   IsPanicReady(int playerIndex)             => GetArena(playerIndex)?.GetSkillController()?.PanicReady   ?? false;
 
     public void Heal(int playerIndex, int amount)
     {

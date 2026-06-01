@@ -202,4 +202,10 @@ public class ArenaController : MonoBehaviour
     {
         cachedUIManager?.PushIncoming(playerIndex, type);
     }
+
+    // 底到達ペナルティ発生時、死線ラインを白フラッシュ（このアリーナ＝被害者）
+    public void FlashDangerLine()
+    {
+        cachedUIManager?.FlashDangerLine(playerIndex);
+    }
 }
