@@ -49,9 +49,17 @@ public class Block : MonoBehaviour
     [SerializeField] private Color hardenedColor  = new Color(0.478f, 0.251f, 0.251f); // #7a4040 ダーク赤
     [SerializeField] private Color itemColor      = new Color(0.290f, 1.000f, 0.627f); // #4affa0 緑（報酬感）
 
+    [Header("HP pip（残耐久ドット, DESIGN.md 5.4。HP>1 のみ表示）")]
+    [SerializeField] private bool  showHpPips      = true;
+    [SerializeField] private float pipWorldSize    = 0.12f; // ワールド換算のドット径
+    [SerializeField] private float pipWorldSpacing = 0.18f; // ドット間隔（ワールド）
+    [SerializeField] private Vector3 pipWorldOffset = new Vector3(0f, 0.16f, -0.55f); // ブロック中心からのワールドオフセット（z<0=手前）
+    [SerializeField] private Color pipColor        = new Color(0.06f, 0.06f, 0.09f, 1f); // 暗色ドット
+
     private int currentHp;
     private Renderer blockRenderer;
     private bool destroyed;   // 多重破壊ガード（Destroy は遅延実行なので同フレームの追撃で二重発火するのを防ぐ）
+    private GameObject[] hpPips;
 
     void Awake()
     {
@@ -62,6 +70,50 @@ public class Block : MonoBehaviour
     {
         currentHp = hp;
         RefreshColor();
+        BuildHpPips();
+    }
+
+    // HP>1 ブロックの残耐久ドット（●●●）を子に生成。親が非一様スケール(1.3,0.5,1)なので
+    // ワールド指定値を親スケールで割って localPosition/localScale に換算する（DESIGN.md 5.4）。
+    private void BuildHpPips()
+    {
+        ClearHpPips();
+        if (!showHpPips || hp <= 1 || blockType == BlockType.Item) return;
+
+        Vector3 s = transform.localScale;
+        if (s.x == 0f || s.y == 0f || s.z == 0f) return;
+        hpPips = new GameObject[hp];
+        float totalW = (hp - 1) * pipWorldSpacing;
+        for (int i = 0; i < hp; i++)
+        {
+            GameObject pip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pip.name = "HpPip";
+            Collider col = pip.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            pip.transform.SetParent(transform, false);
+            float wx = -totalW * 0.5f + i * pipWorldSpacing + pipWorldOffset.x;
+            pip.transform.localPosition = new Vector3(wx / s.x, pipWorldOffset.y / s.y, pipWorldOffset.z / s.z);
+            pip.transform.localScale    = new Vector3(pipWorldSize / s.x, pipWorldSize / s.y, (pipWorldSize * 0.4f) / s.z);
+            Renderer r = pip.GetComponent<Renderer>();
+            if (r != null) r.material.color = pipColor;
+            hpPips[i] = pip;
+        }
+        UpdateHpPips();
+    }
+
+    private void UpdateHpPips()
+    {
+        if (hpPips == null) return;
+        for (int i = 0; i < hpPips.Length; i++)
+            if (hpPips[i] != null && hpPips[i].activeSelf != (i < currentHp))
+                hpPips[i].SetActive(i < currentHp);
+    }
+
+    private void ClearHpPips()
+    {
+        if (hpPips == null) return;
+        foreach (var p in hpPips) if (p != null) Destroy(p);
+        hpPips = null;
     }
 
     private void RefreshColor()
@@ -127,6 +179,7 @@ public class Block : MonoBehaviour
     public void TakeDamage(int damage, BallScript ball = null)
     {
         currentHp -= damage;
+        UpdateHpPips();
 
         if (currentHp <= 0)
             OnDestroyed(ball);
@@ -201,6 +254,7 @@ public class Block : MonoBehaviour
         // 妨害 Harden で変換されたブロックは金色で通常 Hard と区別する
         if (blockRenderer != null)
             blockRenderer.material.color = hardenedColor;
+        BuildHpPips(); // 硬化で HP>1 になったので残耐久ドットを生成
     }
 
     private void TryDropItem(BallScript ball)
