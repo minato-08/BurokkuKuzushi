@@ -129,7 +129,8 @@ public class UIManager : MonoBehaviour
     private Color   p1FrameOrig, p2FrameOrig;
     private Vector3 p1DeadLineScale = Vector3.one, p2DeadLineScale = Vector3.one;
     private Material p1DeadLineMat, p2DeadLineMat;                       // sr.material（renderer 毎にインスタンス化）
-    private Color   p1DeadLineTintOrig = Color.white, p2DeadLineTintOrig = Color.white;
+    private Color   p1DeadLineTintOrig = Color.white, p2DeadLineTintOrig = Color.white; // 元 _TintColor（発光Intensity）
+    private Color   p1DeadLineVtxOrig  = Color.white, p2DeadLineVtxOrig  = Color.white; // 元 SpriteRenderer.color（色相）
     private bool  p1DeadLineFlashing, p2DeadLineFlashing;
     private Coroutine p1DeadLineFlashRoutine, p2DeadLineFlashRoutine;
     private bool  p1WasLastStand, p2WasLastStand;
@@ -171,14 +172,16 @@ public class UIManager : MonoBehaviour
         // （sr.material は renderer 毎に複製されるので P1/P2 を独立に駆動できる）
         if (p1BlockDeadLine != null)
         {
-            p1DeadLineMat   = p1BlockDeadLine.material;
-            p1DeadLineScale = p1BlockDeadLine.transform.localScale;
+            p1DeadLineMat    = p1BlockDeadLine.material;
+            p1DeadLineScale  = p1BlockDeadLine.transform.localScale;
+            p1DeadLineVtxOrig= p1BlockDeadLine.color;
             if (p1DeadLineMat.HasProperty(deadLineTintProperty)) p1DeadLineTintOrig = p1DeadLineMat.GetColor(deadLineTintProperty);
         }
         if (p2BlockDeadLine != null)
         {
-            p2DeadLineMat   = p2BlockDeadLine.material;
-            p2DeadLineScale = p2BlockDeadLine.transform.localScale;
+            p2DeadLineMat    = p2BlockDeadLine.material;
+            p2DeadLineScale  = p2BlockDeadLine.transform.localScale;
+            p2DeadLineVtxOrig= p2BlockDeadLine.color;
             if (p2DeadLineMat.HasProperty(deadLineTintProperty)) p2DeadLineTintOrig = p2DeadLineMat.GetColor(deadLineTintProperty);
         }
         if (p1ArenaFrame != null) p1FrameOrig = p1ArenaFrame.color;
@@ -317,20 +320,24 @@ public class UIManager : MonoBehaviour
 
     private void UpdateDangerLine(int playerIndex)
     {
+        SpriteRenderer line = playerIndex == 1 ? p1BlockDeadLine : p2BlockDeadLine;
         Material mat = playerIndex == 1 ? p1DeadLineMat : p2DeadLineMat;
-        if (mat == null) return;
+        if (line == null || mat == null) return;
         // 底到達ペナルティの白フラッシュ中はそちらが色を制御するので触らない
         if (playerIndex == 1 ? p1DeadLineFlashing : p2DeadLineFlashing) return;
 
         var gm = GameManager.Instance;
         Color tintOrig = playerIndex == 1 ? p1DeadLineTintOrig : p2DeadLineTintOrig;
+        Color vtxOrig  = playerIndex == 1 ? p1DeadLineVtxOrig  : p2DeadLineVtxOrig;
 
         float lowestY     = gm.GetLowestBlockY(playerIndex);
         float dangerStart = gm.GetBlockDeadZoneY(playerIndex) + dangerRange;
 
         if (gm.GetCurrentState() != GameManager.GameState.Playing || lowestY > dangerStart)
         {
-            mat.SetColor(deadLineTintProperty, tintOrig); // 平常時の見た目へ
+            // 平常時の見た目へ（色相=頂点色 / 発光=_TintColor）
+            line.color = vtxOrig;
+            mat.SetColor(deadLineTintProperty, tintOrig);
             return;
         }
 
@@ -339,12 +346,15 @@ public class UIManager : MonoBehaviour
         float period = Mathf.Lerp(dangerBlinkSlow, dangerBlinkFast, t);
         float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
 
-        // 太さは変えず、HDR _TintColor の Intensity（明るさ）だけ脈動させて Bloom で発光させる。
-        // alpha も wave に連動させ、谷で完全に消える（0 まで下がる）on/off 点滅にする
+        // 色相は SpriteRenderer.color（赤）、alpha は wave で谷に向けて 0 まで（完全に消える）
+        Color v = dangerColor;
+        v.a = dangerColor.a * wave;
+        line.color = v;
+        // 発光は _TintColor を「白 × Intensity」で（太さは変えない）。Intensity が Bloom をまたぐ
         float intensity = Mathf.Lerp(dangerIntensityMin, dangerIntensityMax, wave);
-        Color c = dangerColor * intensity;
-        c.a = dangerColor.a * wave;
-        mat.SetColor(deadLineTintProperty, c);
+        Color tint = Color.white * intensity;
+        tint.a = 1f;
+        mat.SetColor(deadLineTintProperty, tint);
     }
 
     // 底到達でペナルティが発生した瞬間、死線ラインを 1s 白くフラッシュ（ArenaController 経由で呼ばれる）
@@ -369,24 +379,28 @@ public class UIManager : MonoBehaviour
     {
         Material mat      = playerIndex == 1 ? p1DeadLineMat      : p2DeadLineMat;
         Color    tintOrig = playerIndex == 1 ? p1DeadLineTintOrig : p2DeadLineTintOrig;
+        Color    vtxOrig  = playerIndex == 1 ? p1DeadLineVtxOrig  : p2DeadLineVtxOrig;
         Vector3  origScale= playerIndex == 1 ? p1DeadLineScale    : p2DeadLineScale;
         if (mat == null) yield break;
         if (playerIndex == 1) p1DeadLineFlashing = true; else p2DeadLineFlashing = true;
 
-        Color flashTint = deadLineFlashColor * deadLineFlashIntensity; // HDR 白フラッシュ
-        flashTint.a = deadLineFlashColor.a;
+        Color flashTint = Color.white * deadLineFlashIntensity; // 発光 Intensity（白）
+        flashTint.a = 1f;
+        Color flashVtx  = deadLineFlashColor; flashVtx.a = 1f;   // 色相を白へ（赤→白に変わる）
 
         float t = 0f;
         while (t < deadLineFlashDuration)
         {
-            float k = 1f - (t / deadLineFlashDuration); // 1→0 でフラッシュ色から元色へ減衰
-            mat.SetColor(deadLineTintProperty, Color.Lerp(tintOrig, flashTint, k));
+            float k = 1f - (t / deadLineFlashDuration); // 1→0 でフラッシュから元へ減衰
+            line.color = Color.Lerp(vtxOrig, flashVtx, k);                       // 色相: 元 → 白
+            mat.SetColor(deadLineTintProperty, Color.Lerp(tintOrig, flashTint, k)); // 発光: 元 → 白×Intensity
             Vector3 s = origScale;
-            s.y = origScale.y * Mathf.Lerp(1f, deadLineFlashThickenMul, k); // 太く→元の太さへ
+            s.y = origScale.y * Mathf.Lerp(1f, deadLineFlashThickenMul, k);      // 太く→元の太さへ
             line.transform.localScale = s;
             t += Time.unscaledDeltaTime;
             yield return null;
         }
+        line.color = vtxOrig;
         mat.SetColor(deadLineTintProperty, tintOrig);
         line.transform.localScale = origScale;
 
