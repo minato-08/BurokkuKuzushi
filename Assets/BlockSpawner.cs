@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -29,6 +30,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Header("通常行のブロック種出現率")]
     [Range(0f, 1f)] [SerializeField] private float explosiveBlockChance = 0.1f;
     [Range(0f, 1f)] [SerializeField] private float hardBlockChance      = 0.2f;
+    [Range(0f, 1f)] [SerializeField] private float itemBlockChance      = 0.08f; // 確定ドロップブロック（DESIGN.md 5.4/12.17）
     [SerializeField] private int hardBlockHp = 2;
 
     [Header("妨害行設定（Hard/Absorb）")]
@@ -42,6 +44,16 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Header("ブロックDeadZone到達時ヒットストップ")]
     [SerializeField] private int  blockDeadZoneHitFrames = 5;
     [SerializeField] private bool blockDeadZoneHitShake  = true;
+
+    [Header("妨害行 着弾演出（AttackAddRow, DESIGN.md 6.3）")]
+    [SerializeField] private float addRowSlideDistance  = 6f;    // 上空からの落下投下距離
+    [SerializeField] private float addRowSlideDuration  = 0.3f;  // 滑り込み秒
+    [SerializeField] private int   addRowImpactFrames   = 2;     // 着弾ヒットストップ（フレーム）
+    [SerializeField] private Color addRowImpactFlash    = Color.white; // 着弾点フラッシュ色
+    [SerializeField] private float addRowImpactFlashSec = 0.1f;
+
+    // スライドイン中のブロックは通常降下から除外する
+    private readonly HashSet<Block> slidingBlocks = new HashSet<Block>();
 
     private List<Block> allBlocks = new List<Block>();
     private float spawnTimer = 0f;
@@ -100,8 +112,21 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (pendingSabotageRows > 0 && IsTopClear())
         {
             pendingSabotageRows--;
+            int start = allBlocks.Count;
             SpawnRow(RowType.Sabotage);
-            AudioManager.Instance?.PlayAddRowLand(playerIndex); // 妨害行スポーン SE（DESIGN.md 10.4）
+            // 落下投下演出: 生成行を上空へずらしてスライドインさせる（着地で SE/フラッシュ/ヒットストップ）
+            var row = new List<Block>();
+            for (int i = start; i < allBlocks.Count; i++)
+            {
+                Block b = allBlocks[i];
+                if (b == null) continue;
+                Vector3 p = b.transform.localPosition;
+                p.y += addRowSlideDistance;
+                b.transform.localPosition = p;
+                slidingBlocks.Add(b);
+                row.Add(b);
+            }
+            StartCoroutine(SlideInSabotageRow(row));
         }
 
         DescendBlocks();
@@ -153,6 +178,53 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             blockScript.blockType = BlockType.Hard;
             blockScript.hp        = hardBlockHp;
         }
+        else if (rand < explosiveBlockChance + hardBlockChance + itemBlockChance)
+        {
+            blockScript.blockType = BlockType.Item; // HP1・破壊で確定ドロップ
+            blockScript.hp        = 1;
+        }
+    }
+
+    // 妨害行の落下投下演出（DESIGN.md 6.3）: 上空 → spawnY へ addRowSlideDuration 秒で滑り込み、
+    // 着地で SE + 着弾フラッシュ + 小ヒットストップ。スライド中は DescendBlocks 対象外。
+    private IEnumerator SlideInSabotageRow(List<Block> row)
+    {
+        int n = row.Count;
+        float[] targetY = new float[n];
+        for (int i = 0; i < n; i++)
+            targetY[i] = row[i] != null ? row[i].transform.localPosition.y - addRowSlideDistance : 0f;
+
+        float t = 0f;
+        while (t < addRowSlideDuration)
+        {
+            float k = t / addRowSlideDuration;
+            for (int i = 0; i < n; i++)
+            {
+                Block b = row[i];
+                if (b == null) continue;
+                Vector3 p = b.transform.localPosition;
+                p.y = Mathf.Lerp(targetY[i] + addRowSlideDistance, targetY[i], k);
+                b.transform.localPosition = p;
+            }
+            t += Time.deltaTime;
+            yield return null;
+        }
+
+        bool anyAlive = false;
+        for (int i = 0; i < n; i++)
+        {
+            Block b = row[i];
+            if (b == null) continue;
+            anyAlive = true;
+            Vector3 p = b.transform.localPosition; p.y = targetY[i]; b.transform.localPosition = p;
+            slidingBlocks.Remove(b);
+            b.FlashImpact(addRowImpactFlash, addRowImpactFlashSec);
+        }
+        if (anyAlive)
+        {
+            AudioManager.Instance?.PlayAddRowLand(playerIndex);                 // 着地 SE（DESIGN.md 10.4）
+            GetArena()?.TriggerHitStop(addRowImpactFrames, shake: true);        // 小ヒットストップ
+        }
     }
 
     private void ApplySabotageRowSettings(Block blockScript)
@@ -174,6 +246,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
                 allBlocks.RemoveAt(i);
                 continue;
             }
+            if (slidingBlocks.Contains(allBlocks[i])) continue; // スライドイン中は降下しない
             allBlocks[i].transform.localPosition -= new Vector3(0f, step, 0f);
         }
     }
@@ -232,6 +305,8 @@ public class BlockSpawner : MonoBehaviour, IFreezable
 
     public void ClearAndRespawn()
     {
+        StopAllCoroutines();       // 進行中のスライドイン演出を停止
+        slidingBlocks.Clear();
         foreach (var block in allBlocks)
         {
             if (block != null) Destroy(block.gameObject);

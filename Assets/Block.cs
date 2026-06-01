@@ -5,7 +5,8 @@ public enum BlockType
     Normal,    // 通常：1撃で破壊
     Hard,      // 硬い：複数撃必要
     Absorb,    // 吸収：当たるとボール減速
-    Explosive  // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Explosive, // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Item       // アイテム：HP1。破壊で確定 1 個ドロップ（DESIGN.md 5.4/12.17）
 }
 
 public class Block : MonoBehaviour
@@ -46,6 +47,7 @@ public class Block : MonoBehaviour
     [SerializeField] private Color absorbColor    = new Color(0.616f, 0.427f, 1.000f); // #9d6dff 紫
     [SerializeField] private Color explosiveColor = new Color(1.000f, 0.690f, 0.290f); // #ffb04a オレンジ
     [SerializeField] private Color hardenedColor  = new Color(0.478f, 0.251f, 0.251f); // #7a4040 ダーク赤
+    [SerializeField] private Color itemColor      = new Color(0.290f, 1.000f, 0.627f); // #4affa0 緑（報酬感）
 
     private int currentHp;
     private Renderer blockRenderer;
@@ -70,6 +72,7 @@ public class Block : MonoBehaviour
             BlockType.Hard      => hardColor,
             BlockType.Absorb    => absorbColor,
             BlockType.Explosive => explosiveColor,
+            BlockType.Item      => itemColor,
             _                   => normalColor
         };
     }
@@ -174,6 +177,22 @@ public class Block : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // 妨害行の着弾フラッシュ（BlockSpawner の AttackAddRow 演出から呼ばれる, DESIGN.md 6.3）
+    private Coroutine impactRoutine;
+    public void FlashImpact(Color color, float duration)
+    {
+        if (blockRenderer == null) return;
+        if (impactRoutine != null) StopCoroutine(impactRoutine);
+        impactRoutine = StartCoroutine(ImpactRoutine(color, duration));
+    }
+    private System.Collections.IEnumerator ImpactRoutine(Color color, float duration)
+    {
+        blockRenderer.material.color = color;
+        yield return new WaitForSeconds(duration);
+        RefreshColor();
+        impactRoutine = null;
+    }
+
     public void HardenToHp(int targetHp)
     {
         blockType = BlockType.Hard;
@@ -186,12 +205,17 @@ public class Block : MonoBehaviour
 
     private void TryDropItem(BallScript ball)
     {
-        float dropChance = baseDropChance;
-        if (GameManager.Instance != null)
-            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul
-                        * GameManager.Instance.GetItemDropComboMul(ball.playerIndex);
+        // BlockItem は確定ドロップ（確率判定をスキップ, DESIGN.md 12.17）
+        bool guaranteed = blockType == BlockType.Item;
 
-        if (Random.value > dropChance) return;
+        if (!guaranteed)
+        {
+            float dropChance = baseDropChance;
+            if (GameManager.Instance != null)
+                dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul
+                            * GameManager.Instance.GetItemDropComboMul(ball.playerIndex);
+            if (Random.value > dropChance) return;
+        }
 
         float bias = GameManager.Instance != null
             ? GameManager.Instance.GetCurrentBand(ball.playerIndex).goodItemBias
@@ -199,14 +223,19 @@ public class Block : MonoBehaviour
         ItemType type = SelectRandomItemType(bias, trapDisguiseChance);
 
         // ドロップ過多抑制: 抽選結果の持続効果スロットが既に有効なら再抽選。
-        // maxSlotRerolls 回試しても解消しなければドロップをスキップ（DESIGN.md 5.5）。
+        // maxSlotRerolls 回試しても解消しなければ、通常ブロックはスキップ。
+        // ただし BlockItem は「確定で 1 個」なのでスキップせず最後の抽選結果を出す（DESIGN.md 12.17）。
         // Heal / Attack 系はスロット None なので抑制対象外。
         if (GameManager.Instance != null)
         {
             int rerolls = 0;
             while (GameManager.Instance.IsEffectSlotActive(ball.playerIndex, ItemDefinition.GetEffectSlot(type)))
             {
-                if (++rerolls > maxSlotRerolls) return;
+                if (++rerolls > maxSlotRerolls)
+                {
+                    if (guaranteed) break;   // 確定ドロップはスキップしない
+                    return;
+                }
                 type = SelectRandomItemType(bias, trapDisguiseChance);
             }
         }
