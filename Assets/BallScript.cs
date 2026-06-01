@@ -111,9 +111,9 @@ public class BallScript : MonoBehaviour, IFreezable
         frozen = true;
         frozenVelocity = rb.linearVelocity;
         rb.linearVelocity = Vector3.zero;
-        // ヒットストップ中のシェイクでアリーナ Transform が揺れると、ボールのワールド座標が
-        // 毎フレーム飛んでトレイルがジグザグに散る。Freeze 中は発光を止めて散乱を防ぐ。
-        if (trail != null) trail.emitting = false;
+        // TrailRenderer はワールド座標に履歴を保持するため、親アリーナを揺らすと履歴だけが
+        // 置き去りになって裂ける。ヒットストップ中は履歴を消して非表示にする。
+        SetTrailVisible(false, clear: true);
     }
 
     public void Unfreeze()
@@ -122,8 +122,8 @@ public class BallScript : MonoBehaviour, IFreezable
         if (rb == null) return;
         rb.linearVelocity = frozenVelocity;
         lastVelocity = frozenVelocity;
-        // 発射待ちでなければトレイル発光を再開（待機中は PrepareRespawn が false にしている）
-        if (trail != null) trail.emitting = !IsWaitingToLaunch;
+        // 再開直後のシェイク最終位置と通常位置をつなぐ線が出ないよう、空の履歴から再開する。
+        SetTrailVisible(!IsWaitingToLaunch, clear: true);
     }
 
     void Start()
@@ -136,7 +136,8 @@ public class BallScript : MonoBehaviour, IFreezable
         baseSpeed    = speed;
         naturalSpeed = baseSpeed;
 
-        trail = gameObject.AddComponent<TrailRenderer>();
+        trail = GetComponent<TrailRenderer>();
+        if (trail == null) trail = gameObject.AddComponent<TrailRenderer>();
         trail.time             = trailTime;
         trail.startWidth       = trailStartWidth;
         trail.endWidth         = 0f;
@@ -146,6 +147,7 @@ public class BallScript : MonoBehaviour, IFreezable
         Shader trailShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
                           ?? Shader.Find("Sprites/Default");
         if (trailShader != null) trail.material = new Material(trailShader);
+        SetTrailVisible(!isExtraBall, clear: true);
 
         ApplyAttributeColor();
 
@@ -265,7 +267,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
         attribute = BallAttribute.Normal;
         ApplyAttributeColor();
-        if (trail != null) { trail.emitting = false; trail.Clear(); }
+        SetTrailVisible(false, clear: true);
 
         transform.localPosition = localPos;
         transform.localRotation = Quaternion.identity; // 回転（スピン）もリセット
@@ -280,7 +282,7 @@ public class BallScript : MonoBehaviour, IFreezable
         GetComponent<Collider>().enabled = true;
         IsWaitingToLaunch = false;
         frozen = false;
-        if (trail != null) { trail.Clear(); trail.emitting = true; }
+        SetTrailVisible(true, clear: true);
         Launch(localDir);
     }
 
@@ -421,6 +423,14 @@ public class BallScript : MonoBehaviour, IFreezable
         trailColorKeys[1] = new GradientColorKey(color, 1f);
         trailGradient.SetKeys(trailColorKeys, trailAlphaKeys);
         trail.colorGradient = trailGradient;
+    }
+
+    private void SetTrailVisible(bool visible, bool clear)
+    {
+        if (trail == null) return;
+        trail.emitting = visible;
+        if (clear) trail.Clear();
+        trail.enabled = visible;
     }
 
     private void Launch(Vector3 localDirection)

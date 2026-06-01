@@ -189,8 +189,11 @@ public class Block : MonoBehaviour
     // HPを外部から増やす（爆発ブロック用）
     public void AddHp(int amount)
     {
+        if (amount <= 0 || destroyed) return;
         hp += amount;
         currentHp += amount;
+        BuildHpPips();
+        UpdateHpPips();
     }
 
     private void OnDestroyed(BallScript ball)

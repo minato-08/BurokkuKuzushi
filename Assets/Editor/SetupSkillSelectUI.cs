@@ -5,7 +5,7 @@ using TMPro;
 
 public static class SetupSkillSelectUI
 {
-    [MenuItem("BurokkuKuzushi/Setup Skill Select UI")]
+    // 旧 CenterUI 前提のレガシー処理。新 UI では実行しないため MenuItem は外している。
     public static void Setup()
     {
         Canvas centerUI = Object.FindFirstObjectByType<Canvas>();

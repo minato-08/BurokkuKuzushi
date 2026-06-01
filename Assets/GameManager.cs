@@ -64,6 +64,7 @@ public class GameManager : MonoBehaviour
     private int p1RoundWins, p2RoundWins;
     private int   p1Combo, p2Combo;
     private float p1ComboTimer, p2ComboTimer;  // 最後のブロック破壊からの経過秒（combo>0 のとき加算）
+    private float p1PoisonDamageRemainder, p2PoisonDamageRemainder;
 
     // マッチ統計（DESIGN.md 5.10）。Round=今ラウンド（リザルト用、ラウンド開始でリセット）、
     // Match=マッチ全体（最終リザルト用、新規マッチ/再戦でリセット）。
@@ -185,6 +186,7 @@ public class GameManager : MonoBehaviour
             p1BlocksDestroyed = 0; p2BlocksDestroyed = 0;
             p1InterferenceReceived = 0; p2InterferenceReceived = 0;
         }
+        ResetPoisonDamageRemainders();
         p1Combo = 0; p1ComboTimer = 0f; p1MaxComboRound = 0;
         p2Combo = 0; p2ComboTimer = 0f; p2MaxComboRound = 0;
 
@@ -216,6 +218,7 @@ public class GameManager : MonoBehaviour
     {
         p1HP.Reset();
         p2HP.Reset();
+        ResetPoisonDamageRemainders();
         p1Combo = 0; p1ComboTimer = 0f; p1MaxComboRound = 0;
         p2Combo = 0; p2ComboTimer = 0f; p2MaxComboRound = 0;
 
@@ -278,8 +281,18 @@ public class GameManager : MonoBehaviour
     public void OnPoisonTick(int playerIndex, float deltaTime)
     {
         if (currentState != GameState.Playing) return;
-        int dmg = Mathf.RoundToInt(damagePoisonPerSec * deltaTime);
+        float remainder = playerIndex == 1 ? p1PoisonDamageRemainder : p2PoisonDamageRemainder;
+        float accumulated = remainder + damagePoisonPerSec * deltaTime;
+        int dmg = Mathf.FloorToInt(accumulated);
+        if (playerIndex == 1) p1PoisonDamageRemainder = accumulated - dmg;
+        else                  p2PoisonDamageRemainder = accumulated - dmg;
         if (dmg > 0) ApplyDamage(playerIndex, dmg);
+    }
+
+    private void ResetPoisonDamageRemainders()
+    {
+        p1PoisonDamageRemainder = 0f;
+        p2PoisonDamageRemainder = 0f;
     }
 
     private void ApplyDamage(int playerIndex, int amount)

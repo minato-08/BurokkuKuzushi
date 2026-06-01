@@ -31,6 +31,7 @@ public class HitStopController : MonoBehaviour
         if (activeRoutine != null)
         {
             StopCoroutine(activeRoutine);
+            RestoreShakeTarget();
             UnfreezeAll();
         }
         float intensity = !shake ? 0f : (strong ? shakeIntensityStrong : shakeIntensityNormal);
@@ -58,11 +59,16 @@ public class HitStopController : MonoBehaviour
             yield return null;
         }
 
-        if (shakeTarget != null)
-            shakeTarget.localPosition = shakeBaseLocalPos;
+        RestoreShakeTarget();
 
         UnfreezeAll();
         activeRoutine = null;
+    }
+
+    private void RestoreShakeTarget()
+    {
+        if (shakeTarget != null)
+            shakeTarget.localPosition = shakeBaseLocalPos;
     }
 
     private void FreezeAll()

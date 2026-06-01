@@ -38,6 +38,7 @@ public class ArenaController : MonoBehaviour
         extra.name = "Ball_Extra";
         BallScript bs = extra.GetComponent<BallScript>();
         bs.isExtraBall = true; // Start() の自動発射をスキップ → コルーチンで発射
+        hitStop?.RegisterFreezable(bs);
         StartCoroutine(LaunchExtraBallRoutine(bs, duration));
     }
 
