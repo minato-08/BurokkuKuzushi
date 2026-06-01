@@ -166,7 +166,7 @@ _UI                                    ← トップレベルフォルダ（Tran
 
 | フィールド | バインド先 |
 |---|---|
-| `p1HpFill` | `$P1HpFill`（Image, fillAmount） |
+| `p1HpFill` | `$P1HpFill`（Image **Sliced**。HP 比率は `RectTransform.sizeDelta.x`=フル幅×ratio で削る。pivot.x=0 で右から減る。Sliced は fillAmount が効かないため width 制御, 2026-06-01） |
 | `p1HpValue` | `$P1HpValue` |
 | `p1ComboValue` | `$P1ComboValue` |
 | `p1ScoreValue` | `$P1ScoreValue` |
@@ -306,8 +306,9 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `Initialize(ball, playerIndex, arena)` で対象ボール・プレイヤー番号・ArenaController を受け取る
 - `ball.IsWaitingToLaunch` を監視し、true になるとメトロノーム発動
 - sin 波で ±`metronomeAngleRange`° を `metronomePeriodSec` 周期で往復
-- 1P: S キー / 2P: K キーで確定発射 → `ball.LaunchInDirection(localDir)` を呼ぶ
+- 1P: S キー / 2P: K キーで確定発射 → `ball.LaunchInDirection(localDir)` を呼ぶ。**発射は `GameState.Playing` 限定**（カウントダウン中は無効, DESIGN.md 12.12）
 - LineRenderer でリアルタイムに発射角インジケーターを描画（ワールド座標）
+- `ResetAim()`: ラウンド遷移でメトロノーム位相を中央へリセット（待機中にラウンドが終わると角度が引き継がれるのを防止。`ArenaController.ResetForNewRound` から呼ぶ）
 
 ### `BlockSpawner.cs`
 - タイマーで行を生成、毎フレーム降下、底判定
@@ -327,7 +328,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `lastVelocity` は `FixedUpdate` でのみ更新（Heavy/Pierce 属性の貫通処理が衝突前速度を復元するために使用）
 - `Launch()`: `transform.parent.TransformDirection()` でローカル→ワールド変換
 - ボール GameObject に `"BallTag"` Unity タグが必須（`Block` / `DeadZone` どちらも `CompareTag("BallTag")` で判定）
-- `PrepareRespawn(localPos)`: コライダー無効化 + `IsWaitingToLaunch=true`。コルーチン停止・速度状態リセットも行う
+- `PrepareRespawn(localPos)`: コライダー無効化 + `IsWaitingToLaunch=true`。コルーチン停止・速度状態リセット + **角速度/回転(localRotation)もリセット**（ラウンド遷移で残らない）
+- **Ball Heat**（`Update()`, DESIGN.md 5.3）: 属性 Normal のときコンボ段階でボール色を 白→クリーム→橙→赤 に Lerp（`GetHeatColor`）。属性付与中は属性カラー優先。`unscaledDeltaTime` 駆動で HitStop 中も継続。**トレイルも追従**（`SetTrailColor` 共通化＋Gradient キャッシュ再利用で GC 回避）。Renderer は `cachedRenderer` にキャッシュ
 - `LaunchInDirection(localDir)`: コライダー再有効化 + 発射。LaunchAimer から呼ばれる
 - `GetHitStopMultiplier()`: `naturalSpeed/baseSpeed` が `hitStopSpeedThreshold` 未満なら 0、以上なら 0→1 にスケール。ブロック衝突・壁バウンスのフレーム数に乗算する
 - `GetAttributeMultiplier()`: 属性倍率のみ（>= 1.0）。Explosive 破壊など速度閾値によらず掛けたい場合に使用。Pierce は 0f（ヒットストップなし）
@@ -338,9 +340,10 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `PlayerController.cs`
 - `rb.isKinematic = true` + `transform.localPosition` 直接操作
 - 1P: A/D（または矢印キー）、2P: J/L
+- **移動可能なのは `Playing` と `Countdown` のみ**（DESIGN.md 12.12）。Countdown は `timeScale=0` なので `unscaledDeltaTime` で移動（パドルのポジショニング許可）。それ以外の状態（Title/SkillSelect/結果等）は移動不可
 - `SetWidthTemporary(multiplier, duration)`: アイテム効果でパドル幅を一時変更（`localScale.x` 変更、コルーチン）
 - `SetInputReversedTemporary(duration)`: 左右入力反転（TrapBall_Reversed）
-- `ResetState()`: ラウンド遷移時に幅・入力反転・フラッシュコルーチンを全停止し、スケール/色を初期値へ復元（`ArenaController.ResetForNewRound` から呼ばれる）
+- `ResetState()`: ラウンド遷移時に幅・入力反転・フラッシュコルーチンを全停止し、スケール/色を初期値へ復元 + **パドル位置を中央(x=0)へ復帰**（`ArenaController.ResetForNewRound` から呼ばれる）
 
 ### `DeadZone.cs`
 - `ballSpawnOffsetY` と PlayerController.localPosition.y から動的にリスポーン位置を算出
@@ -426,9 +429,12 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - SerializeField は **[必須] / [任意] / [演出]** の 3 区分に整理（詳細は「UI 連携の現状」セクション）
 - HP バー色: 白（≥70%）→ 黄（≥30%）→ 赤（<30%）
 - アクティブアイテム表示: `GetActiveItemName / GetActiveItemRemaining` を毎フレーム参照し、残り時間 > 0 のとき `p1ItemInfoRoot` を SetActive(true)、`$P1ItemName` `$P1ItemDuration` を更新
-- スキル READY 表示: `EnergyRatio >= 1` のとき `p1SkillName` に suffix（既定 ` · READY`）を付加
+- HP バー本体: **Sliced のまま `RectTransform.sizeDelta.x` を HP 比率で縮める**（fillAmount ではない。pivot.x=0 で右から削れる。フル幅は Start でキャッシュ）。スコア表示は内部値の **×10**
+- スキル READY 表示: `EnergyRatio >= 1` のとき `p1SkillName` に suffix（既定 ` · READY`）。緊急スキル発動可能時（`GameManager.IsPanicReady`）は `PANIC READY` で上書き
 - 任意セクションは未バインドでも null セーフで動作（コンパイル・実行ともに影響なし）
 - `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン、未バインドなら何もしない）
+- **Danger Proximity**（`UpdateDangerLine`, DESIGN.md 5.4）: 最下段ブロックが `blockDeadZoneY + dangerRange(1.5)` 以内で `P1/P2BlockDeadLine`(SpriteRenderer) を **alpha 点滅**（色相=赤の `SpriteRenderer.color`、接近で周期 `dangerBlinkSlow→Fast` を**位相累積**で速める＝接近時の位相飛び対策）。底到達ペナルティで `FlashDangerLine` が白フラッシュ（`_TintColor` を HDR 白×Intensity・太さ×3）。死線スプライトは**白**で、色相=`SpriteRenderer.color`/発光=material `UI/HDRTint` の `_TintColor`
+- **Last Stand**（`UpdateLastStand`, DESIGN.md 5.10）: HP ≤ `lastStandThreshold(0.10)` で `P1/P2ArenaFrame` を**元色のまま明るさだけ周期低下**（消えかけ電球風）、HP バーを赤明滅。`Playing` 以外では非アクティブ（脱出フレームで枠を元色へ復元）
 
 ### `BreathPulse.cs`
 - Material の HDR カラー Intensity を Sin 波で脈動させて Bloom Threshold をまたぐ「呼吸」演出

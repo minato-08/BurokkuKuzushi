@@ -49,6 +49,7 @@ public class Block : MonoBehaviour
 
     private int currentHp;
     private Renderer blockRenderer;
+    private bool destroyed;   // 多重破壊ガード（Destroy は遅延実行なので同フレームの追撃で二重発火するのを防ぐ）
 
     void Awake()
     {
@@ -138,6 +139,11 @@ public class Block : MonoBehaviour
 
     private void OnDestroyed(BallScript ball)
     {
+        // 同一フレーム内の追撃（マルチボール/貫通/連鎖）で二重発火するとコンボ・スコア・破壊数・
+        // ドロップ・爆発が重複する。Destroy は遅延実行なのでフラグで一度だけに保証する。
+        if (destroyed) return;
+        destroyed = true;
+
         // ブロック破壊 SE（Explosive は専用音, DESIGN.md 10.4）
         AudioManager.Instance?.PlayBlockBreak(blockType == BlockType.Explosive, ball != null ? ball.playerIndex : 0);
 
