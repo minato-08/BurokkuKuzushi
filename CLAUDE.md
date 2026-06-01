@@ -235,7 +235,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `HPStateBand` クラスも同ファイルで定義。Inspector で hpStateBands[] 配列を設定する（空なら全倍率1.0で動作）
 - HP帯に応じた動的パラメータ参照: `GetCurrentBand(playerIndex)` → `HPStateBand`
 - `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
-- `GetCombo(playerIndex)` は現在のコンボ値（`p1Combo` / `p2Combo`）を返す。コンボは **ブロック接触ごと**に `RegisterBallHitBlock` で +1（破壊不要、DESIGN.md 5.8）。`RegisterBlockDestroyed` はエナジー蓄積のみ担う
+- `GetCombo(playerIndex)` は現在のコンボ値（`p1Combo` / `p2Combo`）を返す。コンボは **ブロック破壊ごと**に `RegisterBlockDestroyed` で +1（2026-06-01 接触ベースから戻した、DESIGN.md 5.8）。Thunder/Fire 等で複数破壊すると破壊数ぶん一気に伸びる。同メソッドがコンボ++/タイマーリセット/マイルストーン/エナジー蓄積を担う（旧 `RegisterBallHitBlock` は撤去）
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
 
 > ⚠️ **仕様とコードの乖離 — Phase F-Polish 追加実装**: 以下は DESIGN.md に定義済みだがコードに未実装。Phase F-Polish のチェックリストに含まれる:
@@ -245,7 +245,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 >
 > 実装済み:
 > - **攻撃アイテム経由モデル**: ItemType 拡張 + `EffectAttack` → `GameManager.SendInterference` 経路。コンボ自動妨害は撤廃済み。
-> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。**ブロック接触ごとに +1**（破壊不要、`RegisterBallHitBlock`）。タイマー起点は「最後のブロック接触後」。
+> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。**ブロック破壊ごとに +1**（2026-06-01 接触ベースから戻した、`RegisterBlockDestroyed`）。タイマー起点は「最後のブロック破壊後」。
 > - **罠アイテム** (Shrink/Hyper/Reversed): `Block.trapDisguiseChance` で強化枠に偽装。`PlayerController.inputReversed` 実装済み。
 > - **Dynamic Escalation**: `BlockSpawner` の base/decay/min・base/gain/max + `roundElapsedTime` 実装済み。
 > - **コンボマイルストーン / 攻撃側 SENT ラベル**: `UIManager.ShowComboMilestone` / `ShowSentLabel` とトリガー実装済み。**UI 要素は未バインド**（後述の任意セクションでバインド）。
