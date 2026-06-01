@@ -117,6 +117,10 @@ public class UIManager : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float lastStandDimFloor = 0.28f; // 明るさを落とす下限
     [SerializeField] private string panicReadyLabel    = "PANIC READY";
 
+    // HP バーは Sliced のまま RectTransform.width を HP 比率で縮める（fillAmount は Sliced で無効）。
+    // pivot.x=0（左固定）なので幅を減らすと右から削れる。フル幅を Start でキャッシュ。
+    private float p1HpFillMaxWidth, p2HpFillMaxWidth;
+
     // Danger / Last Stand のランタイム状態（元色・元スケールキャッシュ・フラッシュ制御）
     private Color   p1DeadLineOrig, p2DeadLineOrig, p1FrameOrig, p2FrameOrig;
     private Vector3 p1DeadLineScale = Vector3.one, p2DeadLineScale = Vector3.one;
@@ -152,6 +156,10 @@ public class UIManager : MonoBehaviour
         // 「×」のみ表示する（コンボ数値は $ComboValue 側で更新）
         if (p1ComboMax != null) p1ComboMax.text = "×";
         if (p2ComboMax != null) p2ComboMax.text = "×";
+
+        // HP バーのフル幅をキャッシュ（width で削る基準）
+        if (p1HpFill != null) p1HpFillMaxWidth = p1HpFill.rectTransform.sizeDelta.x;
+        if (p2HpFill != null) p2HpFillMaxWidth = p2HpFill.rectTransform.sizeDelta.x;
 
         // Danger / Last Stand の元色・元スケールをキャッシュ（演出終了時に復元する）
         if (p1BlockDeadLine != null) { p1DeadLineOrig = p1BlockDeadLine.color; p1DeadLineScale = p1BlockDeadLine.transform.localScale; }
@@ -204,12 +212,16 @@ public class UIManager : MonoBehaviour
     {
         var gm = GameManager.Instance;
 
-        // HP
+        // HP（Sliced のまま width を縮める。pivot.x=0 なので右から削れる）
         if (hpFill != null)
         {
-            float ratio = gm.GetHPRatio(playerIndex);
-            hpFill.fillAmount = ratio;
-            hpFill.color      = GetHPColor(ratio);
+            float ratio = Mathf.Clamp01(gm.GetHPRatio(playerIndex));
+            float maxW  = playerIndex == 1 ? p1HpFillMaxWidth : p2HpFillMaxWidth;
+            RectTransform rt = hpFill.rectTransform;
+            Vector2 sd = rt.sizeDelta;
+            sd.x = maxW * ratio;
+            rt.sizeDelta = sd;
+            hpFill.color = GetHPColor(ratio);
         }
         if (hpValue   != null) hpValue.text   = gm.GetHP(playerIndex).ToString();
         // コンボは UI 上 99 で表示頭打ち（内部値は維持, DESIGN.md 5.8）
