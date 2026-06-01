@@ -33,7 +33,7 @@ public class ZonePoison : MonoBehaviour
                 transform.position = p;
                 landed = true;
                 loopStarted = true;
-                AudioManager.Instance?.StartPoisonLoop(); // 滞在中ループ SE（DESIGN.md 10.4）
+                AudioManager.Instance?.StartPoisonLoop(playerIndex); // 滞在中ループ SE（DESIGN.md 10.4）
                 Destroy(gameObject, duration);
             }
             return;

@@ -364,6 +364,7 @@ public class GameManager : MonoBehaviour
 
         InterferenceType type  = AttackItemToInterference(attackItem);
         string           label = GetInterferenceLabel(type);
+        AudioManager.Instance?.PlayInterferenceRecv(targetPlayerIndex); // 受信側にパン
         ApplyInterference(target, type);
         target.TriggerHitStop(interferenceTriggerFrames);
         target.ShowInterferenceOverlay(label);
@@ -387,7 +388,6 @@ public class GameManager : MonoBehaviour
 
     private void ApplyInterference(ArenaController target, InterferenceType type)
     {
-        AudioManager.Instance?.PlayInterferenceRecv(); // 妨害受信 SE（DESIGN.md 10.4）
         switch (type)
         {
             case InterferenceType.AddRow:
@@ -434,7 +434,7 @@ public class GameManager : MonoBehaviour
         if (p1RoundWins >= roundsToWin || p2RoundWins >= roundsToWin)
         {
             currentState = GameState.MatchOver;
-            AudioManager.Instance?.PlayMatchWin();
+            AudioManager.Instance?.PlayMatchWin(winner);
             AudioManager.Instance?.PlayResultJingle(); // 試合 BGM フェードアウト + 結果ジングル
             // 勝者はフリーズのみ、敗者にのみカメラシェイクを適用する
             ArenaController matchWinnerArena = winner == 1 ? arena1 : arena2;
@@ -447,7 +447,7 @@ public class GameManager : MonoBehaviour
         else
         {
             currentState = GameState.RoundOver;
-            AudioManager.Instance?.PlayRoundWin();
+            AudioManager.Instance?.PlayRoundWin(winner);
             RoundIntermissionRemaining = nextRoundDelay;
             ArenaController loserArena  = winner == 1 ? arena2 : arena1;
             ArenaController winnerArena = winner == 1 ? arena1 : arena2;

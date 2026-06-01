@@ -26,44 +26,47 @@ public class AudioManager : MonoBehaviour
     [Header("SE プール")]
     [SerializeField] private int sePoolSize = 12;
 
-    [Header("SE クリップ — ボール / ブロック")]
-    [SerializeField] private AudioClip seBallWall;
-    [SerializeField] private AudioClip seBallPaddle;
-    [SerializeField] private AudioClip seBallLaunch;
-    [SerializeField] private AudioClip seBlockHitNormal;
-    [SerializeField] private AudioClip seBlockHitHard;
-    [SerializeField] private AudioClip seBlockHitAbsorb;
-    [SerializeField] private AudioClip seBlockBreak;
-    [SerializeField] private AudioClip seBlockExplosive;
+    // 各 SE は「クリップ + 個別音量(0〜1.5)」のペア。音量は Inspector で個別調整できる。
+    [Header("SE — ボール / ブロック")]
+    [SerializeField] private AudioClip seBallWall;        [SerializeField, Range(0f, 1.5f)] private float volBallWall = 1f;
+    [SerializeField] private AudioClip seBallPaddle;      [SerializeField, Range(0f, 1.5f)] private float volBallPaddle = 1f;
+    [SerializeField] private AudioClip seBallLaunch;      [SerializeField, Range(0f, 1.5f)] private float volBallLaunch = 1f;
+    [SerializeField] private AudioClip seBlockHitNormal;  [SerializeField, Range(0f, 1.5f)] private float volBlockHitNormal = 1f;
+    [SerializeField] private AudioClip seBlockHitHard;    [SerializeField, Range(0f, 1.5f)] private float volBlockHitHard = 1f;
+    [SerializeField] private AudioClip seBlockHitAbsorb;  [SerializeField, Range(0f, 1.5f)] private float volBlockHitAbsorb = 1f;
+    [SerializeField] private AudioClip seBlockBreak;      [SerializeField, Range(0f, 1.5f)] private float volBlockBreak = 1f;
+    [SerializeField] private AudioClip seBlockExplosive;  [SerializeField, Range(0f, 1.5f)] private float volBlockExplosive = 1f;
 
-    [Header("SE クリップ — アイテム / スキル / 妨害")]
-    [SerializeField] private AudioClip seItemDrop;
-    [SerializeField] private AudioClip seItemBuff;
-    [SerializeField] private AudioClip seItemAttack;
-    [SerializeField] private AudioClip seItemTrap;
-    [SerializeField] private AudioClip seSkillReady;
-    [SerializeField] private AudioClip seSkillActivate;
-    [SerializeField] private AudioClip seInterferenceRecv;
-    [SerializeField] private AudioClip seAddRowLand;
-    [SerializeField] private AudioClip sePoisonLoop;
+    [Header("SE — アイテム / スキル / 妨害")]
+    [SerializeField] private AudioClip seItemDrop;        [SerializeField, Range(0f, 1.5f)] private float volItemDrop = 1f;
+    [SerializeField] private AudioClip seItemBuff;        [SerializeField, Range(0f, 1.5f)] private float volItemBuff = 1f;
+    [SerializeField] private AudioClip seItemAttack;      [SerializeField, Range(0f, 1.5f)] private float volItemAttack = 1f;
+    [SerializeField] private AudioClip seItemTrap;        [SerializeField, Range(0f, 1.5f)] private float volItemTrap = 1f;
+    [SerializeField] private AudioClip seSkillReady;      [SerializeField, Range(0f, 1.5f)] private float volSkillReady = 1f;
+    [SerializeField] private AudioClip seSkillActivate;   [SerializeField, Range(0f, 1.5f)] private float volSkillActivate = 1f;
+    [SerializeField] private AudioClip seInterferenceRecv;[SerializeField, Range(0f, 1.5f)] private float volInterferenceRecv = 1f;
+    [SerializeField] private AudioClip seAddRowLand;      [SerializeField, Range(0f, 1.5f)] private float volAddRowLand = 1f;
+    [SerializeField] private AudioClip sePoisonLoop;      [SerializeField, Range(0f, 1.5f)] private float volPoisonLoop = 1f;
 
-    [Header("SE クリップ — ラウンド / マッチ / UI")]
-    [SerializeField] private AudioClip seRoundStart;
-    [SerializeField] private AudioClip seRoundWin;
-    [SerializeField] private AudioClip seMatchWin;
-    [SerializeField] private AudioClip seComboMilestone;
-    [SerializeField] private AudioClip seUiMove;
-    [SerializeField] private AudioClip seUiConfirm;
+    [Header("SE — ラウンド / マッチ / UI")]
+    [SerializeField] private AudioClip seRoundStart;      [SerializeField, Range(0f, 1.5f)] private float volRoundStart = 1f;
+    [SerializeField] private AudioClip seRoundWin;        [SerializeField, Range(0f, 1.5f)] private float volRoundWin = 1f;
+    [SerializeField] private AudioClip seMatchWin;        [SerializeField, Range(0f, 1.5f)] private float volMatchWin = 1f;
+    [SerializeField] private AudioClip seComboMilestone;  [SerializeField, Range(0f, 1.5f)] private float volComboMilestone = 1f;
+    [SerializeField] private AudioClip seUiMove;          [SerializeField, Range(0f, 1.5f)] private float volUiMove = 1f;
+    [SerializeField] private AudioClip seUiConfirm;       [SerializeField, Range(0f, 1.5f)] private float volUiConfirm = 1f;
 
-    [Header("BGM クリップ")]
+    [Header("BGM クリップ / 音量")]
     [SerializeField] private AudioClip bgmTitle;
     [SerializeField] private AudioClip bgmMatch;
     [SerializeField] private AudioClip bgmMatchTense;  // HP30% 帯で重ねる緊迫レイヤー
     [SerializeField] private AudioClip bgmResultJingle;
+    [SerializeField, Range(0f, 1f)] private float bgmVolume = 0.7f; // BGM 共通音量（フェード到達値）
 
-    [Header("SE ピッチ調整")]
+    [Header("SE ピッチ / パン調整")]
     [SerializeField] private float ballWallPitchPerSpeed = 0.2f; // pitch = 1 + (speedRatio-1) * これ
     [SerializeField] private float blockHitSeCooldown    = 0.05f; // アリーナごと 50ms
+    [SerializeField, Range(0f, 1f)] private float seStereoPan = 0.7f; // P1=左 / P2=右 のパン量
 
     // ---- ランタイム状態 ----
     private AudioSource[] sePool;
@@ -133,26 +136,31 @@ public class AudioManager : MonoBehaviour
     // SE 再生コア
     // =====================================================
 
-    private void PlaySE(AudioClip clip, float pitch = 1f, float volScale = 1f)
+    private void PlaySE(AudioClip clip, float pitch = 1f, float volScale = 1f, float pan = 0f)
     {
         if (clip == null || sePool == null) return;
         var src = sePool[seCursor];
         seCursor = (seCursor + 1) % sePool.Length;
-        src.pitch = pitch;
+        src.pitch     = pitch;
+        src.panStereo = pan;
         src.PlayOneShot(clip, volScale);
     }
 
     private static float Semitone(float n) => Mathf.Pow(2f, n / 12f);
 
+    // P1=左寄り / P2=右寄り / それ以外(0)=中央。アリーナ音を左右に振って混線を防ぐ。
+    private float PanFor(int playerIndex)
+        => playerIndex == 1 ? -seStereoPan : playerIndex == 2 ? seStereoPan : 0f;
+
     // =====================================================
     // SE 公開 API（DESIGN.md 10.4 のトリガー表に対応）
     // =====================================================
 
-    public void PlayBallWall(float speedRatio)
-        => PlaySE(seBallWall, 1f + (speedRatio - 1f) * ballWallPitchPerSpeed);
+    public void PlayBallWall(float speedRatio, int playerIndex = 0)
+        => PlaySE(seBallWall, 1f + (speedRatio - 1f) * ballWallPitchPerSpeed, volBallWall, PanFor(playerIndex));
 
-    public void PlayBallPaddle() => PlaySE(seBallPaddle);
-    public void PlayBallLaunch() => PlaySE(seBallLaunch);
+    public void PlayBallPaddle(int playerIndex = 0) => PlaySE(seBallPaddle, 1f, volBallPaddle, PanFor(playerIndex));
+    public void PlayBallLaunch(int playerIndex = 0) => PlaySE(seBallLaunch, 1f, volBallLaunch, PanFor(playerIndex));
 
     // ブロック衝突。アリーナごと 50ms クールダウン。Hard は -2 半音。
     public void PlayBlockHit(int blockType, int arenaIndex)
@@ -169,47 +177,55 @@ public class AudioManager : MonoBehaviour
             p2LastBlockSe = now;
         }
 
+        float pan = PanFor(arenaIndex);
         switch ((BlockType)blockType)
         {
-            case BlockType.Hard:   PlaySE(seBlockHitHard, Semitone(-2f)); break;
-            case BlockType.Absorb: PlaySE(seBlockHitAbsorb);              break;
-            default:               PlaySE(seBlockHitNormal);              break;
+            case BlockType.Hard:   PlaySE(seBlockHitHard, Semitone(-2f), volBlockHitHard, pan); break;
+            case BlockType.Absorb: PlaySE(seBlockHitAbsorb, 1f, volBlockHitAbsorb, pan);        break;
+            default:               PlaySE(seBlockHitNormal, 1f, volBlockHitNormal, pan);        break;
         }
     }
 
-    public void PlayBlockBreak(bool explosive)
-        => PlaySE(explosive ? seBlockExplosive : seBlockBreak);
+    public void PlayBlockBreak(bool explosive, int playerIndex = 0)
+        => PlaySE(explosive ? seBlockExplosive : seBlockBreak,
+                  1f, explosive ? volBlockExplosive : volBlockBreak, PanFor(playerIndex));
 
-    public void PlayItemDrop() => PlaySE(seItemDrop);
+    public void PlayItemDrop(int playerIndex = 0) => PlaySE(seItemDrop, 1f, volItemDrop, PanFor(playerIndex));
 
-    public void PlayItemPickup(ItemCategory category)
+    public void PlayItemPickup(ItemCategory category, int playerIndex = 0)
     {
+        float pan = PanFor(playerIndex);
         switch (category)
         {
-            case ItemCategory.Attack: PlaySE(seItemAttack); break;
-            case ItemCategory.Trap:   PlaySE(seItemTrap);   break;
-            default:                  PlaySE(seItemBuff);   break;
+            case ItemCategory.Attack: PlaySE(seItemAttack, 1f, volItemAttack, pan); break;
+            case ItemCategory.Trap:   PlaySE(seItemTrap, 1f, volItemTrap, pan);     break;
+            default:                  PlaySE(seItemBuff, 1f, volItemBuff, pan);     break;
         }
     }
 
-    public void PlaySkillReady()     => PlaySE(seSkillReady);
-    public void PlaySkillActivate()  => PlaySE(seSkillActivate);
-    public void PlayInterferenceRecv() => PlaySE(seInterferenceRecv);
-    public void PlayAddRowLand()     => PlaySE(seAddRowLand);
-    public void PlayRoundStart()     => PlaySE(seRoundStart);
-    public void PlayRoundWin()       => PlaySE(seRoundWin);
-    public void PlayMatchWin()       => PlaySE(seMatchWin);
-    public void PlayUiMove()         => PlaySE(seUiMove);
-    public void PlayUiConfirm()      => PlaySE(seUiConfirm);
+    public void PlaySkillReady(int playerIndex = 0)    => PlaySE(seSkillReady, 1f, volSkillReady, PanFor(playerIndex));
+    public void PlaySkillActivate(int playerIndex = 0) => PlaySE(seSkillActivate, 1f, volSkillActivate, PanFor(playerIndex));
+    public void PlayInterferenceRecv(int playerIndex = 0) => PlaySE(seInterferenceRecv, 1f, volInterferenceRecv, PanFor(playerIndex));
+    public void PlayAddRowLand(int playerIndex = 0)    => PlaySE(seAddRowLand, 1f, volAddRowLand, PanFor(playerIndex));
+    public void PlayRoundStart()  => PlaySE(seRoundStart, 1f, volRoundStart);  // 両アリーナ共通＝中央
+    public void PlayRoundWin(int playerIndex = 0) => PlaySE(seRoundWin, 1f, volRoundWin, PanFor(playerIndex));
+    public void PlayMatchWin(int playerIndex = 0) => PlaySE(seMatchWin, 1f, volMatchWin, PanFor(playerIndex));
+    public void PlayUiMove(int playerIndex = 0)    => PlaySE(seUiMove, 1f, volUiMove, PanFor(playerIndex));
+    public void PlayUiConfirm(int playerIndex = 0) => PlaySE(seUiConfirm, 1f, volUiConfirm, PanFor(playerIndex));
 
     // マイルストーン番号でピッチを +N 半音（10→0, 20→+2, 30→+4 …）
-    public void PlayComboMilestone(int milestone)
-        => PlaySE(seComboMilestone, Semitone(Mathf.Max(0, (milestone / 10) - 1) * 2f));
+    public void PlayComboMilestone(int milestone, int playerIndex = 0)
+        => PlaySE(seComboMilestone, Semitone(Mathf.Max(0, (milestone / 10) - 1) * 2f), volComboMilestone, PanFor(playerIndex));
 
-    // 毒エリアのループ（参照カウントで複数同時に対応）
-    public void StartPoisonLoop()
+    // 毒エリアのループ（参照カウントで複数同時に対応）。単一ソースのため両陣同時時は後勝ちパン。
+    public void StartPoisonLoop(int playerIndex = 0)
     {
         poisonRefCount++;
+        if (poisonSource != null)
+        {
+            poisonSource.panStereo = PanFor(playerIndex);
+            poisonSource.volume    = volPoisonLoop;
+        }
         if (sePoisonLoop != null && poisonSource != null && !poisonSource.isPlaying)
         {
             poisonSource.clip = sePoisonLoop;
@@ -239,7 +255,7 @@ public class AudioManager : MonoBehaviour
     public void PlayResultJingle()
     {
         StopBGM(1.0f);
-        if (bgmResultJingle != null) PlaySE(bgmResultJingle); // ループなし単発、SE 扱いで上に乗せる
+        if (bgmResultJingle != null) PlaySE(bgmResultJingle, 1f, bgmVolume); // ループなし単発、SE 扱いで上に乗せる
     }
 
     // HP30% 帯で緊迫レイヤーを重ねる/戻す（DESIGN.md 10.5）
@@ -257,7 +273,7 @@ public class AudioManager : MonoBehaviour
                 bgmTense.Play();
             }
         }
-        StartFade(bgmTense, on ? 1f : 0f, fade);
+        StartFade(bgmTense, on ? bgmVolume : 0f, fade);
     }
 
     private void CrossfadeTo(AudioClip next, float fade)
@@ -275,7 +291,7 @@ public class AudioManager : MonoBehaviour
         {
             bgmPrimary.clip = next;
             bgmPrimary.Play();
-            yield return FadeRoutine(bgmPrimary, 1f, fade);
+            yield return FadeRoutine(bgmPrimary, bgmVolume, fade);
         }
     }
 

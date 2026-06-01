@@ -124,7 +124,7 @@ public class LaunchAimer : MonoBehaviour
         float rad        = currentAngleDeg * Mathf.Deg2Rad;
         Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
         ball.LaunchInDirection(localDir);
-        AudioManager.Instance?.PlayBallLaunch(); // 発射確定 SE（DESIGN.md 10.4）
+        AudioManager.Instance?.PlayBallLaunch(playerIndex); // 発射確定 SE（DESIGN.md 10.4）
         StopAiming();
     }
 }

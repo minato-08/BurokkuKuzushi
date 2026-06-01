@@ -17740,26 +17740,26 @@ MonoBehaviour:
   bgmVolParam: BGMVol
   seVolParam: SEVol
   sePoolSize: 12
-  seBallWall: {fileID: 0}
-  seBallPaddle: {fileID: 0}
+  seBallWall: {fileID: 8300000, guid: 1cb190a3446dc4232b48676cc0c08498, type: 3}
+  seBallPaddle: {fileID: 8300000, guid: 30f0d33e821cb41018885d8b05466c76, type: 3}
   seBallLaunch: {fileID: 0}
-  seBlockHitNormal: {fileID: 0}
-  seBlockHitHard: {fileID: 0}
-  seBlockHitAbsorb: {fileID: 0}
-  seBlockBreak: {fileID: 0}
-  seBlockExplosive: {fileID: 0}
-  seItemDrop: {fileID: 0}
-  seItemBuff: {fileID: 0}
-  seItemAttack: {fileID: 0}
-  seItemTrap: {fileID: 0}
-  seSkillReady: {fileID: 0}
-  seSkillActivate: {fileID: 0}
-  seInterferenceRecv: {fileID: 0}
+  seBlockHitNormal: {fileID: 8300000, guid: 8e95750a3532d48829810fa1fc2952a3, type: 3}
+  seBlockHitHard: {fileID: 8300000, guid: 61000f87f49164dbd8dc86edf2f96062, type: 3}
+  seBlockHitAbsorb: {fileID: 8300000, guid: 5714611dbe3db4c64807c48d4968a1b7, type: 3}
+  seBlockBreak: {fileID: 8300000, guid: 1583833e0b93d43c98344c345d3deef2, type: 3}
+  seBlockExplosive: {fileID: 8300000, guid: 0494486d1089c402caee8e2b51bfdbeb, type: 3}
+  seItemDrop: {fileID: 8300000, guid: 2fc248a1ee6554063964e01b7ff4c7d9, type: 3}
+  seItemBuff: {fileID: 8300000, guid: 055779da0c91e40428bbd2aa2369600c, type: 3}
+  seItemAttack: {fileID: 8300000, guid: 175ffac40a6ed4e47934253aa403ed96, type: 3}
+  seItemTrap: {fileID: 8300000, guid: 3e95a76675f07429db1f307166269d14, type: 3}
+  seSkillReady: {fileID: 8300000, guid: ec3dfdd127f024ede894650733692304, type: 3}
+  seSkillActivate: {fileID: 8300000, guid: 6d13720c979294fdb890102344d2b362, type: 3}
+  seInterferenceRecv: {fileID: 8300000, guid: 18f2d4ea1d6584b8cba3d3f009267d46, type: 3}
   seAddRowLand: {fileID: 0}
   sePoisonLoop: {fileID: 0}
-  seRoundStart: {fileID: 0}
+  seRoundStart: {fileID: 8300000, guid: 42ca4600920184931af15a6e5063a45a, type: 3}
   seRoundWin: {fileID: 0}
-  seMatchWin: {fileID: 0}
+  seMatchWin: {fileID: 8300000, guid: 11ac78abff3154bc3aaaaaa0cdc0977b, type: 3}
   seComboMilestone: {fileID: 0}
   seUiMove: {fileID: 0}
   seUiConfirm: {fileID: 0}
@@ -18176,9 +18176,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   roundsToWin: 1
-  nextRoundDelay: 2
+  nextRoundDelay: 5
   countdownStepSec: 1
-  countdownGoSec: 0.6
+  countdownGoSec: 1.5
   maxHP: 500
   damageBallDrop: 5
   damageBlockReachBottom: 10
@@ -18459,11 +18459,11 @@ MonoBehaviour:
   downsample: 2
   iterations: 5
   darken: 0.5
-  darkenTitle: 0.3
-  darkenSettings: 0.91
+  darkenTitle: 0
+  darkenSettings: 0.9
   darkenSkillSelect: 0.9
-  darkenRoundOver: 0.25
-  darkenMatchOver: 0.75
+  darkenRoundOver: 0.9
+  darkenMatchOver: 0.95
   fadeInSeconds: 0.22
   fadeOutSeconds: 0.18
   autoDriveByGameState: 1

@@ -193,7 +193,7 @@ public class BallScript : MonoBehaviour, IFreezable
         if (isWall)
         {
             // 壁反射 SE（ピッチを速度層で可変, DESIGN.md 10.4）
-            AudioManager.Instance?.PlayBallWall(baseSpeed > 0f ? naturalSpeed / baseSpeed : 1f);
+            AudioManager.Instance?.PlayBallWall(baseSpeed > 0f ? naturalSpeed / baseSpeed : 1f, playerIndex);
 
             // 壁バウンスヒットストップ
             if (wallBounceFrames > 0)

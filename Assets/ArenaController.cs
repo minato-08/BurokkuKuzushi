@@ -52,7 +52,7 @@ public class ArenaController : MonoBehaviour
 
     public void SpawnItem(Vector3 worldPos, ItemType type)
     {
-        AudioManager.Instance?.PlayItemDrop(); // アイテム出現 SE（DESIGN.md 10.4）
+        AudioManager.Instance?.PlayItemDrop(playerIndex); // アイテム出現 SE（DESIGN.md 10.4）
         GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         go.name = "Item_" + type;
         go.transform.SetParent(ArenaRoot, worldPositionStays: true);

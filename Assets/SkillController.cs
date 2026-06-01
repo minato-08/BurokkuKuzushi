@@ -41,14 +41,14 @@ public class SkillController : MonoBehaviour
 
         // チャージ完了の立ち上がりで READY SE（DESIGN.md 10.4）
         bool ready = energy.IsFull;
-        if (ready && !wasReady) AudioManager.Instance?.PlaySkillReady();
+        if (ready && !wasReady) AudioManager.Instance?.PlaySkillReady(playerIndex);
         wasReady = ready;
 
         if (!ready) return;
         if (!IsSkillKeyPressed()) return;
         if (!equippedSkill.CanActivate(playerIndex)) return;
 
-        AudioManager.Instance?.PlaySkillActivate(); // スキル発動 SE
+        AudioManager.Instance?.PlaySkillActivate(playerIndex); // スキル発動 SE
         energy.ConsumeAll();
         equippedSkill.Activate(playerIndex, arena);
     }

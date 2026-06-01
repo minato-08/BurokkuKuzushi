@@ -141,7 +141,7 @@ public class Block : MonoBehaviour
     private void OnDestroyed(BallScript ball)
     {
         // ブロック破壊 SE（Explosive は専用音, DESIGN.md 10.4）
-        AudioManager.Instance?.PlayBlockBreak(blockType == BlockType.Explosive);
+        AudioManager.Instance?.PlayBlockBreak(blockType == BlockType.Explosive, ball != null ? ball.playerIndex : 0);
 
         // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)
