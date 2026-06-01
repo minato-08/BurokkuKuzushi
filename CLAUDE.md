@@ -318,6 +318,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `HardenRandomBlocks()` — LINQ で Normal ブロックをランダムに `hardenCount` 個選び `HardenToHp(hardenTargetHp)` で Hard 化
 - `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
 - 通常行は `explosiveBlockChance` / `hardBlockChance` / **`itemBlockChance`**(0.08, BlockItem) の確率で種別を割り当てる
+- **スペシャル行**（DESIGN.md 5.4, `specialRowChance`=0.125・妨害予約が無いとき抽選）: 全Item / 全Explosive / 歯抜け(2列スキップ) の 3 種を `PickSpecialKind`→`SpawnRow(special)` で構築。スポーン時 `AudioManager.PlaySpecialRow`（`se_special_row` クリップ未配置）
 - **妨害行 着弾演出**（DESIGN.md 6.3）: 妨害行スポーン時に上空（`addRowSlideDistance`）へずらし `SlideInSabotageRow` コルーチンで `addRowSlideDuration`(0.3s) かけて滑り込み。スライド中は `slidingBlocks` により降下対象外。着地で `Block.FlashImpact` + `addRowImpactFrames`(2) ヒットストップ + `se_addrow_land`。`ClearAndRespawn` で `StopAllCoroutines`+`slidingBlocks` クリア
 
 ### `BallScript.cs`
@@ -440,6 +441,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン、未バインドなら何もしない）
 - **Danger Proximity**（`UpdateDangerLine`, DESIGN.md 5.4）: 最下段ブロックが `blockDeadZoneY + dangerRange(1.5)` 以内で `P1/P2BlockDeadLine`(SpriteRenderer) を **alpha 点滅**（色相=赤の `SpriteRenderer.color`、接近で周期 `dangerBlinkSlow→Fast` を**位相累積**で速める＝接近時の位相飛び対策）。底到達ペナルティで `FlashDangerLine` が白フラッシュ（`_TintColor` を HDR 白×Intensity・太さ×3）。死線スプライトは**白**で、色相=`SpriteRenderer.color`/発光=material `UI/HDRTint` の `_TintColor`
 - **Last Stand**（`UpdateLastStand`, DESIGN.md 5.10）: HP ≤ `lastStandThreshold(0.10)` で `P1/P2ArenaFrame` を**元色のまま明るさだけ周期低下**（消えかけ電球風）、HP バーを赤明滅。`Playing` 以外では非アクティブ（脱出フレームで枠を元色へ復元）
+- **Combo Timer Arc**（`UpdateComboArc`, DESIGN.md 6.2）: `p1/p2ComboArc`(Filled Image) の fillAmount に `GameManager.GetComboTimerRatio`(1→0) を反映。combo0 で非表示、消滅間際は橙。**要素未配置＝未バインド**
 
 ### `BreathPulse.cs`
 - Material の HDR カラー Intensity を Sin 波で脈動させて Bloom Threshold をまたぐ「呼吸」演出
