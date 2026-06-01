@@ -101,6 +101,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         {
             pendingSabotageRows--;
             SpawnRow(RowType.Sabotage);
+            AudioManager.Instance?.PlayAddRowLand(playerIndex); // 妨害行スポーン SE（DESIGN.md 10.4）
         }
 
         DescendBlocks();

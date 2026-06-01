@@ -17741,34 +17741,59 @@ MonoBehaviour:
   seVolParam: SEVol
   sePoolSize: 12
   seBallWall: {fileID: 8300000, guid: 1cb190a3446dc4232b48676cc0c08498, type: 3}
+  volBallWall: 0.36
   seBallPaddle: {fileID: 8300000, guid: 30f0d33e821cb41018885d8b05466c76, type: 3}
-  seBallLaunch: {fileID: 0}
+  volBallPaddle: 1
+  seBallLaunch: {fileID: 8300000, guid: 2fb37f5e56ca84a4f9c42836eed45e96, type: 3}
+  volBallLaunch: 1
   seBlockHitNormal: {fileID: 8300000, guid: 8e95750a3532d48829810fa1fc2952a3, type: 3}
+  volBlockHitNormal: 0.7
   seBlockHitHard: {fileID: 8300000, guid: 61000f87f49164dbd8dc86edf2f96062, type: 3}
+  volBlockHitHard: 0.7
   seBlockHitAbsorb: {fileID: 8300000, guid: 5714611dbe3db4c64807c48d4968a1b7, type: 3}
+  volBlockHitAbsorb: 1
   seBlockBreak: {fileID: 8300000, guid: 1583833e0b93d43c98344c345d3deef2, type: 3}
+  volBlockBreak: 0.7
   seBlockExplosive: {fileID: 8300000, guid: 0494486d1089c402caee8e2b51bfdbeb, type: 3}
+  volBlockExplosive: 1
   seItemDrop: {fileID: 8300000, guid: 2fc248a1ee6554063964e01b7ff4c7d9, type: 3}
+  volItemDrop: 1
   seItemBuff: {fileID: 8300000, guid: 055779da0c91e40428bbd2aa2369600c, type: 3}
+  volItemBuff: 1
   seItemAttack: {fileID: 8300000, guid: 175ffac40a6ed4e47934253aa403ed96, type: 3}
+  volItemAttack: 1
   seItemTrap: {fileID: 8300000, guid: 3e95a76675f07429db1f307166269d14, type: 3}
+  volItemTrap: 1
   seSkillReady: {fileID: 8300000, guid: ec3dfdd127f024ede894650733692304, type: 3}
+  volSkillReady: 1
   seSkillActivate: {fileID: 8300000, guid: 6d13720c979294fdb890102344d2b362, type: 3}
+  volSkillActivate: 1
   seInterferenceRecv: {fileID: 8300000, guid: 18f2d4ea1d6584b8cba3d3f009267d46, type: 3}
+  volInterferenceRecv: 1
   seAddRowLand: {fileID: 0}
-  sePoisonLoop: {fileID: 0}
+  volAddRowLand: 1
+  sePoisonLoop: {fileID: 8300000, guid: 06350dfd7dec84e459278ea5eb4f5e22, type: 3}
+  volPoisonLoop: 1
   seRoundStart: {fileID: 8300000, guid: 42ca4600920184931af15a6e5063a45a, type: 3}
-  seRoundWin: {fileID: 0}
+  volRoundStart: 1
+  seRoundWin: {fileID: 8300000, guid: 11ac78abff3154bc3aaaaaa0cdc0977b, type: 3}
+  volRoundWin: 1
   seMatchWin: {fileID: 8300000, guid: 11ac78abff3154bc3aaaaaa0cdc0977b, type: 3}
-  seComboMilestone: {fileID: 0}
-  seUiMove: {fileID: 0}
-  seUiConfirm: {fileID: 0}
+  volMatchWin: 1
+  seComboMilestone: {fileID: 8300000, guid: ec3dfdd127f024ede894650733692304, type: 3}
+  volComboMilestone: 1
+  seUiMove: {fileID: 8300000, guid: d166adfeeeeba48a3ab34e6cb1dbb469, type: 3}
+  volUiMove: 1
+  seUiConfirm: {fileID: 8300000, guid: 15fd1c6b2b7c04406b5f1872c5dbbed5, type: 3}
+  volUiConfirm: 1
   bgmTitle: {fileID: 0}
   bgmMatch: {fileID: 0}
   bgmMatchTense: {fileID: 0}
   bgmResultJingle: {fileID: 0}
+  bgmVolume: 0.7
   ballWallPitchPerSpeed: 0.2
   blockHitSeCooldown: 0.05
+  seStereoPan: 0.7
 --- !u!4 &2037302861
 Transform:
   m_ObjectHideFlags: 0
