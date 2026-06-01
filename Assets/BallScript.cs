@@ -268,7 +268,9 @@ public class BallScript : MonoBehaviour, IFreezable
         if (trail != null) { trail.emitting = false; trail.Clear(); }
 
         transform.localPosition = localPos;
-        rb.linearVelocity = Vector3.zero;
+        transform.localRotation = Quaternion.identity; // 回転（スピン）もリセット
+        rb.linearVelocity  = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
         GetComponent<Collider>().enabled = false;
     }
 

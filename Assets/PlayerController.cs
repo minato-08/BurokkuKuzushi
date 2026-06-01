@@ -45,6 +45,8 @@ public class PlayerController : MonoBehaviour, IFreezable
         inputReversed = false;
         transform.localScale = originalScale;
         if (paddleRenderer != null) paddleRenderer.material.color = originalColor;
+        // パドル位置を中央へ戻す（ラウンド遷移リセット）
+        transform.localPosition = new Vector3(0f, paddleLocalY, paddleLocalZ);
     }
 
     void Start()
@@ -139,6 +141,14 @@ public class PlayerController : MonoBehaviour, IFreezable
     {
         if (frozen) return;
 
+        // 移動可能なのは Playing と Countdown のみ（DESIGN.md 12.12: カウントダウン中も
+        // パドルのポジショニングは許可）。Countdown は timeScale=0 なので unscaled で動かす。
+        if (GameManager.Instance == null) return;
+        var state = GameManager.Instance.GetCurrentState();
+        bool countdown = state == GameManager.GameState.Countdown;
+        if (state != GameManager.GameState.Playing && !countdown) return;
+        float dt = countdown ? Time.unscaledDeltaTime : Time.deltaTime;
+
         float move = 0f;
 
         if (Keyboard.current == null) return;
@@ -162,7 +172,7 @@ public class PlayerController : MonoBehaviour, IFreezable
 
         // ローカル座標で移動を管理（親Arenaの座標系で動く）
         Vector3 localPos = transform.localPosition;
-        localPos.x += move * speed * Time.deltaTime;
+        localPos.x += move * speed * dt;
         localPos.x = Mathf.Clamp(localPos.x, -xLimit, xLimit);
         localPos.y = paddleLocalY;
         localPos.z = paddleLocalZ;

@@ -107,6 +107,9 @@ public class ArenaController : MonoBehaviour
         if (ball != null)
             ball.PrepareRespawn(GetBallSpawnLocalPos());
 
+        // 発射エイマーの位相を中央へリセット（ボールが待機中のままラウンドが終わった場合の引き継ぎ防止）
+        launchAimer?.ResetAim();
+
         // SkillBall_Multi で生成された追加ボールを破棄（メインボールは残す）
         foreach (var b in ArenaRoot.GetComponentsInChildren<BallScript>())
             if (b.isExtraBall) Object.Destroy(b.gameObject);
