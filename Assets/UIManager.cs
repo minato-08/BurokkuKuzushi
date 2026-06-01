@@ -106,13 +106,14 @@ public class UIManager : MonoBehaviour
     [SerializeField] private float dangerBlinkFast     = 0.15f;// 死線直前の点滅周期（秒）
     [SerializeField] private Color dangerColor         = new Color(1f, 0.10f, 0.10f, 1f);
     [SerializeField] private float dangerThickenMul    = 3.0f; // 点滅時に死線ラインを太くする倍率（視認性）
-    [SerializeField] private float deadLineFlashDuration = 1.0f; // 底到達ペナルティ時の白フラッシュ長
+    [SerializeField] private float deadLineFlashDuration = 0.6f; // 底到達ペナルティ時の白フラッシュ長
+    [SerializeField] private float deadLineFlashThickenMul = 7.0f; // 白フラッシュ時の太さ倍率（赤点滅より大きく＝別物に見せる）
+    [SerializeField] private Color deadLineFlashColor   = Color.white; // フラッシュ色
 
     [Header("[演出] Last Stand（HP10%, DESIGN.md 5.10）")]
     [SerializeField] private SpriteRenderer p1ArenaFrame;      // P1ArenaFrame（アラーム赤化）
     [SerializeField] private SpriteRenderer p2ArenaFrame;      // P2ArenaFrame
     [Range(0f, 1f)] [SerializeField] private float lastStandThreshold = 0.10f;
-    [SerializeField] private Color lastStandColor      = new Color(1f, 0.12f, 0.18f, 1f);
     [SerializeField] private float lastStandBlinkPeriod = 0.55f; // 明滅周期（消えかけ電球風・ゆっくりめ）
     [Range(0f, 1f)] [SerializeField] private float lastStandDimFloor = 0.28f; // 明るさを落とす下限
     [SerializeField] private string panicReadyLabel    = "PANIC READY";
@@ -325,7 +326,7 @@ public class UIManager : MonoBehaviour
         float wave   = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, period)) * 0.5f + 0.5f;
 
         Color c = dangerColor;
-        c.a = Mathf.Lerp(0.25f, 1f, wave); // 鮮やかな赤で明滅
+        c.a = Mathf.Lerp(0.08f, 1f, wave); // しっかり消える on/off 点滅
         line.color = c;
         // 細い 2px ラインなので太さも脈動させて視認性を上げる
         Vector3 s = origScale;
@@ -360,10 +361,10 @@ public class UIManager : MonoBehaviour
         float t = 0f;
         while (t < deadLineFlashDuration)
         {
-            float k = 1f - (t / deadLineFlashDuration); // 1→0 で白から元色へ減衰
-            line.color = Color.Lerp(orig, Color.white, k);
+            float k = 1f - (t / deadLineFlashDuration); // 1→0 でフラッシュ色から元色へ減衰
+            line.color = Color.Lerp(orig, deadLineFlashColor, k);
             Vector3 s = origScale;
-            s.y = origScale.y * Mathf.Lerp(1f, dangerThickenMul, k); // 太く→元の太さへ
+            s.y = origScale.y * Mathf.Lerp(1f, deadLineFlashThickenMul, k); // 太く→元の太さへ
             line.transform.localScale = s;
             t += Time.unscaledDeltaTime;
             yield return null;
@@ -389,19 +390,22 @@ public class UIManager : MonoBehaviour
         if (last)
         {
             float wave = Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.01f, lastStandBlinkPeriod)) * 0.5f + 0.5f;
-            // 赤を保ったまま明るさだけ周期的に落とす（消えかけの電球風）
+            // 色は変えず明るさだけ周期的に落とす（消えかけの電球風）
             float bright = Mathf.Lerp(lastStandDimFloor, 1f, wave);
 
             if (frame != null)
             {
-                Color c = lastStandColor * bright;
-                c.a = lastStandColor.a;
+                // 枠は元の色のまま明滅（赤化しない）
+                Color orig = playerIndex == 1 ? p1FrameOrig : p2FrameOrig;
+                Color c = orig * bright;
+                c.a = orig.a;
                 frame.color = c;
             }
             if (hpFill != null)
             {
-                Color c = lastStandColor * bright;
-                c.a = lastStandColor.a;
+                // HP バーは低 HP の赤を保ったまま明滅
+                Color c = hpColorLow * bright;
+                c.a = hpColorLow.a;
                 hpFill.color = c;
             }
         }

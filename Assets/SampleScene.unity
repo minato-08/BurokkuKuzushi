@@ -715,8 +715,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 8d9a0571ccaca4235943fcc656b77dc9, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.70980394}
+  m_Sprite: {fileID: 21300000, guid: f50917c9ef3004a19bcb66f83ce0c8ae, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -4118,7 +4118,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 8d9a0571ccaca4235943fcc656b77dc9, type: 3}
+  m_Sprite: {fileID: 21300000, guid: f50917c9ef3004a19bcb66f83ce0c8ae, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 0.70980394}
   m_FlipX: 0
   m_FlipY: 0
@@ -16718,10 +16718,11 @@ MonoBehaviour:
   dangerColor: {r: 1, g: 0.18, b: 0.18, a: 1}
   dangerThickenMul: 3
   deadLineFlashDuration: 1
+  deadLineFlashThickenMul: 7
+  deadLineFlashColor: {r: 1, g: 1, b: 1, a: 1}
   p1ArenaFrame: {fileID: 1140853218}
   p2ArenaFrame: {fileID: 1634476744}
   lastStandThreshold: 0.1
-  lastStandColor: {r: 1, g: 0.12, b: 0.18, a: 1}
   lastStandBlinkPeriod: 0.3
   lastStandDimFloor: 0.28
   panicReadyLabel: PANIC READY
