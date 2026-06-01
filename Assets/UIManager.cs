@@ -52,6 +52,13 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI p1RoundWins;
     [SerializeField] private TextMeshProUGUI p2RoundWins;
 
+    [Header("[任意] Combo Timer Arc（コンボ数字下の半円弧, DESIGN.md 6.2）")]
+    [SerializeField] private Image p1ComboArc;   // Filled / Radial360 / 180° / Bottom / Clockwise
+    [SerializeField] private Image p2ComboArc;
+    [SerializeField] private Color comboArcColor     = Color.white;                 // 通常色
+    [SerializeField] private Color comboArcWarnColor = new Color(1f, 0.55f, 0.15f); // 消滅間際の橙
+    [Range(0f, 1f)] [SerializeField] private float comboArcWarnRatio = 0.12f;       // この残比以下で橙へ（≒消滅0.5s前）
+
     [Header("[任意] 試合状態テキスト（Round Over 等）")]
     [SerializeField] private TextMeshProUGUI statusText;
 
@@ -210,6 +217,29 @@ public class UIManager : MonoBehaviour
         UpdateDangerLine(2);
         UpdateLastStand(1, p1HpFill, p1ArenaFrame);
         UpdateLastStand(2, p2HpFill, p2ArenaFrame);
+
+        UpdateComboArc(1, p1ComboArc);
+        UpdateComboArc(2, p2ComboArc);
+    }
+
+    // コンボ数字下の半円弧（DESIGN.md 6.2/12.22）: 直近破壊で満杯→経過で 1→0 に縮小。
+    // combo==0 で非表示。消滅間際は橙に。HitStop 中も timeScale=1 のまま comboTimer が進む。
+    private void UpdateComboArc(int playerIndex, Image arc)
+    {
+        if (arc == null) return;
+        var gm = GameManager.Instance;
+        if (gm.GetCombo(playerIndex) <= 0)
+        {
+            if (arc.gameObject.activeSelf) arc.gameObject.SetActive(false);
+            return;
+        }
+        if (!arc.gameObject.activeSelf) arc.gameObject.SetActive(true);
+
+        float ratio = gm.GetComboTimerRatio(playerIndex); // 1→0
+        arc.fillAmount = ratio;
+        arc.color = ratio <= comboArcWarnRatio
+            ? Color.Lerp(comboArcWarnColor, comboArcColor, comboArcWarnRatio > 0f ? ratio / comboArcWarnRatio : 1f)
+            : comboArcColor;
     }
 
     // P1HP/(P1HP+P2HP) を毎フレーム反映。左に傾く=P1優勢（DESIGN.md 12.5）

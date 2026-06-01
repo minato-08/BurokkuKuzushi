@@ -503,6 +503,16 @@ public class GameManager : MonoBehaviour
     public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1Combo : p2Combo;
     public GameState GetCurrentState()         => currentState;
 
+    // Combo Timer Arc 用（DESIGN.md 6.2/12.22）: 直近の破壊で 1、comboTimeout 経過で 0。
+    // combo==0 のときは 0（UI 側で非表示にする）。
+    public float GetComboTimerRatio(int playerIndex)
+    {
+        int   combo = playerIndex == 1 ? p1Combo      : p2Combo;
+        float timer = playerIndex == 1 ? p1ComboTimer : p2ComboTimer;
+        if (combo <= 0 || comboTimeout <= 0f) return 0f;
+        return Mathf.Clamp01((comboTimeout - timer) / comboTimeout);
+    }
+
     // マッチ統計（DESIGN.md 5.10。RoundResultUI / MatchResultUI が参照）
     public int GetMaxComboRound(int playerIndex)        => playerIndex == 1 ? p1MaxComboRound        : p2MaxComboRound;
     public int GetMaxComboMatch(int playerIndex)        => playerIndex == 1 ? p1MaxComboMatch        : p2MaxComboMatch;

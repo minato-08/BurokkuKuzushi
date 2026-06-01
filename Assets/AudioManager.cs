@@ -46,6 +46,7 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip seSkillActivate;   [SerializeField, Range(0f, 1.5f)] private float volSkillActivate = 1f;
     [SerializeField] private AudioClip seInterferenceRecv;[SerializeField, Range(0f, 1.5f)] private float volInterferenceRecv = 1f;
     [SerializeField] private AudioClip seAddRowLand;      [SerializeField, Range(0f, 1.5f)] private float volAddRowLand = 1f;
+    [SerializeField] private AudioClip seSpecialRow;      [SerializeField, Range(0f, 1.5f)] private float volSpecialRow = 1f;
     [SerializeField] private AudioClip sePoisonLoop;      [SerializeField, Range(0f, 1.5f)] private float volPoisonLoop = 1f;
 
     [Header("SE — ラウンド / マッチ / UI")]
@@ -207,6 +208,7 @@ public class AudioManager : MonoBehaviour
     public void PlaySkillActivate(int playerIndex = 0) => PlaySE(seSkillActivate, 1f, volSkillActivate, PanFor(playerIndex));
     public void PlayInterferenceRecv(int playerIndex = 0) => PlaySE(seInterferenceRecv, 1f, volInterferenceRecv, PanFor(playerIndex));
     public void PlayAddRowLand(int playerIndex = 0)    => PlaySE(seAddRowLand, 1f, volAddRowLand, PanFor(playerIndex));
+    public void PlaySpecialRow(int playerIndex = 0)    => PlaySE(seSpecialRow, 1f, volSpecialRow, PanFor(playerIndex));
     public void PlayRoundStart()  => PlaySE(seRoundStart, 1f, volRoundStart);  // 両アリーナ共通＝中央
     public void PlayRoundWin(int playerIndex = 0) => PlaySE(seRoundWin, 1f, volRoundWin, PanFor(playerIndex));
     public void PlayMatchWin(int playerIndex = 0) => PlaySE(seMatchWin, 1f, volMatchWin, PanFor(playerIndex));

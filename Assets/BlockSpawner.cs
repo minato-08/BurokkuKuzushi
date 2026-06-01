@@ -31,6 +31,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     [Range(0f, 1f)] [SerializeField] private float explosiveBlockChance = 0.1f;
     [Range(0f, 1f)] [SerializeField] private float hardBlockChance      = 0.2f;
     [Range(0f, 1f)] [SerializeField] private float itemBlockChance      = 0.08f; // 確定ドロップブロック（DESIGN.md 5.4/12.17）
+    [Range(0f, 1f)] [SerializeField] private float specialRowChance     = 0.125f;// スペシャル行（全Item/全Explosive/歯抜け, DESIGN.md 5.4）
     [SerializeField] private int hardBlockHp = 2;
 
     [Header("妨害行設定（Hard/Absorb）")]
@@ -66,6 +67,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     private bool  frozen = false;
 
     private enum RowType { Normal, Sabotage }
+    private enum SpecialKind { None, AllItem, AllExplosive, Gapped } // スペシャル行（DESIGN.md 5.4）
 
     // ラウンド経過時間から算出する実効値（毎フレーム再計算・基準値は上書きしない）
     private float CurrentSpawnInterval =>
@@ -110,8 +112,12 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (spawnTimer >= CurrentSpawnInterval)
         {
             spawnTimer = 0f;
-            // 通常行: 控えめにスライドイン（着弾演出なし）で「湧き」感を軽減
-            SpawnRowWithSlide(RowType.Normal, normalSlideDistance, normalSlideDuration, impact: false);
+            // スペシャル行は妨害行予約が無いときのみ抽選（妨害優先, DESIGN.md 5.4）
+            SpecialKind kind = (pendingSabotageRows == 0 && Random.value < specialRowChance)
+                ? PickSpecialKind() : SpecialKind.None;
+            // 通常/スペシャル行: 控えめにスライドイン（着弾演出なし）で「湧き」感を軽減
+            SpawnRowWithSlide(RowType.Normal, normalSlideDistance, normalSlideDuration, impact: false, special: kind);
+            if (kind != SpecialKind.None) AudioManager.Instance?.PlaySpecialRow(playerIndex);
         }
 
         if (pendingSabotageRows > 0 && IsTopClear())
@@ -125,7 +131,17 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         CheckBottomReached();
     }
 
-    private void SpawnRow(RowType rowType = RowType.Normal)
+    private SpecialKind PickSpecialKind()
+    {
+        switch (Random.Range(0, 3))
+        {
+            case 0:  return SpecialKind.AllItem;
+            case 1:  return SpecialKind.AllExplosive;
+            default: return SpecialKind.Gapped;
+        }
+    }
+
+    private void SpawnRow(RowType rowType = RowType.Normal, SpecialKind special = SpecialKind.None)
     {
         if (blockPrefab == null)
         {
@@ -137,8 +153,19 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         float totalWidth = (blocksPerRow - 1) * spacing;
         float startX     = -totalWidth / 2f;
 
+        // 歯抜け行: スキップする列を 2 つ選ぶ
+        HashSet<int> gaps = null;
+        if (special == SpecialKind.Gapped)
+        {
+            gaps = new HashSet<int>();
+            int gapCount = Mathf.Min(2, blocksPerRow - 1);
+            while (gaps.Count < gapCount) gaps.Add(Random.Range(0, blocksPerRow));
+        }
+
         for (int i = 0; i < blocksPerRow; i++)
         {
+            if (gaps != null && gaps.Contains(i)) continue; // 歯抜け
+
             float x = startX + i * spacing;
             Vector3 localPos = new Vector3(x, spawnY, 0f);
 
@@ -148,10 +175,14 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             Block blockScript = blockGO.GetComponent<Block>();
             if (blockScript == null) continue;
 
-            switch (rowType)
+            switch (special)
             {
-                case RowType.Sabotage: ApplySabotageRowSettings(blockScript); break;
-                default:               ApplyNormalRowSettings(blockScript);   break;
+                case SpecialKind.AllItem:      blockScript.blockType = BlockType.Item;      blockScript.hp = 1; break;
+                case SpecialKind.AllExplosive: blockScript.blockType = BlockType.Explosive;                     break;
+                default:
+                    if (rowType == RowType.Sabotage) ApplySabotageRowSettings(blockScript);
+                    else                             ApplyNormalRowSettings(blockScript);
+                    break;
             }
 
             allBlocks.Add(blockScript);
@@ -179,10 +210,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
 
     // 行を spawnY に生成 → 上空へずらして SlideInRow でスライドインさせる。
     // impact=true（妨害行）は着地でフラッシュ/ヒットストップ/SE。impact=false（通常行）は控えめ。
-    private void SpawnRowWithSlide(RowType type, float distance, float duration, bool impact)
+    private void SpawnRowWithSlide(RowType type, float distance, float duration, bool impact, SpecialKind special = SpecialKind.None)
     {
         int start = allBlocks.Count;
-        SpawnRow(type);
+        SpawnRow(type, special);
         var row = new List<Block>();
         for (int i = start; i < allBlocks.Count; i++)
         {
