@@ -18,6 +18,7 @@ public class Block : MonoBehaviour
     [Header("スコア設定")]
     [SerializeField] private int normalScore = 10;
     [SerializeField] private int hardScore = 20;
+    [SerializeField] private int explosiveScore = 30;  // DESIGN.md 5.4 L517（周囲巻き込みは各 OnDestroyed が別途加算）
 
     [Header("吸収設定")]
     [SerializeField] private float absorbSpeedMultiplier = 0.7f;
@@ -199,7 +200,12 @@ public class Block : MonoBehaviour
         // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)
         {
-            int score = blockType == BlockType.Hard ? hardScore : normalScore;
+            int score = blockType switch
+            {
+                BlockType.Hard      => hardScore,
+                BlockType.Explosive => explosiveScore,
+                _                   => normalScore
+            };
             GameManager.Instance.RegisterBlockDestroyed(ball.playerIndex);
             GameManager.Instance.AddScore(ball.playerIndex, score);
         }
