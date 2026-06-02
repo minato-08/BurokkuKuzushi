@@ -71,9 +71,10 @@ public class ArenaController : MonoBehaviour
         go.AddComponent<ItemDrop>().Setup(type, playerIndex, this);
     }
 
-    public void TriggerHitStop(int frames, bool strong = false, bool shake = true)
+    // freeze=false でフリーズせずシェイクのみ（ボール衝突でない底到達・スライド着地用, DESIGN.md 5.x）
+    public void TriggerHitStop(int frames, bool strong = false, bool shake = true, bool freeze = true)
     {
-        hitStop?.TriggerHitStop(frames, strong, shake);
+        hitStop?.TriggerHitStop(frames, strong, shake, freeze);
     }
 
     void Awake()

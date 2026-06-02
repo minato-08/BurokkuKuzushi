@@ -408,9 +408,8 @@ public class BallScript : MonoBehaviour, IFreezable
     {
         switch (attribute)
         {
-            case BallAttribute.Heavy:
             case BallAttribute.Pierce:
-                // 衝突前の速度ベクトルを復元して貫通
+                // 衝突前の速度ベクトルを復元して貫通（Pierce のみ。Heavy は非貫通=通常反射, DESIGN.md 5.2）
                 rb.linearVelocity = lastVelocity;
                 break;
             case BallAttribute.Fire:
