@@ -18,6 +18,7 @@ public class Block : MonoBehaviour
     [Header("スコア設定")]
     [SerializeField] private int normalScore = 10;
     [SerializeField] private int hardScore = 20;
+    [SerializeField] private int absorbScore = 25;     // DESIGN.md 5.x スコア表
     [SerializeField] private int explosiveScore = 30;  // DESIGN.md 5.4 L517（周囲巻き込みは各 OnDestroyed が別途加算）
 
     [Header("吸収設定")]
@@ -203,6 +204,7 @@ public class Block : MonoBehaviour
             int score = blockType switch
             {
                 BlockType.Hard      => hardScore,
+                BlockType.Absorb    => absorbScore,
                 BlockType.Explosive => explosiveScore,
                 _                   => normalScore
             };

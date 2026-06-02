@@ -527,5 +527,5 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ## 既知の問題
 
-- **Block スコアが SerializeField 未対応**: `Block.cs` の `normalScore`(10) / `hardScore`(20) / `explosiveScore`(30, DESIGN.md 5.4 L517) は Inspector から変更可能だが、Prefab に依存しているため Instantiate 後は BlockSpawner から設定されない。ハードコードと同義。Explosive 破壊時は `explosiveScore`、巻き込みで倒した各ブロックは個別に自分のスコアを加算する。
+- **Block スコアが SerializeField 未対応**: `Block.cs` の `normalScore`(10) / `hardScore`(20) / `absorbScore`(25) / `explosiveScore`(30) は Inspector から変更可能だが、Prefab に依存しているため Instantiate 後は BlockSpawner から設定されない。ハードコードと同義。種別ごとに `OnDestroyed` の switch で選択（DESIGN.md 5.x スコア表 Normal10/Hard20/Absorb25/Explosive30 準拠）。Explosive 破壊時の巻き込みで倒した各ブロックは個別に自分のスコアを加算する。
 - **Recovery ファイル / 旧重複シーン**: `Assets/_Recovery/` の Unity 自動生成ファイル、および**旧重複シーン** `Assets/Scenes/SampleScene.unity`（`Scenes/` サブフォルダ側）は **`.gitignore` 済み**（codex レビューで実ファイルも削除済み, 2026-06-02）。**本物のアクティブシーン `Assets/SampleScene.unity`（Assets 直下）は通常どおり Git 追跡対象**。`.gitignore` のパターンは `Scenes/` 配下だけにマッチするので本物は除外されない。
