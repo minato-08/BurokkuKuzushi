@@ -126,6 +126,13 @@ public class UIManager : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float lastStandDimFloor = 0.28f; // 明るさを落とす下限
     [SerializeField] private string panicReadyLabel    = "PANIC READY";
 
+    [Header("[演出] ラウンド/マッチ決着（勝者フラッシュ・敗者暗転）")]
+    [SerializeField] private float roundResultWinIntensity = 4.0f;  // 勝者枠の発光ピーク倍率（HDR で Bloom）
+    [SerializeField] private float roundResultWinDuration  = 0.9f;  // 勝者フラッシュがピーク→元色へ減衰する秒数
+    [Range(0f, 1f)] [SerializeField] private float roundResultLoseFloor = 0.18f; // 敗者枠の暗転下限の明るさ
+    [SerializeField] private float roundResultLoseFadeIn   = 0.25f; // 敗者枠が暗転しきるまでの秒数
+    [SerializeField] private float roundResultRestore      = 0.4f;  // 演出終了後に元色へ戻す秒数
+
     // HP バーは Sliced のまま RectTransform.width を HP 比率で縮める（fillAmount は Sliced で無効）。
     // pivot.x=0（左固定）なので幅を減らすと右から削れる。フル幅を Start でキャッシュ。
     private float p1HpFillMaxWidth, p2HpFillMaxWidth;
@@ -140,6 +147,7 @@ public class UIManager : MonoBehaviour
     private Coroutine p1DeadLineFlashRoutine, p2DeadLineFlashRoutine;
     private float p1DangerPhase, p2DangerPhase; // 点滅位相の累積（period 変化で位相が飛ぶのを防ぐ）
     private bool  p1WasLastStand, p2WasLastStand;
+    private Coroutine p1RoundResultRoutine, p2RoundResultRoutine;
 
     private Coroutine p1OverlayRoutine;
     private Coroutine p2OverlayRoutine;
@@ -481,6 +489,78 @@ public class UIManager : MonoBehaviour
         }
 
         if (playerIndex == 1) p1WasLastStand = last; else p2WasLastStand = last;
+    }
+
+    // =====================================================
+    // ラウンド/マッチ決着演出（ArenaController 経由で GameManager から呼ばれる）
+    // 勝者アリーナ枠は HDR で発光フラッシュ→元色へ減衰。敗者枠は暗転して RoundOver/
+    // MatchOver の間ホールド、状態が抜けたら元色へ復帰。Last Stand と同じ枠を使うが、
+    // UpdateLastStand は Playing 限定なので決着中は競合しない。timeScale=0 想定で unscaled 駆動。
+    // =====================================================
+
+    public void FlashRoundResult(int playerIndex, bool isWinner)
+    {
+        SpriteRenderer frame = playerIndex == 1 ? p1ArenaFrame : p2ArenaFrame;
+        if (frame == null) return;
+        Color orig = playerIndex == 1 ? p1FrameOrig : p2FrameOrig;
+
+        ref Coroutine slot = ref (playerIndex == 1 ? ref p1RoundResultRoutine : ref p2RoundResultRoutine);
+        if (slot != null) StopCoroutine(slot);
+        slot = StartCoroutine(RoundResultRoutine(playerIndex, frame, orig, isWinner));
+    }
+
+    private IEnumerator RoundResultRoutine(int playerIndex, SpriteRenderer frame, Color orig, bool isWinner)
+    {
+        void SetBright(float b)
+        {
+            Color c = orig * b;
+            c.a = orig.a;
+            frame.color = c;
+        }
+
+        if (isWinner)
+        {
+            // ピーク発光 → 元色へ減衰
+            float t = 0f;
+            while (t < roundResultWinDuration)
+            {
+                float k = 1f - t / roundResultWinDuration;            // 1→0
+                SetBright(Mathf.Lerp(1f, roundResultWinIntensity, k)); // peak→1.0
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            frame.color = orig;
+            if (playerIndex == 1) p1RoundResultRoutine = null; else p2RoundResultRoutine = null;
+            yield break;
+        }
+
+        // 敗者: 暗転 → 状態が決着中の間ホールド → 元色へ復帰
+        float fade = 0f;
+        while (fade < roundResultLoseFadeIn)
+        {
+            SetBright(Mathf.Lerp(1f, roundResultLoseFloor, fade / roundResultLoseFadeIn));
+            fade += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        SetBright(roundResultLoseFloor);
+
+        var gm = GameManager.Instance;
+        while (gm != null
+               && (gm.GetCurrentState() == GameManager.GameState.RoundOver
+                   || gm.GetCurrentState() == GameManager.GameState.MatchOver))
+        {
+            yield return null;
+        }
+
+        float r = 0f;
+        while (r < roundResultRestore)
+        {
+            SetBright(Mathf.Lerp(roundResultLoseFloor, 1f, r / roundResultRestore));
+            r += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        frame.color = orig;
+        if (playerIndex == 1) p1RoundResultRoutine = null; else p2RoundResultRoutine = null;
     }
 
     // =====================================================
