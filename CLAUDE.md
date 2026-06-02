@@ -407,8 +407,8 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 ### `ItemDrop.cs`
 - `ItemType` enum（全15種）: **Buff(属性)** `Fire / Ice / Thunder / Heavy / Pierce` / **Buff(パドル・回復)** `Enlarge / SpeedUp / Heal` / **Attack(相手へ妨害送付)** `AttackHarden / AttackAddRow / AttackPoison / AttackSlow` / **Trap(取得回避が戦略)** `Shrink / Hyper / Reversed`
 - `ItemDefinition` static クラス: `GetColor(type)` / `GetName(type)` を提供
-- `ItemDrop` MonoBehaviour: `Setup()` で初期化、`Update()` で落下 + `Physics.OverlapSphere` によるパドル接触判定
-- kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出
+- `ItemDrop` MonoBehaviour: `Setup()` で初期化、`Update()` で落下 + `Physics.OverlapSphereNonAlloc`（事前確保 `_overlapBuffer`）によるパドル接触判定
+- kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出（毎フレーム実行のため GC を避け NonAlloc 方式＝ZonePoison/ZoneSlow と統一）
 - アイテムは AddComponent で生成（Prefab なし）。public フィールドの値がそのまま使われる
 - `ArenaController.SpawnItem(worldPos, type)` から生成。底 Y を超えたら自動 Destroy
 - パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, slot, name, duration)` を呼ぶ。`slot` は `ItemDefinition.GetEffectSlot()`、duration は `GetActiveDuration()`（Heal/Attack は slot=None・duration=0 で登録されない）

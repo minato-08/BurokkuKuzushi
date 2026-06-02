@@ -111,6 +111,9 @@ public class ItemDrop : MonoBehaviour
     private int             playerIndex;
     private ArenaController arena;
     private float           bottomWorldY;
+    // パドル検出は毎フレーム走るため、GC を避けて事前確保バッファに書き込む
+    // （ZonePoison / ZoneSlow と同じ NonAlloc 方式）
+    private readonly Collider[] _overlapBuffer = new Collider[8];
 
     public void Setup(ItemType type, int pIndex, ArenaController a)
     {
@@ -132,10 +135,10 @@ public class ItemDrop : MonoBehaviour
             return;
         }
 
-        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRadius);
-        foreach (var hit in hits)
+        int count = Physics.OverlapSphereNonAlloc(transform.position, detectionRadius, _overlapBuffer);
+        for (int i = 0; i < count; i++)
         {
-            PlayerController paddle = hit.GetComponent<PlayerController>();
+            PlayerController paddle = _overlapBuffer[i].GetComponent<PlayerController>();
             if (paddle != null)
             {
                 paddle.OnItemPickup(ItemDefinition.GetCategory(itemType));
