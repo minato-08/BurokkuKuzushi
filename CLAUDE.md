@@ -215,21 +215,28 @@ UIManager.Update()（毎フレーム）
   → GameManager.GetHP / GetScore / GetCombo / GetCurrentState をポーリング
 ```
 
-### 設定方針（すべて Inspector SerializeField で直接管理）
+### 設定方針（SerializeField 直接管理 ＋ 左右共通値は ArenaSharedConfig）
 
-ScriptableObject / Profile は使用しない。各コンポーネントのパラメータはそれぞれの SerializeField に持つ。
+ScriptableObject / Profile（アセット）は使用しない。各コンポーネントは従来どおり自分の SerializeField を持つが、**Arena1/Arena2 で同値であるべき共通チューニング値は `ArenaSharedConfig`（シーン内 MonoBehaviour 1 個）に集約**し、各コンポーネントが初期化時に読んで自分へ適用する（2026-06-02 導入）。
 
-- `PlayerController.paddleLocalY / xLimit` → Inspector で直接設定
-- `BlockSpawner.blockWidth / spawnY / blockDeadZoneY` → Inspector で直接設定
-- `ArenaController.ballSpawnOffsetY` → パドルLocalY + このオフセットでボール初期位置を算出
-- `DeadZone.ballSpawnOffsetY` → ArenaController と同じ値にすること（現在両方 1.3）
-- `GameManager` → HP量、ダメージ量、ヒットストップフレーム等をすべて直接 SerializeField で保持
+- **`ArenaSharedConfig`**（`Assets/ArenaSharedConfig.cs`）: シーンに 1 個だけ置く共有設定。`Instance`（`FindFirstObjectByType` で解決）。`PlayerController`/`BlockSpawner`/`BallScript`/`LaunchAimer`/`SkillController`/`ArenaController`/`DeadZone` が Awake/Start/Initialize 冒頭で `ApplySharedConfig()` を呼び、共通値を上書き適用する。
+- **null セーフ・段階移行可**: 共有設定 GameObject が無ければ `Instance` は null を返し、各コンポーネントは自前の SerializeField 値で動作する。共有を効かせるにはシーンに `ArenaSharedConfig` を付けた GameObject を 1 個作り、正となる値を設定する。
+- **per-arena 固有（共有しない）**: `playerIndex`、各アリーナ子オブジェクトへの参照（`ball`/`spawner`/`launchAimer`/`blockPrefab`）。
+- `GameManager` は元々シングルトン（共有）なので対象外。HP量/ダメージ/ヒットストップ等は引き続き GameManager の SerializeField。
+- `Block` はプレハブ共有のため左右で重複しておらず対象外。
+- `DeadZone.ballSpawnOffsetY` と `ArenaController.ballSpawnOffsetY` は共有設定で同値化される（旧: 手動で両方 1.3 に揃える運用）。
 
 `ArenaController.arenaHalfWidth / arenaHalfHeight` は `SpawnItem()` のアイテム底面計算にのみ使用。
 
 ---
 
 ## スクリプト一覧
+
+### `ArenaSharedConfig.cs`
+- Arena1/Arena2 で同値であるべき**共通チューニング値を集約**するシーン内 MonoBehaviour（1 個前提）。`Instance`（未解決なら `FindFirstObjectByType` で都度解決）
+- 保持: パドル（speed/xLimit/paddleLocalY 等・フラッシュ色）/ ブロックスポーン（行数・幅・spawnY・Escalation・各種確率・HP・妨害・スライド演出）/ ボール（速度・軌道・属性ダメージ・半径・ヒットストップ倍率・属性色・Ball Heat・トレイル）/ エイマー / `maxEnergy` / `arenaHalfWidth`/`arenaHalfHeight`/`ballSpawnOffsetY`
+- 各コンポーネントが Awake/Start/Initialize 冒頭で `ApplySharedConfig()`（自分の private フィールドへ上書き適用）。**未配置なら各自の SerializeField 値で動作（null セーフ）**
+- 共有しないのは `playerIndex` と各アリーナ子オブジェクト参照のみ。詳細は「設定方針」セクション
 
 ### `GameManager.cs`
 - Singleton (`GameManager.Instance`)

@@ -8,6 +8,13 @@ public class DeadZone : MonoBehaviour
     [Header("ボール初期位置オフセット（パドル上端からの距離）")]
     [SerializeField] private float ballSpawnOffsetY = 1f;
 
+    private void Awake()
+    {
+        // 共有設定があれば ballSpawnOffsetY を共通化（ArenaController と同値であるべき, null セーフ）
+        var c = ArenaSharedConfig.Instance;
+        if (c != null) ballSpawnOffsetY = c.ballSpawnOffsetY;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("BallTag")) return;

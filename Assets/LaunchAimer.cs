@@ -26,8 +26,21 @@ public class LaunchAimer : MonoBehaviour
         playerIndex = pIndex;
     }
 
+    // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        indicatorLength     = c.indicatorLength;
+        indicatorColor      = c.indicatorColor;
+        metronomeAngleRange = c.metronomeAngleRange;
+        metronomePeriodSec  = c.metronomePeriodSec;
+    }
+
     void Awake()
     {
+        ApplySharedConfig();
+
         line = gameObject.AddComponent<LineRenderer>();
         line.positionCount = 2;
         line.startWidth = line.endWidth = 0.08f;

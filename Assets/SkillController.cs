@@ -24,6 +24,8 @@ public class SkillController : MonoBehaviour
     {
         playerIndex = pIndex;
         arena       = a;
+        var c = ArenaSharedConfig.Instance; // 共有設定があれば maxEnergy を共通化（null セーフ）
+        if (c != null) maxEnergy = c.maxEnergy;
         energy      = new EnergySystem(maxEnergy);
     }
 

@@ -51,12 +51,31 @@ public class PlayerController : MonoBehaviour, IFreezable
 
     void Start()
     {
+        ApplySharedConfig();
+
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = true;
         originalScale = transform.localScale;
 
         paddleRenderer = GetComponent<Renderer>();
         if (paddleRenderer != null) originalColor = paddleRenderer.material.color;
+    }
+
+    // 共有設定（ArenaSharedConfig）があれば、左右共通のパラメータを自分へ適用する。
+    // 無ければ Inspector の自前 SerializeField 値で動作する（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        speed              = c.paddleSpeed;
+        xLimit             = c.paddleXLimit;
+        paddleLocalY       = c.paddleLocalY;
+        paddleLocalZ       = c.paddleLocalZ;
+        paddleBounceFrames = c.paddleBounceFrames;
+        buffFlashColor     = c.paddleBuffFlash;
+        attackFlashColor   = c.paddleAttackFlash;
+        trapFlashColor     = c.paddleTrapFlash;
+        pickupFlashDuration = c.pickupFlashDuration;
     }
 
     // アイテム取得時にパドルを系統色で 0.1s フラッシュ（ItemDrop から呼ばれる）

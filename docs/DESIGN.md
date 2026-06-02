@@ -802,12 +802,12 @@ HP 10% 以下のアリーナは視覚的に「アラーム状態」になる。�
 
 ### 7.1 パラメータ管理方針
 
-ScriptableObject / Profile は使用しない。すべてのバランスパラメータは各コンポーネントの `SerializeField` に直接持ち、Unity Inspector から調整する。
+ScriptableObject / Profile（アセット）は使用しない。各コンポーネントは自分の `SerializeField` を持ち Unity Inspector から調整する。ただし **Arena1/Arena2 で同値であるべき共通チューニング値は、シーン内 MonoBehaviour `ArenaSharedConfig`（1 個）に集約**し、各コンポーネントが初期化時に読んで自分へ適用する（2026-06-02 改訂。左右設定の二重管理を解消）。アセット(SO)ではなくシーン内コンポーネントなので「Profile/SO 不使用」の精神は維持。
 
-- `GameManager` — HP量・ダメージ量・ヒットストップフレーム数・コンボ閾値など
-- `BallScript` — 速度・時間加速・属性ダメージ・時間加速閾値など
-- `BlockSpawner` — 行生成間隔・降下速度・ブロック構成比率など
-- `LaunchAimer` — メトロノーム振れ幅・周期・自動発射時間など
+- `ArenaSharedConfig` — パドル/ブロックスポーン/ボール/エイマー/スキル/アリーナの**左右共通値**を一元保持。`Instance` を各コンポーネントが参照（無ければ各自の SerializeField 値で動作＝null セーフ）。
+- per-arena 固有（`playerIndex`・各アリーナ子オブジェクト参照）は各コンポーネントが保持。
+- `GameManager` — HP量・ダメージ量・ヒットストップフレーム数・コンボ閾値など（シングルトンなので元々共有）
+- `BallScript` / `BlockSpawner` / `LaunchAimer` / `PlayerController` / `SkillController` / `ArenaController` / `DeadZone` — 共通値は `ArenaSharedConfig` 経由
 - `HPStateBand[]` — GameManager の Inspector 配列で HP帯ごとのパラメータを設定（空なら全倍率 1.0）
 
 ### 7.2 EffectDefinition（抽象基底クラス）

@@ -78,6 +78,8 @@ public class ArenaController : MonoBehaviour
 
     void Awake()
     {
+        ApplySharedConfig();
+
         skillController = gameObject.GetComponent<SkillController>()
                        ?? gameObject.AddComponent<SkillController>();
         skillController.Initialize(playerIndex, this);
@@ -217,5 +219,15 @@ public class ArenaController : MonoBehaviour
     public void FlashRoundResult(bool isWinner)
     {
         cachedUIManager?.FlashRoundResult(playerIndex, isWinner);
+    }
+
+    // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        arenaHalfWidth   = c.arenaHalfWidth;
+        arenaHalfHeight  = c.arenaHalfHeight;
+        ballSpawnOffsetY = c.ballSpawnOffsetY;
     }
 }
