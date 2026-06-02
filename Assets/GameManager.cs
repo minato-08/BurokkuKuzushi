@@ -450,6 +450,8 @@ public class GameManager : MonoBehaviour
             ArenaController matchLoserArena  = winner == 1 ? arena2 : arena1;
             matchLoserArena?.TriggerHitStop(matchEndFrames,  strong: true, shake: true);
             matchWinnerArena?.TriggerHitStop(matchEndFrames, strong: true, shake: false);
+            matchWinnerArena?.FlashRoundResult(isWinner: true);
+            matchLoserArena?.FlashRoundResult(isWinner: false);
             StartCoroutine(MatchOverCoroutine(matchEndFrames));
             Debug.Log($"試合終了！勝者: P{winner}");
         }
@@ -462,6 +464,8 @@ public class GameManager : MonoBehaviour
             ArenaController winnerArena = winner == 1 ? arena1 : arena2;
             loserArena?.TriggerHitStop(roundEndFrames,  strong: true,  shake: true);
             winnerArena?.TriggerHitStop(roundEndFrames, strong: false, shake: false);
+            winnerArena?.FlashRoundResult(isWinner: true);
+            loserArena?.FlashRoundResult(isWinner: false);
             StartCoroutine(NextRoundCoroutine());
         }
     }

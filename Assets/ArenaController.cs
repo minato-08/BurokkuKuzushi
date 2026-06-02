@@ -212,4 +212,10 @@ public class ArenaController : MonoBehaviour
     {
         cachedUIManager?.FlashDangerLine(playerIndex);
     }
+
+    // ラウンド/マッチ決着時、このアリーナ枠を勝者=発光フラッシュ / 敗者=暗転させる
+    public void FlashRoundResult(bool isWinner)
+    {
+        cachedUIManager?.FlashRoundResult(playerIndex, isWinner);
+    }
 }
