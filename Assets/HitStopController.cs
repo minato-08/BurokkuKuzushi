@@ -15,6 +15,7 @@ public class HitStopController : MonoBehaviour
     private Transform shakeTarget;
     private Coroutine activeRoutine;
     private Vector3 shakeBaseLocalPos;
+    private bool activeFroze;   // 進行中ルーチンがフリーズを伴うか（割り込み時に未フリーズ対象を Unfreeze しないため）
 
     public void SetShakeTarget(Transform t) => shakeTarget = t;
 
@@ -24,23 +25,25 @@ public class HitStopController : MonoBehaviour
             freezables.Add(f);
     }
 
-    // frames: 停止フレーム数（60fps想定）、strong: 強シェイクか否か、shake: カメラシェイク有無
-    public void TriggerHitStop(int frames, bool strong = false, bool shake = true)
+    // frames: 停止フレーム数（60fps想定）、strong: 強シェイクか否か、shake: カメラシェイク有無、
+    // freeze: フリーズを伴うか（false=シェイクのみ。底到達/スライド着地などボール衝突でないイベント用, DESIGN.md 5.x）
+    public void TriggerHitStop(int frames, bool strong = false, bool shake = true, bool freeze = true)
     {
         if (frames <= 0) return;
         if (activeRoutine != null)
         {
             StopCoroutine(activeRoutine);
             RestoreShakeTarget();
-            UnfreezeAll();
+            if (activeFroze) UnfreezeAll();   // 前ルーチンが未フリーズ（shake-only）なら Unfreeze しない（速度復元で壊れる）
         }
+        activeFroze = freeze;
         float intensity = !shake ? 0f : (strong ? shakeIntensityStrong : shakeIntensityNormal);
-        activeRoutine = StartCoroutine(HitStopRoutine(frames / 60f, intensity));
+        activeRoutine = StartCoroutine(HitStopRoutine(frames / 60f, intensity, freeze));
     }
 
-    private IEnumerator HitStopRoutine(float duration, float intensity)
+    private IEnumerator HitStopRoutine(float duration, float intensity, bool freeze)
     {
-        FreezeAll();
+        if (freeze) FreezeAll();
         if (shakeTarget != null)
             shakeBaseLocalPos = shakeTarget.localPosition;
 
@@ -61,7 +64,7 @@ public class HitStopController : MonoBehaviour
 
         RestoreShakeTarget();
 
-        UnfreezeAll();
+        if (freeze) UnfreezeAll();
         activeRoutine = null;
     }
 

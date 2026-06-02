@@ -287,7 +287,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `HitStopController.cs`
 - `ArenaController` の子 GameObject にアタッチ（Setup HitStop で自動生成）
 - `RegisterFreezable(IFreezable)` で管理対象を登録（ArenaController.Awake で呼ばれる）
-- `TriggerHitStop(frames, strong)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
+- `TriggerHitStop(frames, strong, shake, freeze)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
+- **フリーズ/シェイク分離**（`freeze` 引数, 2026-06-03, DESIGN.md 5.x）: `freeze:false` で**フリーズせずシェイクのみ**。ボール衝突でないイベント（底到達・スライド着地）が飛行中ボールを空中で止めないため。割り込みガードは `activeFroze` フラグで「前ルーチンがフリーズ無し（shake-only）なら `UnfreezeAll` を呼ばない」＝未フリーズ対象を `Unfreeze`（速度復元）して壊さない
 - **多重発火ガード**（codex レビュー fix, 2026-06-02）: シェイク中に再度 `TriggerHitStop` が来たら、旧コルーチン停止時に `RestoreShakeTarget()` でアリーナ位置を基準へ戻してから再開（中断でアリーナがオフセットしたまま残るのを防止）。`RestoreShakeTarget()` は正常終了時も呼ぶ共通メソッド
 - 単カメラ運用に合わせ、カメラではなくアリーナ Transform 自体（`ArenaRoot`）を揺らす方式。アリーナごとに独立してシェイク可能
 - `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ArenaRoot` を渡す）
@@ -300,7 +301,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `cachedPlayer` / `cachedUIManager` を `Awake` でキャッシュ（`GetComponentInChildren` / `FindFirstObjectByType` の都度呼び出しを回避）
 - `ArenaRoot` プロパティ (`transform.parent != null ? transform.parent : transform`) に統一
 - Awake で `hitStop.SetShakeTarget(ArenaRoot)` を呼んでシェイク対象をバインド（カメラ参照は持たない）
-- `TriggerHitStop(frames, strong, shake)` を公開 — Block / BallScript / GameManager はこれを呼ぶ
+- `TriggerHitStop(frames, strong, shake, freeze)` を公開 — Block / BallScript / GameManager はこれを呼ぶ。`freeze:false` でシェイクのみ（BlockSpawner の底到達・スライド着地が使用）
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
 - `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
@@ -319,7 +320,7 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `BlockSpawner.cs`
 - タイマーで行を生成、毎フレーム降下、底判定
 - 妨害行（`pendingSabotageRows`）をキューで管理。`IsTopClear()` になり次第スポーン（旧 `pendingSpikeRows` は AttackSpike 廃止に伴い不要）
-- `blockDeadZoneY`（旧 `bottomY`）を超えたブロックを削除し `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知。同時に `TriggerHitStop` でカメラシェイク
+- `blockDeadZoneY`（旧 `bottomY`）を超えたブロックを削除し `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知。同時に `TriggerHitStop(..., freeze:false)` で**シェイクのみ**（ボール衝突でないので飛行中ボールを止めない, 2026-06-03）。妨害行スライド着地も同様に `freeze:false`
 - `ReceiveSabotageRow()` — GameManager から呼ばれる（`ReceiveSpikeRow()` は AttackSpike 廃止で不要、コードに残っている場合は削除対象）
 - `HardenRandomBlocks()` — LINQ で Normal ブロックをランダムに `hardenCount` 個選び `HardenToHp(hardenTargetHp)` で Hard 化
 - `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
@@ -331,13 +332,13 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
   - `ClearAndRespawn` で `StopAllCoroutines` + `slidingBlocks.Clear()` + `pendingSabotageRows=0` + 再スポーン。
 
 ### `BallScript.cs`
-- `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（貫通+高ダメ）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）
+- `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（高ダメ・速度0.7倍・**非貫通**=通常反射, DESIGN.md 5.2）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）。`OnHitBlock` の貫通（`lastVelocity` 復元）case は **Pierce のみ**（2026-06-03 Heavy を非貫通に修正）
 - 速度の3層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow） = 実効速度
 - `slowZoneMul`: ZoneSlow が毎フレーム書き込む public フィールド。ZoneSlow が OnDestroy / 検出失敗時に 1 に戻す。PrepareRespawn でもリセット
 - `FixedUpdate` で毎フレーム実効速度に正規化。時間加速はメインボールのみ（`isExtraBall=false`）。`arenaDwellTime` はリスポーンでリセット
 - `OnCollisionEnter` で衝突直後に角度補正（`ClampAngle`）→ 壁沿いループ防止
 - `OnCollisionEnter` で壁バウンス検出（Block / PlayerController が GetComponent で見つからない衝突 = 壁）。`GetHitStopMultiplier()` が 0 より大なら `TriggerHitStop(wallBounceFrames * mul, shake:true)`
-- `lastVelocity` は `FixedUpdate` でのみ更新（Heavy/Pierce 属性の貫通処理が衝突前速度を復元するために使用）
+- `lastVelocity` は `FixedUpdate` でのみ更新（Pierce 属性の貫通処理が衝突前速度を復元するために使用）
 - `Launch()`: `transform.parent.TransformDirection()` でローカル→ワールド変換
 - ボール GameObject に `"BallTag"` Unity タグが必須（`Block` / `DeadZone` どちらも `CompareTag("BallTag")` で判定）
 - `PrepareRespawn(localPos)`: コライダー無効化 + `IsWaitingToLaunch=true`。コルーチン停止・速度状態リセット + **角速度/回転(localRotation)もリセット**（ラウンド遷移で残らない）

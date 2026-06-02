@@ -266,7 +266,8 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (anyAlive && impact)
         {
             AudioManager.Instance?.PlayAddRowLand(playerIndex);                 // 着地 SE（DESIGN.md 10.4）
-            GetArena()?.TriggerHitStop(addRowImpactFrames, shake: true);        // 小ヒットストップ
+            // ボール衝突でない演出なのでフリーズせずシェイクのみ（飛行中ボールを止めない, DESIGN.md 5.x）
+            GetArena()?.TriggerHitStop(addRowImpactFrames, shake: true, freeze: false);
         }
     }
 
@@ -317,7 +318,8 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (reachedCount > 0)
         {
             GameManager.Instance?.OnBlocksReachedBottom(playerIndex, reachedCount);
-            GetArena()?.TriggerHitStop(blockDeadZoneHitFrames, shake: blockDeadZoneHitShake);
+            // ボール衝突でないペナルティ演出なのでフリーズせずシェイクのみ（飛行中ボールを止めない, DESIGN.md 5.x）
+            GetArena()?.TriggerHitStop(blockDeadZoneHitFrames, shake: blockDeadZoneHitShake, freeze: false);
         }
     }
 
