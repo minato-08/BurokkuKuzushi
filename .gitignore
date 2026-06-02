@@ -104,6 +104,10 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/[Ss]cenes.meta
+/[Aa]ssets/[Ss]cenes/SampleScene.unity
+/[Aa]ssets/[Ss]cenes/SampleScene.unity.meta
 .DS_Store
 
 # macOS

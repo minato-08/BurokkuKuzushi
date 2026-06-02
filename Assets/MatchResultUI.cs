@@ -23,6 +23,18 @@ public class MatchResultUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI p1ScoreText;
     [SerializeField] private TextMeshProUGUI p2ScoreText;
 
+    [Header("獲得ラウンド数（TMP・任意。先取数 > 1 で意味を持つ）")]
+    [SerializeField] private TextMeshProUGUI p1RoundsWonText; // $P1RoundsWon
+    [SerializeField] private TextMeshProUGUI p2RoundsWonText; // $P2RoundsWon
+
+    [Header("マッチ統計（TMP・任意, DESIGN.md 5.10）")]
+    [SerializeField] private TextMeshProUGUI p1BestComboText;    // マッチ全体の最大コンボ
+    [SerializeField] private TextMeshProUGUI p2BestComboText;
+    [SerializeField] private TextMeshProUGUI p1BlocksText;       // 総破壊ブロック数
+    [SerializeField] private TextMeshProUGUI p2BlocksText;
+    [SerializeField] private TextMeshProUGUI p1InterferenceText; // 受けた妨害数
+    [SerializeField] private TextMeshProUGUI p2InterferenceText;
+
     [Header("WIN / LOSE タグ（GameObject）")]
     [SerializeField] private GameObject p1TagWin;
     [SerializeField] private GameObject p1TagLose;
@@ -67,8 +79,19 @@ public class MatchResultUI : MonoBehaviour
         Set(p1TagWin,  p1Win);  Set(p1TagLose, !p1Win);
         Set(p2TagWin, !p1Win);  Set(p2TagLose,  p1Win);
 
-        if (p1ScoreText != null) p1ScoreText.text = gm.GetScore(1).ToString("N0");
-        if (p2ScoreText != null) p2ScoreText.text = gm.GetScore(2).ToString("N0");
+        // 表示スコアは内部値の 10 倍（HUD と同じ見映え, 2026-06-01）
+        if (p1ScoreText != null) p1ScoreText.text = (gm.GetScore(1) * 10).ToString("N0");
+        if (p2ScoreText != null) p2ScoreText.text = (gm.GetScore(2) * 10).ToString("N0");
+
+        if (p1RoundsWonText != null) p1RoundsWonText.text = p1W.ToString();
+        if (p2RoundsWonText != null) p2RoundsWonText.text = p2W.ToString();
+
+        if (p1BestComboText != null) p1BestComboText.text = gm.GetMaxComboMatch(1).ToString();
+        if (p2BestComboText != null) p2BestComboText.text = gm.GetMaxComboMatch(2).ToString();
+        if (p1BlocksText != null) p1BlocksText.text = gm.GetBlocksDestroyed(1).ToString();
+        if (p2BlocksText != null) p2BlocksText.text = gm.GetBlocksDestroyed(2).ToString();
+        if (p1InterferenceText != null) p1InterferenceText.text = gm.GetInterferenceReceived(1).ToString();
+        if (p2InterferenceText != null) p2InterferenceText.text = gm.GetInterferenceReceived(2).ToString();
 
         UpdateSelectionVisual();
     }
@@ -88,9 +111,9 @@ public class MatchResultUI : MonoBehaviour
         bool right = kb.dKey.wasPressedThisFrame || kb.rightArrowKey.wasPressedThisFrame || kb.lKey.wasPressedThisFrame;
         bool confirm = kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame;
 
-        if (left  && selectedIndex != 0) { selectedIndex = 0; UpdateSelectionVisual(); }
-        if (right && selectedIndex != 1) { selectedIndex = 1; UpdateSelectionVisual(); }
-        if (confirm) Confirm();
+        if (left  && selectedIndex != 0) { selectedIndex = 0; UpdateSelectionVisual(); AudioManager.Instance?.PlayUiMove(); }
+        if (right && selectedIndex != 1) { selectedIndex = 1; UpdateSelectionVisual(); AudioManager.Instance?.PlayUiMove(); }
+        if (confirm) { AudioManager.Instance?.PlayUiConfirm(); Confirm(); }
     }
 
     private void UpdateSelectionVisual()

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public static class SetupMatchResultUI
 {
-    [MenuItem("BurokkuKuzushi/Setup MatchResult UI")]
+    // 旧 CenterUI 前提のレガシー処理。新 UI では実行しないため MenuItem は外している。
     public static void Setup()
     {
         var centerUI = GameObject.Find("CenterUI");

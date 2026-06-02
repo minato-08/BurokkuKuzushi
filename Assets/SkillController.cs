@@ -15,6 +15,11 @@ public class SkillController : MonoBehaviour
     public float  EnergyRatio => energy?.Ratio ?? 0f;
     public string SkillName   => equippedSkill?.DisplayName ?? "---";
 
+    // 緊急スキル（SkillPanic_BlockClear）が今まさに発動可能か（PANIC READY 表示用, DESIGN.md 5.10）
+    public bool   PanicReady  => equippedSkill is SkillPanic_BlockClear
+                                 && (energy?.IsFull ?? false)
+                                 && equippedSkill.CanActivate(playerIndex);
+
     public void Initialize(int pIndex, ArenaController a)
     {
         playerIndex = pIndex;
@@ -29,15 +34,26 @@ public class SkillController : MonoBehaviour
     {
         energy?.SetMax(maxEnergy);
         energy?.Reset();
+        wasReady = false;
     }
+
+    private bool wasReady;
 
     void Update()
     {
         if (GameManager.Instance?.GetCurrentState() != GameManager.GameState.Playing) return;
-        if (equippedSkill == null || energy == null || !energy.IsFull) return;
+        if (equippedSkill == null || energy == null) return;
+
+        // チャージ完了の立ち上がりで READY SE（DESIGN.md 10.4）
+        bool ready = energy.IsFull;
+        if (ready && !wasReady) AudioManager.Instance?.PlaySkillReady(playerIndex);
+        wasReady = ready;
+
+        if (!ready) return;
         if (!IsSkillKeyPressed()) return;
         if (!equippedSkill.CanActivate(playerIndex)) return;
 
+        AudioManager.Instance?.PlaySkillActivate(playerIndex); // スキル発動 SE
         energy.ConsumeAll();
         equippedSkill.Activate(playerIndex, arena);
     }

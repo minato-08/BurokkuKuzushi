@@ -38,6 +38,7 @@ public class ArenaController : MonoBehaviour
         extra.name = "Ball_Extra";
         BallScript bs = extra.GetComponent<BallScript>();
         bs.isExtraBall = true; // Start() の自動発射をスキップ → コルーチンで発射
+        hitStop?.RegisterFreezable(bs);
         StartCoroutine(LaunchExtraBallRoutine(bs, duration));
     }
 
@@ -52,6 +53,7 @@ public class ArenaController : MonoBehaviour
 
     public void SpawnItem(Vector3 worldPos, ItemType type)
     {
+        AudioManager.Instance?.PlayItemDrop(playerIndex); // アイテム出現 SE（DESIGN.md 10.4）
         GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         go.name = "Item_" + type;
         go.transform.SetParent(ArenaRoot, worldPositionStays: true);
@@ -105,6 +107,9 @@ public class ArenaController : MonoBehaviour
 
         if (ball != null)
             ball.PrepareRespawn(GetBallSpawnLocalPos());
+
+        // 発射エイマーの位相を中央へリセット（ボールが待機中のままラウンドが終わった場合の引き継ぎ防止）
+        launchAimer?.ResetAim();
 
         // SkillBall_Multi で生成された追加ボールを破棄（メインボールは残す）
         foreach (var b in ArenaRoot.GetComponentsInChildren<BallScript>())
@@ -200,5 +205,11 @@ public class ArenaController : MonoBehaviour
     public void PushIncoming(GameManager.InterferenceType type)
     {
         cachedUIManager?.PushIncoming(playerIndex, type);
+    }
+
+    // 底到達ペナルティ発生時、死線ラインを白フラッシュ（このアリーナ＝被害者）
+    public void FlashDangerLine()
+    {
+        cachedUIManager?.FlashDangerLine(playerIndex);
     }
 }

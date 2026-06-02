@@ -45,6 +45,8 @@ public class PlayerController : MonoBehaviour, IFreezable
         inputReversed = false;
         transform.localScale = originalScale;
         if (paddleRenderer != null) paddleRenderer.material.color = originalColor;
+        // パドル位置を中央へ戻す（ラウンド遷移リセット）
+        transform.localPosition = new Vector3(0f, paddleLocalY, paddleLocalZ);
     }
 
     void Start()
@@ -60,6 +62,9 @@ public class PlayerController : MonoBehaviour, IFreezable
     // アイテム取得時にパドルを系統色で 0.1s フラッシュ（ItemDrop から呼ばれる）
     public void OnItemPickup(ItemCategory category)
     {
+        // アイテム取得 SE（系統別: 強化/攻撃/罠, DESIGN.md 10.4）
+        AudioManager.Instance?.PlayItemPickup(category, playerIndex);
+
         if (paddleRenderer == null) return;
         Color flash = category switch
         {
@@ -116,6 +121,9 @@ public class PlayerController : MonoBehaviour, IFreezable
 
         BallScript ball = collision.gameObject.GetComponent<BallScript>();
 
+        // パドル反射 SE（DESIGN.md 10.4）
+        AudioManager.Instance?.PlayBallPaddle(playerIndex);
+
         // パドルバウンスヒットストップ（0フレームはスキップ）
         if (paddleBounceFrames > 0 && ball != null)
         {
@@ -132,6 +140,14 @@ public class PlayerController : MonoBehaviour, IFreezable
     void Update()
     {
         if (frozen) return;
+
+        // 移動可能なのは Playing と Countdown のみ（DESIGN.md 12.12: カウントダウン中も
+        // パドルのポジショニングは許可）。Countdown は timeScale=0 なので unscaled で動かす。
+        if (GameManager.Instance == null) return;
+        var state = GameManager.Instance.GetCurrentState();
+        bool countdown = state == GameManager.GameState.Countdown;
+        if (state != GameManager.GameState.Playing && !countdown) return;
+        float dt = countdown ? Time.unscaledDeltaTime : Time.deltaTime;
 
         float move = 0f;
 
@@ -156,7 +172,7 @@ public class PlayerController : MonoBehaviour, IFreezable
 
         // ローカル座標で移動を管理（親Arenaの座標系で動く）
         Vector3 localPos = transform.localPosition;
-        localPos.x += move * speed * Time.deltaTime;
+        localPos.x += move * speed * dt;
         localPos.x = Mathf.Clamp(localPos.x, -xLimit, xLimit);
         localPos.y = paddleLocalY;
         localPos.z = paddleLocalZ;

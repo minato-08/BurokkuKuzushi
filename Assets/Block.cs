@@ -5,7 +5,8 @@ public enum BlockType
     Normal,    // 通常：1撃で破壊
     Hard,      // 硬い：複数撃必要
     Absorb,    // 吸収：当たるとボール減速
-    Explosive  // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Explosive, // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Item       // アイテム：HP1。破壊で確定 1 個ドロップ（DESIGN.md 5.4/12.17）
 }
 
 public class Block : MonoBehaviour
@@ -46,9 +47,19 @@ public class Block : MonoBehaviour
     [SerializeField] private Color absorbColor    = new Color(0.616f, 0.427f, 1.000f); // #9d6dff 紫
     [SerializeField] private Color explosiveColor = new Color(1.000f, 0.690f, 0.290f); // #ffb04a オレンジ
     [SerializeField] private Color hardenedColor  = new Color(0.478f, 0.251f, 0.251f); // #7a4040 ダーク赤
+    [SerializeField] private Color itemColor      = new Color(0.290f, 1.000f, 0.627f); // #4affa0 緑（報酬感）
+
+    [Header("HP pip（残耐久ドット, DESIGN.md 5.4。HP>1 のみ表示）")]
+    [SerializeField] private bool  showHpPips      = true;
+    [SerializeField] private float pipWorldSize    = 0.12f; // ワールド換算のドット径
+    [SerializeField] private float pipWorldSpacing = 0.18f; // ドット間隔（ワールド）
+    [SerializeField] private Vector3 pipWorldOffset = new Vector3(0f, 0.16f, -0.55f); // ブロック中心からのワールドオフセット（z<0=手前）
+    [SerializeField] private Color pipColor        = new Color(0.06f, 0.06f, 0.09f, 1f); // 暗色ドット
 
     private int currentHp;
     private Renderer blockRenderer;
+    private bool destroyed;   // 多重破壊ガード（Destroy は遅延実行なので同フレームの追撃で二重発火するのを防ぐ）
+    private GameObject[] hpPips;
 
     void Awake()
     {
@@ -59,6 +70,50 @@ public class Block : MonoBehaviour
     {
         currentHp = hp;
         RefreshColor();
+        BuildHpPips();
+    }
+
+    // HP>1 ブロックの残耐久ドット（●●●）を子に生成。親が非一様スケール(1.3,0.5,1)なので
+    // ワールド指定値を親スケールで割って localPosition/localScale に換算する（DESIGN.md 5.4）。
+    private void BuildHpPips()
+    {
+        ClearHpPips();
+        if (!showHpPips || hp <= 1 || blockType == BlockType.Item) return;
+
+        Vector3 s = transform.localScale;
+        if (s.x == 0f || s.y == 0f || s.z == 0f) return;
+        hpPips = new GameObject[hp];
+        float totalW = (hp - 1) * pipWorldSpacing;
+        for (int i = 0; i < hp; i++)
+        {
+            GameObject pip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pip.name = "HpPip";
+            Collider col = pip.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            pip.transform.SetParent(transform, false);
+            float wx = -totalW * 0.5f + i * pipWorldSpacing + pipWorldOffset.x;
+            pip.transform.localPosition = new Vector3(wx / s.x, pipWorldOffset.y / s.y, pipWorldOffset.z / s.z);
+            pip.transform.localScale    = new Vector3(pipWorldSize / s.x, pipWorldSize / s.y, (pipWorldSize * 0.4f) / s.z);
+            Renderer r = pip.GetComponent<Renderer>();
+            if (r != null) r.material.color = pipColor;
+            hpPips[i] = pip;
+        }
+        UpdateHpPips();
+    }
+
+    private void UpdateHpPips()
+    {
+        if (hpPips == null) return;
+        for (int i = 0; i < hpPips.Length; i++)
+            if (hpPips[i] != null && hpPips[i].activeSelf != (i < currentHp))
+                hpPips[i].SetActive(i < currentHp);
+    }
+
+    private void ClearHpPips()
+    {
+        if (hpPips == null) return;
+        foreach (var p in hpPips) if (p != null) Destroy(p);
+        hpPips = null;
     }
 
     private void RefreshColor()
@@ -69,6 +124,7 @@ public class Block : MonoBehaviour
             BlockType.Hard      => hardColor,
             BlockType.Absorb    => absorbColor,
             BlockType.Explosive => explosiveColor,
+            BlockType.Item      => itemColor,
             _                   => normalColor
         };
     }
@@ -79,9 +135,11 @@ public class Block : MonoBehaviour
 
         BallScript ball = collision.gameObject.GetComponent<BallScript>();
 
-        // コンボはブロック接触ごとに +1（破壊しなくても加算, DESIGN.md 5.8）
-        if (ball != null && GameManager.Instance != null)
-            GameManager.Instance.RegisterBallHitBlock(ball.playerIndex);
+        // コンボは破壊時に加算（DESIGN.md 5.8, OnDestroyed → RegisterBlockDestroyed）。接触では加算しない。
+
+        // ブロック衝突 SE（アリーナごと 50ms クールダウン, DESIGN.md 10.4）
+        if (ball != null)
+            AudioManager.Instance?.PlayBlockHit((int)blockType, ball.playerIndex);
 
         // 吸収ブロック：ボールを減速
         if (blockType == BlockType.Absorb)
@@ -121,6 +179,7 @@ public class Block : MonoBehaviour
     public void TakeDamage(int damage, BallScript ball = null)
     {
         currentHp -= damage;
+        UpdateHpPips();
 
         if (currentHp <= 0)
             OnDestroyed(ball);
@@ -130,12 +189,23 @@ public class Block : MonoBehaviour
     // HPを外部から増やす（爆発ブロック用）
     public void AddHp(int amount)
     {
+        if (amount <= 0 || destroyed) return;
         hp += amount;
         currentHp += amount;
+        BuildHpPips();
+        UpdateHpPips();
     }
 
     private void OnDestroyed(BallScript ball)
     {
+        // 同一フレーム内の追撃（マルチボール/貫通/連鎖）で二重発火するとコンボ・スコア・破壊数・
+        // ドロップ・爆発が重複する。Destroy は遅延実行なのでフラグで一度だけに保証する。
+        if (destroyed) return;
+        destroyed = true;
+
+        // ブロック破壊 SE（Explosive は専用音, DESIGN.md 10.4）
+        AudioManager.Instance?.PlayBlockBreak(blockType == BlockType.Explosive, ball != null ? ball.playerIndex : 0);
+
         // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)
         {
@@ -163,6 +233,22 @@ public class Block : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // 妨害行の着弾フラッシュ（BlockSpawner の AttackAddRow 演出から呼ばれる, DESIGN.md 6.3）
+    private Coroutine impactRoutine;
+    public void FlashImpact(Color color, float duration)
+    {
+        if (blockRenderer == null) return;
+        if (impactRoutine != null) StopCoroutine(impactRoutine);
+        impactRoutine = StartCoroutine(ImpactRoutine(color, duration));
+    }
+    private System.Collections.IEnumerator ImpactRoutine(Color color, float duration)
+    {
+        blockRenderer.material.color = color;
+        yield return new WaitForSeconds(duration);
+        RefreshColor();
+        impactRoutine = null;
+    }
+
     public void HardenToHp(int targetHp)
     {
         blockType = BlockType.Hard;
@@ -171,16 +257,22 @@ public class Block : MonoBehaviour
         // 妨害 Harden で変換されたブロックは金色で通常 Hard と区別する
         if (blockRenderer != null)
             blockRenderer.material.color = hardenedColor;
+        BuildHpPips(); // 硬化で HP>1 になったので残耐久ドットを生成
     }
 
     private void TryDropItem(BallScript ball)
     {
-        float dropChance = baseDropChance;
-        if (GameManager.Instance != null)
-            dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul
-                        * GameManager.Instance.GetItemDropComboMul(ball.playerIndex);
+        // BlockItem は確定ドロップ（確率判定をスキップ, DESIGN.md 12.17）
+        bool guaranteed = blockType == BlockType.Item;
 
-        if (Random.value > dropChance) return;
+        if (!guaranteed)
+        {
+            float dropChance = baseDropChance;
+            if (GameManager.Instance != null)
+                dropChance *= GameManager.Instance.GetCurrentBand(ball.playerIndex).itemDropMul
+                            * GameManager.Instance.GetItemDropComboMul(ball.playerIndex);
+            if (Random.value > dropChance) return;
+        }
 
         float bias = GameManager.Instance != null
             ? GameManager.Instance.GetCurrentBand(ball.playerIndex).goodItemBias
@@ -188,14 +280,19 @@ public class Block : MonoBehaviour
         ItemType type = SelectRandomItemType(bias, trapDisguiseChance);
 
         // ドロップ過多抑制: 抽選結果の持続効果スロットが既に有効なら再抽選。
-        // maxSlotRerolls 回試しても解消しなければドロップをスキップ（DESIGN.md 5.5）。
+        // maxSlotRerolls 回試しても解消しなければ、通常ブロックはスキップ。
+        // ただし BlockItem は「確定で 1 個」なのでスキップせず最後の抽選結果を出す（DESIGN.md 12.17）。
         // Heal / Attack 系はスロット None なので抑制対象外。
         if (GameManager.Instance != null)
         {
             int rerolls = 0;
             while (GameManager.Instance.IsEffectSlotActive(ball.playerIndex, ItemDefinition.GetEffectSlot(type)))
             {
-                if (++rerolls > maxSlotRerolls) return;
+                if (++rerolls > maxSlotRerolls)
+                {
+                    if (guaranteed) break;   // 確定ドロップはスキップしない
+                    return;
+                }
                 type = SelectRandomItemType(bias, trapDisguiseChance);
             }
         }

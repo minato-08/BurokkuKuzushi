@@ -1,8 +1,10 @@
 # BurokkuKuzushi 開発ロードマップ
 
-最終更新: 2026-05-20（攻撃アイテム経由モデルへ刷新、発表 2026-06-05 までの逆算スケジュール）
+最終更新: 2026-06-01（Phase F-Combat / F-Title 完了をコードと突き合わせて反映、発表 2026-06-12 へ変更）
 
 このドキュメントは仕様書 [`DESIGN.md`](./DESIGN.md) を実装に落とすためのフェーズ分けと進捗管理。
+
+> **2026-06-01 実コード照合メモ**: Phase F-Combat は **完了し main にマージ済み**（commit c005760）。Phase F-Title（タイトル/設定/カウントダウン/ラウンド・マッチ結果）も実装済み。本ファイルのチェックボックスは 2026-05-20 以降更新されておらず未着手のように見えていたため、コードと突き合わせて `[x]` を反映した。**残作業の実体は Phase F-Audio（音は一行も未実装）/ Phase F-Polish（演出群）/ MatchStats 集計（最大コンボ等）**。発表は 2026-06-12 に変更。
 
 ---
 
@@ -18,18 +20,17 @@
 ## 全体カレンダー
 
 ```
-2026-05-20  本日。仕様刷新（攻撃アイテム経由モデル）完了
-2026-05-20 〜 23   Phase F-Combat: 攻撃アイテム実装・コンボ自動妨害撤去
-2026-05-24 〜 26   Phase F-Setup 残作業: CenterUI_Old 削除・Energy/Incoming UI
-2026-05-27 〜 29   Phase F-Audio: SE/BGM 最低セット
-2026-05-30 〜 06-01 Phase F-Title: タイトル + 結果画面の最小実装
-2026-06-02 〜 03   Phase F-Polish: 演出強化（破壊飛翔・Trail・破片）
-2026-06-04        Playtest + バランス調整 + 最終バグ取り
-2026-06-05        発表（部活）
-2026-06-06 〜      Phase G+: Gate/Zone/DirectAttack/AI 対戦
+（〜2026-05-31  完了）Phase F-Combat / F-Setup / F-Title 実装・UI を Unity 上で構築
+2026-06-01        本日。実コード照合で ROADMAP を実態に更新
+2026-06-01 〜 04   Phase F-Audio: SE/BGM 最低セット（最優先・発表 Go 基準）
+2026-06-05 〜 07   HUD [任意] バインド + MatchStats 集計（最大コンボ等）
+2026-06-08 〜 10   Phase F-Polish: 演出強化（決着フラッシュ・Ball Heat・Danger Proximity 等）
+2026-06-11        Playtest + バランス調整 + 最終バグ取り
+2026-06-12        発表（部活）
+2026-06-13 〜      Phase G+: Gate/Zone/DirectAttack/AI 対戦
 ```
 
-各フェーズの想定工数は 2〜3 日。スリップしたら Phase F-Polish と Phase F-Title から削る（Audio と Combat はマスト）。
+各フェーズはバッファ込み。スリップしたら Phase F-Polish から削る（Audio はマスト）。
 
 ---
 
@@ -144,13 +145,13 @@
 - [x] スキル READY 表示
 - [x] `SetupUIManager.cs` Editor スクリプト
 
-### 残作業（Phase F-Setup クローズアウト・〜2026-05-26）
-- [ ] HP Fill バー動作確認（Image Sliced + Horizontal fillAmount）
-- [ ] Energy ゲージ UI 要素作成（Image, Vertical Fill）+ バインド
-- [ ] Incoming インジケータ UI 要素作成 + バインド
-- [ ] Score / Combo 表示の最終確認（既存実装の playtest）
-- [ ] 旧 `CenterUI_Old` の削除コミット
-- [ ] Round ドット / 勝利数表示（先取本数 > 1 で意味を持つ）
+### 残作業（Phase F-Setup クローズアウト）
+- [x] HP Fill バー動作確認（Image Sliced + Horizontal fillAmount）
+- [ ] Energy ゲージ UI 要素作成（Image, Vertical Fill）+ バインド ← UIManager 側コードは実装済み・UI 要素未作成
+- [ ] Incoming インジケータ UI 要素作成 + バインド ← `UIManager.PushIncoming` 実装済み・UI 要素未作成
+- [x] Score / Combo 表示の最終確認
+- [x] 旧 `CenterUI_Old` の削除コミット（2026-05-31、GameObject ごと削除）
+- [ ] Round ドット / 勝利数表示 ← `UIManager.p1RoundWins/p2RoundWins` フィールドあり・未バインド
 
 ---
 
@@ -159,43 +160,44 @@
 DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃アイテム経路に置換する。
 
 ### コア変更
-- [ ] `ItemType` enum に `AttackHarden / AttackAddRow / AttackPoison / AttackSlow` を追加
-- [ ] `EffectAttack` 系 EffectDefinition を新設（または `ItemDrop` で系統分岐）
-- [ ] `Block.SelectRandomItemType()` を 3 系統（buff/attack/trap）抽選に書き換え
-- [ ] HP帯バンドに `dropBiasBuff` フィールドを追加し、抽選で反映
-- [ ] `GameManager.SendInterference(targetPi, payload)` 公開メソッドを新設
-- [ ] `GameManager.SendSabotageTo` / `RegisterBlockDestroyed` 内の自動送付ロジックを削除
-- [ ] `RegisterBlockDestroyed` をコンボ更新のみに簡略化（spawn 通知 + scoreMul/gaugeMul 算出）
-- [ ] `ItemType` に `TrapBall_Reversed` を追加（`PlayerController.inputReversed` フラグを 5s 間 true、HUD に `REVERSED!` ラベル表示）
+- [x] `ItemType` enum に `AttackHarden / AttackAddRow / AttackPoison / AttackSlow` を追加
+- [x] `EffectAttack` 系 EffectDefinition を新設（`EffectDefinition.cs` に `EffectAttack` / `EffectInputReverse` を実装）
+- [x] `Block.SelectRandomItemType()` を 3 系統（buff/attack/trap）抽選に書き換え
+- [x] HP帯バンドに `dropBiasBuff` フィールドを追加し、抽選で反映（`HPStateBand.goodItemBias`）
+- [x] `GameManager.SendInterference(targetPi, payload)` 公開メソッドを新設
+- [x] `GameManager.SendSabotageTo` / `RegisterBlockDestroyed` 内の自動送付ロジックを削除
+- [x] `RegisterBlockDestroyed` をエナジー蓄積のみに簡略化（コンボ加算は接触側 `RegisterBallHitBlock` へ移譲）
+- [x] `ItemType` に `TrapBall_Reversed`（`Reversed`）を追加（`PlayerController.inputReversed` フラグ・`EffectInputReverse` 経由）
 
 ### コンボの再配置
-- [ ] `comboTimer[]` + `comboTimeout`(=3s) 実装。`TickCombo` を Update に
-- [ ] `maxCombo[]` をラウンドごとに記録
-- [ ] `scoreComboMul / gaugeComboMul / itemDropComboMul` 算出関数（`comboScoreStep` 等基準）
-- [ ] `AddScore` / `AddEnergy` / `TryDropItem` で各倍率を反映
-- [ ] UI の `$P1ComboValue` 表示を「現在コンボ」に統一（旧「次の妨害までの残り」を撤去）
+- [x] `comboTimer[]` + `comboTimeout`(=6.0s) 実装。`TickComboTimer` を Update に（DESIGN.md 5.8 で 6s に確定）
+- [x] `maxCombo[]` をラウンド/マッチごとに記録（2026-06-01。`GetMaxComboRound/Match` + 総破壊数 `GetBlocksDestroyed` + 被妨害数 `GetInterferenceReceived`。UI 側コードも配線済み・要バインド）
+- [x] `scoreComboMul / gaugeComboMul / itemDropComboMul` 算出関数（`comboScoreStep` 等基準）
+- [x] `AddScore` / `AddEnergy` / `TryDropItem` で各倍率を反映
+- [x] UI の `$P1ComboValue` 表示を「現在コンボ」に統一（旧「次の妨害までの残り」を撤去）
+- [x] コンボ加算を「破壊数」→「ブロック接触数」に再定義（`RegisterBallHitBlock`、DESIGN.md 5.8 / 2026-05-30）
 
 ### 攻撃アイテム強化（DESIGN.md 5.5.2 / 5.7 の刷新分を含む）
 
-- [ ] 攻撃アイテム用カラー / アイコン（赤系オーラ）
-- [ ] 取得時の SE 仮当て（Phase F-Audio で正式音）
-- [ ] 攻撃側 HUD への `SENT → P{N}: [種別]` ラベル表示（1.5s, スライドフェードアウト）
-- [ ] アイテム寿命タイマー（8s、残 2s で高速点滅）を ItemDrop に追加
-- [ ] 妨害送受信のオーブ演出（相手アリーナから自分のアリーナへ飛ぶエフェクト、AddRow/DirectShot は赤系 `INCOMING` オーバーレイ）
+- [x] 攻撃アイテム用カラー（`ItemDefinition.GetColor` で赤系）
+- [ ] 取得時の SE 仮当て（Phase F-Audio で正式音）← **音は全体未実装**
+- [x] 攻撃側 HUD への `SENT → P{N}: [種別]` ラベル表示（`UIManager.ShowSentLabel`、※ UI 要素は未バインド）
+- [ ] ~~アイテム寿命タイマー（8s）~~ ← **不採用確定（2026-05-29）**。実装しない方針
+- [ ] 妨害送受信のオーブ演出（相手→自分へ飛ぶエフェクト）← **未実装**（`ShowInterferenceOverlay` の赤フラッシュのみ実装、オーブ飛翔は無し）
 
 > 2026-05-28 仕様変更で以下は廃止: AttackSpike / AttackHarden 降下停止 / 反撃ウィンドウ (RetaliationWindow) / CATCH & SHOOT (`SkillForceCatch`)。
 
 ### コンボマイルストーン
 
-- [ ] `comboMilestones[]` 配列（デフォルト {10, 20, 30}）を GameManager SerializeField に追加
-- [ ] マイルストーン到達時のオーバーレイ表示（達成者 HUD + 相手 HUD の警告）
-- [ ] `se_combo_milestone.wav` の仮当て（ピッチ差分付き）
+- [x] `comboMilestones[]` 配列（デフォルト {10, 20, 30}）を GameManager SerializeField に追加
+- [x] マイルストーン到達時のオーバーレイ表示ロジック（`UIManager.ShowComboMilestone`、※ UI 要素は未バインド）
+- [ ] `se_combo_milestone.wav` の仮当て（ピッチ差分付き）← **音は全体未実装**
 
 ### ラウンド内エスカレーション（DESIGN.md 5.4.1）
 
-- [ ] `BlockSpawner` に `spawnIntervalBase / spawnIntervalDecayPerMin / spawnIntervalMin / descentSpeedBase / descentSpeedGainPerMin / descentSpeedMax` を SerializeField 追加
-- [ ] `roundElapsedTime` を `BlockSpawner.Update()` で毎フレーム加算し、スポーン間隔・降下速度をリアルタイム算出（`ArenaController.ResetForNewRound()` でリセット）
-- [ ] `comboTimer[]` タイマー起点を「パドル反射後」から「最後のブロック破壊後」に修正（DESIGN.md 5.8 注記参照）
+- [x] `BlockSpawner` に `spawnIntervalBase / spawnIntervalDecayPerMin / spawnIntervalMin / descentSpeedBase / descentSpeedGainPerMin / descentSpeedMax` を SerializeField 追加
+- [x] `roundElapsedTime` を `BlockSpawner.Update()` で毎フレーム加算し、スポーン間隔・降下速度をリアルタイム算出（`ResetForNewRound()` でリセット）
+- [x] `comboTimer[]` タイマー起点を「最後のブロック接触後」に（DESIGN.md 5.8 注記。`RegisterBallHitBlock` でリセット）
 
 ### コミット粒度
 1. ItemType 拡張 + 抽選ロジック refactor
@@ -211,19 +213,23 @@ DESIGN.md 5.5.2 / 5.7 に従い、コンボ自動妨害を撤廃して攻撃ア�
 
 DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂しい」と思われないライン。
 
-- [ ] `AudioMixer` 作成（Master / BGM / SE / Voice）+ dB 変換式 `dB = 20 × log10(value/100)` 実装
-- [ ] ボール反射 SE（速度層でピッチ可変、`pitch = 1 + (naturalSpeed/baseSpeed - 1) × 0.2`）
-- [ ] ブロック衝突 SE（Normal/Hard/Absorb/Explosive で音色差、50ms クールダウン実装）
-- [ ] ブロック破壊 SE
-- [ ] アイテム取得 SE（系統別: 強化 / 攻撃 / 罠 で 3 音）
-- [ ] スキル発動 SE + チャージ完了 SE（`EnergySystem.OnEnergyFull` イベント追加）
-- [ ] 妨害受信 SE（種別ごとに短発ラベル発音）
-- [ ] コンボマイルストーン SE（ピッチ +N 半音、10/20/30）
-- [ ] ラウンド開始 / 勝利 / マッチ勝利 ジングル
-- [ ] BGM: タイトル 1 曲 + 試合中 1 曲（クロスフェード規則: DESIGN.md 10.5 参照）
-- [ ] HP30% 帯クロスフェード実装（5% ヒステリシス付き、両者が 35% 以上で通常戻し）
-- [ ] PlayerPrefs ベースの音量設定（vol.master/bgm/se）
-- [ ] 設定 UI と連動（リアルタイム反映、戻る時に PlayerPrefs 保存）
+> **2026-06-01 土台実装済み**: `AudioManager.cs`（シングルトン、SE プール、dB 音量、50ms クールダウン、BGM クロスフェード）を新設し、`AudioManager` GameObject をシーンに配置。下記の発火点は**全てコード配線済み**。**残るは (1) 音源クリップを Inspector に割り当て (2) `Assets/Audio/MasterMixer.mixer` を作成して Expose Param をバインド** の 2 点（どちらもユーザー依存。未割り当てでも null セーフに無音動作する）。
+
+- [~] `AudioMixer`（Master/BGM/SE/Voice）+ dB 変換 `20×log10(v/100)` ← **dB 変換・`ApplyVolumes` 実装済み。Mixer asset 作成と Expose Param バインドが残**
+- [x] ボール反射 SE 配線（`BallScript`/`PlayerController`、壁はピッチ可変 `1+(ratio-1)×0.2`）
+- [x] ブロック衝突 SE 配線（Normal/Hard/Absorb 音色差、Hard -2 半音、アリーナごと 50ms クールダウン）
+- [x] ブロック破壊 SE 配線（Explosive 専用音, `Block.OnDestroyed`）
+- [x] アイテム取得 SE 配線（系統別 3 音, `PlayerController.OnItemPickup`）+ アイテム出現 SE（`ArenaController.SpawnItem`）
+- [x] スキル発動 SE + チャージ完了 SE 配線（`SkillController` で `IsFull` 立ち上がり検出）
+- [x] 妨害受信 SE 配線（`GameManager.ApplyInterference`）
+- [x] コンボマイルストーン SE 配線（ピッチ +N 半音, `UIManager.ShowComboMilestone`）
+- [x] ラウンド開始 / 勝利 / マッチ勝利 SE 配線（`CountdownCoroutine`/`EndRound`）
+- [x] BGM: タイトル / 試合 クロスフェード scaffold（`PlayTitleBGM`/`PlayMatchBGM`/`PlayResultJingle`）
+- [x] HP30% 帯クロスフェード（5% ヒステリシス, `GameManager.Update` → `SetTenseLayer`）
+- [x] PlayerPrefs 音量（vol.master/bgm/se）→ `ApplyVolumes` で dB 反映
+- [ ] 設定 UI と連動（現状 Settings は先取数のみ。音量スライダー追加は要判断）
+- [ ] **音源クリップ未割り当て**（ユーザー調達, ASSETS.md）/ **Mixer asset 未作成**
+- [ ] 未配線: `se_addrow_land`（妨害行着弾）/ UI 確定音の一部画面 ← 必要なら追補
 
 音源は自作 or フリー素材（CC0/Creative Commons）から調達。生成優先順位はブロック衝突から。SE コードトリガーマッピングは DESIGN.md 10.4 を参照。
 
@@ -233,21 +239,20 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 発表で 1 人プレイの取っ掛かりが必要なため最小実装する。
 
-- [ ] `TitleScene` 新設（または `SampleScene` 内パネルで疑似実装）
-- [ ] メニュー UI（START / QUIT）
-- [ ] `GameState` enum に `Countdown` / `RoundIntermission` の 2 状態を追加（DESIGN.md 12.12 参照）
-- [ ] ラウンド開始カウントダウン中の入力制御（移動可・発射不可、ブロック降下停止、スキル蓄積停止）
-- [ ] `ResultScene` または既存 `MatchResultPanel` の演出強化（DESIGN.md 5.10 マッチ結果画面詳細を実装）
-  - 必須: 大見出し `P{N} WINS!` / 最終スコア / 最大コンボ表示
-  - 任意: ブロック破壊数・受信妨害数（GameManager に `MatchStats` 集計構造を追加）
-- [ ] BGM はタイトル/試合で切り替え
+- [x] `SampleScene` 内パネルで疑似実装（`_TitlePanel` / `_SettingsPanel`、`TitleUI` / `SettingsUI`）
+- [x] メニュー UI（START / SETTINGS / QUIT、テキスト色で選択表現）
+- [x] `GameState` enum に状態追加（`Title` / `Settings` / `Countdown` を実装。`RoundIntermission` は `RoundOver` + `RoundIntermissionRemaining` で代替）
+- [ ] ラウンド開始カウントダウン中の入力制御（DESIGN.md 12.12: 移動可・発射不可・降下停止）← **未充足**: 現状 Countdown は `Time.timeScale=0` で全停止のため「移動可」になっていない
+- [~] 既存パネルで結果画面（DESIGN.md 5.10）
+  - [x] 必須: 大見出し `P{N} WINS!` / 最終スコア（`MatchResultUI` サマリー版・実機確認済み）
+  - [x] 必須: **最大コンボ表示**（集計実装済み 2026-06-01。`MatchResultUI.p1/p2BestComboText` に配線済み・**UI 要素の配置とバインド待ち**）
+  - [x] 任意: ブロック破壊数・受信妨害数（集計実装済み。`p1/p2BlocksText` / `p1/p2InterferenceText` に配線済み・**要バインド**）
+- [x] ラウンド間リザルト分離（`RoundResultUI` + カウントダウン）と起動時カウントダウン（3,2,1,GO!）
+- [ ] BGM はタイトル/試合で切り替え ← **音は全体未実装**
 
-> **2026-05-28 廃止**: ポーズ機能 / 設定 UI (`SettingsPanel`) / チュートリアル / AI 対戦 — DESIGN.md から削除済み。実装不要。
+> **2026-05-28 廃止 → 一部復活**: ポーズ機能 / チュートリアル / AI 対戦 は廃止のまま。**設定 UI は「先取数のみ」で最小復活（2026-05-30）** — `SettingsUI` が `PlayerPrefs "match.roundsToWin"` を扱い、`GameState.Settings` を新設。音量設定は音声未実装のためスコープ外。
 
-スリップした場合の優先順:
-1. タイトル + START（最低限）
-2. ラウンド/マッチ結果演出
-3. BGM 切替
+実装済みのフロー: Title(START) → Settings(先取数) → SkillSelect(4枚カード) → Countdown(3,2,1,GO!) → 対戦 → RoundResult → … → MatchResult(Rematch/Menu) → ReturnToTitle。
 
 ---
 
@@ -257,8 +262,8 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 ### 必須演出（デモで「地味」と思われないライン）
 
-- [ ] ラウンド開始カウントダウン（3-2-1-GO!）シーケンス実装（PlayerController Freeze + LaunchAimer 起動タイミング）
-- [ ] ラウンド決着演出（勝者アリーナ白フラッシュ / 敗者アリーナ暗転 + `ROUND WIN!` / `ROUND OVER` 表示）
+- [x] ラウンド開始カウントダウン（3-2-1-GO!）シーケンス実装（GameManager `CountdownCoroutine`、GO! の瞬間に Playing 開始）
+- [ ] ラウンド決着演出（勝者アリーナ白フラッシュ / 敗者アリーナ暗転 + `ROUND WIN!` / `ROUND OVER` 表示）← 現状はヒットストップ + 敗者カメラシェイクのみ。アリーナのフラッシュ/暗転と大型オーバーレイは未実装
 - [ ] Last Stand 演出（HP 10%: アリーナ枠BreathPulse高速化 + 赤化 + HP バー点滅 + `PANIC READY` 表示）
 - [ ] BlockHard / BlockHardened HP pip 表示（ブロック上部に ● ドット、命中で減少）
 - [ ] AttackAddRow 妨害行の着弾アニメーション（上端から滑り込み 0.3s + 2f HitStop + SE）
@@ -266,7 +271,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] Victory Bar（画面上部中央：P1/P2 HP 比の横長バー、観客向け一目確認）
 - [ ] Combo タイマーアーク（コンボ数字下の弧形残時間インジケーター、弧消滅 = コンボリセット）
 - [ ] Ball Heat（コンボ段階でボール色変化: 0-9 白 / 10-19 黄 / 20-29 橙 / 30+ 赤）
-- [ ] アイテム取得時パドルフラッシュ（系統ごとに 0.1s 色フラッシュ: buff=青 / attack=赤 / trap=紫）
+- [x] アイテム取得時パドルフラッシュ（系統ごとに 0.1s 色フラッシュ: buff=青 / attack=赤 / trap=紫。`PlayerController.OnItemPickup`）
 - [ ] Danger Proximity 演出（最下段ブロックが死線 +1.5u 以内で P1/P2BlockDeadLine 赤点滅、+0.5u で高速点滅）
 - [ ] LaunchAimer センター通過ビジュアル（真上 ±10° で LineRenderer をシアン HDR に切替）
 
@@ -358,11 +363,14 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 
 ---
 
-## 現在のステータス
+## 現在のステータス（2026-06-01 実コード照合）
 
-- **完了**: Phase A〜E（ゲームのコアシステム）、Phase F-Setup の大半
-- **直近**: 2026-05-20 仕様刷新（コンボ自動妨害撤廃、攻撃アイテム経由モデル確定）
-- **次に着手**: Phase F-Combat（攻撃アイテム実装、コンボ自動送付撤去）
-- **発表**: 2026-06-05（部活）— 残り 16 日。Combat / Audio / Title はマスト、Polish はバッファ
+- **完了**: Phase A〜E（コアシステム）、Phase F-Setup（UI/カメラ/シェーダー基盤）、**Phase F-Combat（攻撃アイテム経由モデル・コンボ再定義・Dynamic Escalation、main マージ済み）**、**Phase F-Title（タイトル/設定/カウントダウン/ラウンド・マッチ結果のフロー）**
+- **未着手の主要残作業**:
+  - **Phase F-Audio**: 音は一行も実装されていない（`AudioSource`/`AudioMixer` 皆無）。発表 Go 基準に SE 3 種が含まれるため最優先。
+  - **MatchStats 集計**: `maxCombo[]` / 総破壊数 / 被妨害数が未集計 → リザルトの「最大コンボ」等が出せない。
+  - **Phase F-Polish の演出群**: ラウンド決着フラッシュ/暗転・Ball Heat・Danger Proximity・HP pip・センター通過シアン・スペシャル行・Last Stand 等（コードに痕跡なし）。
+  - **HUD [任意] バインド**: Energy/Skill/Incoming/Victory Bar/Combo マイルストーン/SENT ラベルは **コードは実装済みだが UI 要素が未配置・未バインド**。
+- **発表**: 2026-06-12（部活）。Audio はマスト、Polish はバッファ。
 
-仕様変更があった日（2026-05-20）以降、ROADMAP は `docs/spec-refinement-2026-05-20` ブランチで管理されている。実装着手時に main へマージするか、別ブランチを切る判断は実装者が行う。
+> **2026-06-01 注意**: 本ファイルは長らく 2026-05-20 で止まっており、実装済みのコアが未着手のように見えていた。逆に [[project-postmerge-plan]] memory は演出系を「コード済み」と過大申告していた。**実コードが真実**。今後は完了時に必ず `[x]` を反映すること。

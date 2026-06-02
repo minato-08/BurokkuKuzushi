@@ -84,8 +84,20 @@ public class LaunchAimer : MonoBehaviour
 
         UpdateLine();
 
-        if (IsLaunchKeyPressed())
+        // 発射は Playing 中のみ（カウントダウン中は S/K 無効, DESIGN.md 12.12）
+        if (IsLaunchKeyPressed()
+            && GameManager.Instance?.GetCurrentState() == GameManager.GameState.Playing)
             Fire();
+    }
+
+    // ラウンド遷移でエイマーの位相をリセットする（ArenaController.ResetForNewRound から呼ばれる）。
+    // ボールが発射待ちのままラウンドが終わると metronomeTime が引き継がれ、次ラウンドの初期角度が
+    // 中央に戻らない問題を防ぐ。
+    public void ResetAim()
+    {
+        metronomeTime   = 0f;
+        currentAngleDeg = 0f;
+        isAiming        = false;
     }
 
     private void UpdateLine()
@@ -124,6 +136,7 @@ public class LaunchAimer : MonoBehaviour
         float rad        = currentAngleDeg * Mathf.Deg2Rad;
         Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
         ball.LaunchInDirection(localDir);
+        AudioManager.Instance?.PlayBallLaunch(playerIndex); // 発射確定 SE（DESIGN.md 10.4）
         StopAiming();
     }
 }

@@ -69,15 +69,15 @@ public class SkillSelectUI : MonoBehaviour
 
         if (!p1Confirmed)
         {
-            if (kb.aKey.wasPressedThisFrame) p1Index = Wrap(p1Index - 1);
-            if (kb.dKey.wasPressedThisFrame) p1Index = Wrap(p1Index + 1);
-            if (kb.sKey.wasPressedThisFrame) p1Confirmed = true;
+            if (kb.aKey.wasPressedThisFrame) { p1Index = Wrap(p1Index - 1); AudioManager.Instance?.PlayUiMove(1); }
+            if (kb.dKey.wasPressedThisFrame) { p1Index = Wrap(p1Index + 1); AudioManager.Instance?.PlayUiMove(1); }
+            if (kb.sKey.wasPressedThisFrame) { p1Confirmed = true; AudioManager.Instance?.PlayUiConfirm(1); }
         }
         if (!p2Confirmed)
         {
-            if (kb.jKey.wasPressedThisFrame) p2Index = Wrap(p2Index - 1);
-            if (kb.lKey.wasPressedThisFrame) p2Index = Wrap(p2Index + 1);
-            if (kb.kKey.wasPressedThisFrame) p2Confirmed = true;
+            if (kb.jKey.wasPressedThisFrame) { p2Index = Wrap(p2Index - 1); AudioManager.Instance?.PlayUiMove(2); }
+            if (kb.lKey.wasPressedThisFrame) { p2Index = Wrap(p2Index + 1); AudioManager.Instance?.PlayUiMove(2); }
+            if (kb.kKey.wasPressedThisFrame) { p2Confirmed = true; AudioManager.Instance?.PlayUiConfirm(2); }
         }
     }
 

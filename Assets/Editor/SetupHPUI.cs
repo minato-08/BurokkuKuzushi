@@ -6,12 +6,11 @@ using TMPro;
 // HP / エネルギーゲージ UI のフルセットアップ（冪等）
 // レイアウト方針: 左上 / 右上コーナーに縦 ~130px 以内に収め、
 //   ブロックスポーン最上段との重なりを避ける
-// Unity メニュー [BurokkuKuzushi] > [Setup HP UI] から実行
+// 旧 CenterUI 前提のレガシー処理。新 UI では実行しないため MenuItem は外している。
 public static class SetupHPUI
 {
     private const string CENTER_UI_NAME = "CenterUI";
 
-    [MenuItem("BurokkuKuzushi/Setup HP UI")]
     public static void Setup()
     {
         // GameObject.Find は execute_script 環境では動かないため Canvas から探す

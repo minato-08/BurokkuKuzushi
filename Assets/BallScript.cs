@@ -60,6 +60,16 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private Color heavyColor   = new Color(0.706f, 0.643f, 1.0f); // #b4a4ff lavender
     [SerializeField] private Color pierceColor  = new Color(0.635f, 1.0f, 0.878f); // #a2ffdf
 
+    [Header("コンボ熱表示 (Ball Heat, DESIGN.md 5.3)")]
+    // 属性が Normal のとき、コンボ段階でボール色を 白→クリーム→橙→赤 に Lerp（純演出）
+    [SerializeField] private int   heatStage1 = 10;  // この値以上でクリーム
+    [SerializeField] private int   heatStage2 = 20;  // この値以上で温かいオレンジ
+    [SerializeField] private int   heatStage3 = 30;  // この値以上で深い赤
+    [SerializeField] private Color heatColorLow  = new Color(1.0f, 0.949f, 0.690f); // #fff2b0 クリーム
+    [SerializeField] private Color heatColorMid  = new Color(1.0f, 0.690f, 0.290f); // #ffb04a オレンジ
+    [SerializeField] private Color heatColorHigh = new Color(1.0f, 0.290f, 0.200f); // #ff4a33 赤
+    [SerializeField] private float heatLerpSpeed = 6f; // 色追従の速さ（unscaled）
+
     [Header("軌跡設定")]
     [SerializeField] private float trailTime       = 0.18f;
     [SerializeField] private float trailStartWidth = 0.22f;
@@ -70,6 +80,7 @@ public class BallScript : MonoBehaviour, IFreezable
     private Rigidbody rb;
     private Vector3 lastVelocity;
     private TrailRenderer trail;
+    private Renderer cachedRenderer;
 
     private bool frozen = false;
     private Vector3 frozenVelocity;
@@ -100,6 +111,9 @@ public class BallScript : MonoBehaviour, IFreezable
         frozen = true;
         frozenVelocity = rb.linearVelocity;
         rb.linearVelocity = Vector3.zero;
+        // TrailRenderer はワールド座標に履歴を保持するため、親アリーナを揺らすと履歴だけが
+        // 置き去りになって裂ける。ヒットストップ中は履歴を消して非表示にする。
+        SetTrailVisible(false, clear: true);
     }
 
     public void Unfreeze()
@@ -108,18 +122,22 @@ public class BallScript : MonoBehaviour, IFreezable
         if (rb == null) return;
         rb.linearVelocity = frozenVelocity;
         lastVelocity = frozenVelocity;
+        // 再開直後のシェイク最終位置と通常位置をつなぐ線が出ないよう、空の履歴から再開する。
+        SetTrailVisible(!IsWaitingToLaunch, clear: true);
     }
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        cachedRenderer = GetComponent<Renderer>();
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
         baseSpeed    = speed;
         naturalSpeed = baseSpeed;
 
-        trail = gameObject.AddComponent<TrailRenderer>();
+        trail = GetComponent<TrailRenderer>();
+        if (trail == null) trail = gameObject.AddComponent<TrailRenderer>();
         trail.time             = trailTime;
         trail.startWidth       = trailStartWidth;
         trail.endWidth         = 0f;
@@ -129,6 +147,7 @@ public class BallScript : MonoBehaviour, IFreezable
         Shader trailShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
                           ?? Shader.Find("Sprites/Default");
         if (trailShader != null) trail.material = new Material(trailShader);
+        SetTrailVisible(!isExtraBall, clear: true);
 
         ApplyAttributeColor();
 
@@ -158,6 +177,29 @@ public class BallScript : MonoBehaviour, IFreezable
         CheckBounds();
     }
 
+    // Ball Heat（DESIGN.md 5.3）: 属性 Normal のときコンボ段階でボール色を Lerp。
+    // ヒットストップ中（timeScale=0）も継続させるため Update + unscaledDeltaTime で駆動。
+    void Update()
+    {
+        if (cachedRenderer == null) return;
+        if (attribute != BallAttribute.Normal) return; // 属性カラーが Ball Heat に優先
+
+        int combo = GameManager.Instance != null ? GameManager.Instance.GetCombo(playerIndex) : 0;
+        Color target = GetHeatColor(combo);
+        Color c = Color.Lerp(
+            cachedRenderer.material.color, target, heatLerpSpeed * Time.unscaledDeltaTime);
+        cachedRenderer.material.color = c;
+        SetTrailColor(c); // トレイルもヒート色に追従
+    }
+
+    private Color GetHeatColor(int combo)
+    {
+        if (combo >= heatStage3) return heatColorHigh;
+        if (combo >= heatStage2) return heatColorMid;
+        if (combo >= heatStage1) return heatColorLow;
+        return normalColor;
+    }
+
     // コリジョン抜けでアリーナ外に出た場合の安全網
     private void CheckBounds()
     {
@@ -182,14 +224,21 @@ public class BallScript : MonoBehaviour, IFreezable
         float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
         rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * effectiveSpeed;
 
-        // 壁バウンスヒットストップ（Block・PlayerController 以外への衝突 = 壁）
-        if (wallBounceFrames > 0
-            && collision.gameObject.GetComponent<Block>() == null
-            && collision.gameObject.GetComponent<PlayerController>() == null)
+        // 壁判定（Block・PlayerController 以外への衝突 = 壁）
+        bool isWall = collision.gameObject.GetComponent<Block>() == null
+                   && collision.gameObject.GetComponent<PlayerController>() == null;
+        if (isWall)
         {
-            float mul = GetHitStopMultiplier();
-            if (mul > 0f)
-                GetArena()?.TriggerHitStop(Mathf.RoundToInt(wallBounceFrames * mul), shake: true);
+            // 壁反射 SE（ピッチを速度層で可変, DESIGN.md 10.4）
+            AudioManager.Instance?.PlayBallWall(baseSpeed > 0f ? naturalSpeed / baseSpeed : 1f, playerIndex);
+
+            // 壁バウンスヒットストップ
+            if (wallBounceFrames > 0)
+            {
+                float mul = GetHitStopMultiplier();
+                if (mul > 0f)
+                    GetArena()?.TriggerHitStop(Mathf.RoundToInt(wallBounceFrames * mul), shake: true);
+            }
         }
     }
 
@@ -218,10 +267,12 @@ public class BallScript : MonoBehaviour, IFreezable
 
         attribute = BallAttribute.Normal;
         ApplyAttributeColor();
-        if (trail != null) { trail.emitting = false; trail.Clear(); }
+        SetTrailVisible(false, clear: true);
 
         transform.localPosition = localPos;
-        rb.linearVelocity = Vector3.zero;
+        transform.localRotation = Quaternion.identity; // 回転（スピン）もリセット
+        rb.linearVelocity  = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
         GetComponent<Collider>().enabled = false;
     }
 
@@ -231,7 +282,7 @@ public class BallScript : MonoBehaviour, IFreezable
         GetComponent<Collider>().enabled = true;
         IsWaitingToLaunch = false;
         frozen = false;
-        if (trail != null) { trail.Clear(); trail.emitting = true; }
+        SetTrailVisible(true, clear: true);
         Launch(localDir);
     }
 
@@ -349,24 +400,37 @@ public class BallScript : MonoBehaviour, IFreezable
             BallAttribute.Pierce  => pierceColor,
             _ => normalColor
         };
-        Renderer renderer = GetComponent<Renderer>();
-        if (renderer != null) renderer.material.color = color;
+        if (cachedRenderer == null) cachedRenderer = GetComponent<Renderer>();
+        if (cachedRenderer != null) cachedRenderer.material.color = color;
 
-        if (trail != null)
-        {
-            Gradient g = new Gradient();
-            g.SetKeys(
-                new GradientColorKey[] {
-                    new GradientColorKey(color, 0f),
-                    new GradientColorKey(color, 1f)
-                },
-                new GradientAlphaKey[] {
-                    new GradientAlphaKey(0.85f, 0f),
-                    new GradientAlphaKey(0f,    1f)
-                }
-            );
-            trail.colorGradient = g;
-        }
+        SetTrailColor(color);
+    }
+
+    // トレイルの色を更新（Ball Heat / 属性カラー共通）。
+    // 毎フレーム Update から呼ばれるため Gradient とキー配列を再利用して GC を避ける。
+    private Gradient trailGradient;
+    private readonly GradientColorKey[] trailColorKeys = new GradientColorKey[2];
+    private readonly GradientAlphaKey[] trailAlphaKeys = {
+        new GradientAlphaKey(0.85f, 0f),
+        new GradientAlphaKey(0f,    1f)
+    };
+
+    private void SetTrailColor(Color color)
+    {
+        if (trail == null) return;
+        if (trailGradient == null) trailGradient = new Gradient();
+        trailColorKeys[0] = new GradientColorKey(color, 0f);
+        trailColorKeys[1] = new GradientColorKey(color, 1f);
+        trailGradient.SetKeys(trailColorKeys, trailAlphaKeys);
+        trail.colorGradient = trailGradient;
+    }
+
+    private void SetTrailVisible(bool visible, bool clear)
+    {
+        if (trail == null) return;
+        trail.emitting = visible;
+        if (clear) trail.Clear();
+        trail.enabled = visible;
     }
 
     private void Launch(Vector3 localDirection)

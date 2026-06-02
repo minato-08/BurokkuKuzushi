@@ -1,0 +1,407 @@
+# AGENTS.md
+
+このファイルは実装の現状を把握するための技術情報をまとめたもの。
+
+| ドキュメント | 内容 |
+|---|---|
+| [`docs/DESIGN.md`](./docs/DESIGN.md) | ゲーム設計仕様書 |
+| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | 開発フェーズ計画・進捗 |
+| 本ファイル | 実装の現状、シーン構成、座標系、既知の問題 |
+
+**仕様変更が必要になった場合は、まず `docs/DESIGN.md` を更新してから実装に着手すること。**
+
+---
+
+## プロジェクト概要
+
+ローカル2人対戦ブロック崩しゲーム。
+
+- **Unity 6** + URP (Universal Render Pipeline) — Unity Hub で 6.x を使って開く
+- TextMeshPro / Unity Input System / Unity 3D Physics
+- バージョン管理: Git / GitHub
+
+ゲームのルール・システム詳細は `docs/DESIGN.md` を参照。
+開発フェーズと進捗は `docs/ROADMAP.md` を参照。
+
+---
+
+## Unity Editor セットアップ
+
+新規にプロジェクトを開いた場合：
+
+1. `BurokkuKuzushi > Setup HitStop` を実行
+   - Arena1 / Arena2 の子に `HitStopController` GameObject を生成（シェイク対象は ArenaController.Awake が自動バインド）
+2. `BurokkuKuzushi > Setup LaunchAimer` を実行
+   - Arena1 / Arena2 の子に `LaunchAimer` GameObject を生成し、ArenaController にバインド
+
+> ⚠️ `Setup HP UI` / `Setup MatchResult UI` / `Setup Skill Select UI` は**旧 `CenterUI` レイアウト前提のため現状の UI には合わない**。実行すると新しい `_UI/_CameraSpace/` 構造を壊す可能性があるので使わない。新 UI は Figma レイアウトに沿って手動で構築している。
+
+すべてのメニュー操作は冪等（何度実行しても安全）。
+
+---
+
+## シーン構成
+
+アクティブシーン: `Assets/SampleScene.unity`
+
+```
+SampleScene
+├── EventSystem
+├── GameManager        ← Singleton
+├── Directional Light
+├── Global Volume      ← URP Post Processing（Bloom 等）
+├── MainCamera         ← 単 Ortho カメラ。world (0, 0, -34.8), ortho size 12.1
+│                        HDR ON / Post Processing ON / TAA High
+├── _UI                ← トップレベル UI フォルダ（後述）
+├── Arena1             ← world (-9.2, 0.66, 0)
+│   ├── TopWall / LeftWall / RightWall
+│   ├── Ball / Player / DeadZone / BlockSpawner
+│   └── ArenaController
+│       ├── HitStopController
+│       └── LaunchAimer
+├── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
+└── CenterUI_Old (inactive)  ← 旧 UI バックアップ。最終確認後に削除予定
+```
+
+### カメラ構成（単カメラ Ortho 化）
+
+- 旧構成: Arena1/Arena2 にそれぞれ Camera1/Camera2 を子配置、画面分割レンダリング
+- 新構成: **単一 `MainCamera`（Orthographic）**で両アリーナを横並びに収める
+- メリット: ポスプロが単純、UI Canvas が 1 つで済む、Scene 編集楽
+- 影響: HitStop はアリーナ Transform 自体を揺らす方式に変更（`HitStopController.SetShakeTarget`）
+
+### 現在の主要な Inspector 値
+
+| コンポーネント | パラメータ | 値 |
+|---|---|---|
+| MainCamera | orthographic / size | true / 12.1 |
+| MainCamera | far clip | 100 |
+| PlayerController | speed | 16 |
+| PlayerController | xLimit | 4.7 |
+| PlayerController | paddleLocalY | -8 |
+| BlockSpawner | blocksPerRow | 6 |
+| BlockSpawner | blockWidth | 1.5667 |
+| BlockSpawner | spawnY / blockDeadZoneY | 4.5 / -4.5 |
+| BlockSpawner | descentSpeed | 0.1 |
+| ArenaController | ballSpawnOffsetY | 1.3 |
+| DeadZone | ballSpawnOffsetY | 1.3 |
+| Ball | localScale | (0.36, 0.36, 0.36) |
+| DeadZone | localPos | (0, -11, 0) |
+
+---
+
+## UI Hierarchy 構成
+
+Figma レイアウトに準拠した新構造。3 つの Canvas を `_UI` 配下に階層化。
+
+```
+_UI                                    ← トップレベルフォルダ（Transform のみ）
+├── _CameraSpace                       ← Screen Space - Camera Canvas（MainCamera 参照）
+│   ├── _Base                          ← 背景・装飾・動かない要素
+│   │   ├── Background                 (SpriteRenderer、Figma 出力 BG)
+│   │   ├── P1ArenaFrame               (Bloom 装飾枠 左)
+│   │   ├── P2ArenaFrame               (Bloom 装飾枠 右)
+│   │   ├── P1BlockDeadLine / P2BlockDeadLine
+│   │   └── _BloomyFrames/
+│   │       ├── Bloom Left / Bloom Right
+│   └── _Components                    ← 機能 UI
+│       ├── _SkillSelectPanel          (モーダル、SkillSelectUI が制御)
+│       ├── _MatchResultPanel          (モーダル、MatchResultUI が制御)
+│       ├── _P1Components/             ← P1 HUD（左側）
+│       │   ├── P1PlayerTag / P1KeyBind / P1Separator
+│       │   ├── _P1HpIndicator/
+│       │   │   ├── P1HpFrame / P1HpLabel / P1HpMax (静的)
+│       │   │   └── $P1HpFill / $P1HpValue       (動的)
+│       │   ├── _P1Combo/
+│       │   │   ├── P1ComboLabel / P1ComboMax    (静的)
+│       │   │   └── $P1ComboValue                (動的)
+│       │   ├── _P1Score/
+│       │   │   ├── P1ScoreLabel                 (静的)
+│       │   │   └── $P1ScoreValue                (動的)
+│       │   └── _P1ItemInfo/
+│       │       ├── P1ItemFrame / P1ItemFrameFill / P1ItemIconBg (静的)
+│       │       └── $P1ItemName / $P1ItemDuration (動的)
+│       └── _P2Components/             ← P2 HUD（右側、P1 のミラー）
+└── （その他、Bloom テクスチャ等）
+```
+
+各 Canvas は Scale With Screen Size / 1920x1080 / Match 0.5 で統一。
+
+### UI 命名規則
+
+| プレフィックス | 意味 | 例 |
+|---|---|---|
+| `_PascalCase` | フォルダ親（空 GameObject、組織化のため） | `_Base`, `_P1HpIndicator`, `_P1Components` |
+| `$PascalCase` | 動的要素（コードが `.text` / `.fillAmount` / `.color` 等を書き換える） | `$P1HpValue`, `$P1ScoreValue` |
+| `PascalCase` | 静的要素（一度配置したら触らない） | `P1HpLabel`, `P1ArenaFrame` |
+| `P1` / `P2` | プレイヤー番号プレフィックス（全要素に付与） | `P1HpFill`, `P2ScoreValue` |
+| スペース・スラッシュ・括弧 | **禁則**（`transform.Find()` で破綻するため使わない） | — |
+
+このルールにより、Hierarchy をパッと見て「コードから触る要素」が即わかり、UIManager 再バインド作業の範囲が明確になる。
+
+### UI 連携の現状
+
+- `_UI/_CameraSpace/_Base` が rootCanvas（Screen Space - Camera / MainCamera 参照）。`UIManager` / `MatchResultUI` / `SkillSelectUI` はここにアタッチ
+- `MatchResultUI` / `SkillSelectUI` は新パネル (`_MatchResultPanel` / `_SkillSelectPanel`) に**バインド済み** → そのまま動く
+- `UIManager` は新 UI 構造に合わせて refactor 済み。SerializeField を 3 区分に整理:
+  - **[必須]** HP / Combo / Score / ActiveItem（新 UI に既存）→ Inspector でバインドが必要
+  - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ（まだ UI 要素が無い）→ 配置後にバインド
+  - **[演出]** 色閾値・スキル READY suffix 等
+- `GameManager` に `RegisterActiveItem(playerIndex, name, duration)` / `GetActiveItemName` / `GetActiveItemRemaining` を追加。`ItemDrop` が効果適用と同時に通知する（最後に取得した 1 個のみ表示・コルーチン上書きと整合）
+
+### 残作業（UI 連携）
+
+`_UI/_CameraSpace/_Base` の **UIManager** Inspector で次をバインド:
+
+| フィールド | バインド先 |
+|---|---|
+| `p1HpFill` | `$P1HpFill`（Image, fillAmount） |
+| `p1HpValue` | `$P1HpValue` |
+| `p1ComboValue` | `$P1ComboValue` |
+| `p1ScoreValue` | `$P1ScoreValue` |
+| `p1ItemInfoRoot` | `_P1ItemInfo`（GameObject、表示/非表示の親） |
+| `p1ItemName` / `p1ItemDuration` | `$P1ItemName` / `$P1ItemDuration` |
+| P2 側 | 上記の P2 ミラー |
+
+[任意] セクションは UI 要素を作ってからバインドする（未バインドでも null セーフで動く）:
+- Energy ゲージ（Image, Vertical Fill）
+- Skill 名表示 TMP（READY 状態で suffix が付く）
+- Round ドット/勝利数 TMP
+- 試合状態テキスト（Round Over バナー）
+- 妨害通知オーバーレイ（CanvasGroup + Label の P1/P2 ペア）
+- アイテムアイコン Image（現状は名前テキストのみ）
+
+### Bloom 演出
+
+- URP Bloom Threshold = 1.0 想定。`UI/HDRTint`（Image 用）/ `Custom/HDRUnlit`（Sprite/Mesh 用）シェーダーが [HDR] Tint Color を持ち、Intensity > 1 で Bloom Threshold 越えで発光
+- `BreathPulse.cs` コンポーネントで HDR Intensity を Sin 波で脈動させる演出が可能
+
+---
+
+## アーキテクチャ・データフロー
+
+### 中央イベントハブとしての GameManager
+
+すべてのゲームイベントは `GameManager.Instance` 経由で通知される。各コンポーネントは直接 HP を操作せず、GameManager のメソッドを呼ぶ。
+
+```
+Block.OnCollisionEnter
+  → ball.GetDamage() + ball.OnHitBlock(this)
+  → GameManager.RegisterBlockDestroyed(playerIndex)   ← コンボカウント・妨害トリガー
+
+DeadZone.OnTriggerEnter
+  → GameManager.OnBallDropped(playerIndex)
+  → HPSystem.TakeDamage()
+  → HP=0 で EndRound() → Time.timeScale=0 or NextRoundCoroutine()
+
+UIManager.Update()（毎フレーム）
+  → GameManager.GetHP / GetScore / GetCombo / GetCurrentState をポーリング
+```
+
+### 設定方針（すべて Inspector SerializeField で直接管理）
+
+ScriptableObject / Profile は使用しない。各コンポーネントのパラメータはそれぞれの SerializeField に持つ。
+
+- `PlayerController.paddleLocalY / xLimit` → Inspector で直接設定
+- `BlockSpawner.blockWidth / spawnY / blockDeadZoneY` → Inspector で直接設定
+- `ArenaController.ballSpawnOffsetY` → パドルLocalY + このオフセットでボール初期位置を算出
+- `DeadZone.ballSpawnOffsetY` → ArenaController と同じ値にすること（現在両方 1.3）
+- `GameManager` → HP量、ダメージ量、ヒットストップフレーム等をすべて直接 SerializeField で保持
+
+`ArenaController.arenaHalfWidth / arenaHalfHeight` は `SpawnItem()` のアイテム底面計算にのみ使用。
+
+---
+
+## スクリプト一覧
+
+### `GameManager.cs`
+- Singleton (`GameManager.Instance`)
+- `HPSystem` をプレイヤーごとに保持し、`ApplyDamage()` が全ダメージの最終窓口
+- `HPStateBand` クラスも同ファイルで定義。Inspector で hpStateBands[] 配列を設定する（空なら全倍率1.0で動作）
+- HP帯に応じた動的パラメータ参照: `GetCurrentBand(playerIndex)` → `HPStateBand`
+- `WaitForSecondsRealtime` 使用（`Time.timeScale=0` でも動作）
+- `GetCombo(playerIndex)` は「次の妨害送付までのブロック破壊カウント」を返す（`p1DestroyedCount`）
+- ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
+
+### `HPSystem.cs`
+- 純粋C# クラス（MonoBehaviour ではない）
+- API: `TakeDamage / Heal / Reset / SetMaxHP`
+- プロパティ: `CurrentHP`, `MaxHP`, `Ratio`, `IsAlive`
+
+### `EnergySystem.cs`
+- 純粋C# クラス。`SkillController` が保持する
+
+### `IFreezable.cs`（インターフェース）
+- `Freeze()` / `Unfreeze()` の2メソッドのみ
+- `BallScript` / `BlockSpawner` / `PlayerController` が実装。ヒットストップ中は各 Update/FixedUpdate を停止する
+
+### `HitStopController.cs`
+- `ArenaController` の子 GameObject にアタッチ（Setup HitStop で自動生成）
+- `RegisterFreezable(IFreezable)` で管理対象を登録（ArenaController.Awake で呼ばれる）
+- `TriggerHitStop(frames, strong)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
+- 単カメラ運用に合わせ、カメラではなくアリーナ Transform 自体（`ArenaRoot`）を揺らす方式。アリーナごとに独立してシェイク可能
+- `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ArenaRoot` を渡す）
+- `strong=true` で強シェイク（ラウンド/マッチ決着時）
+- Freeze 中はボール `linearVelocity=0`、Player は kinematic、Block は Rigidbody なし → 親 Transform 駆動の移動でも物理的攪乱なし
+
+### `ArenaController.cs`
+- `arenaHalfWidth / arenaHalfHeight` は `SpawnItem()` の底面 Y 計算にのみ使用（子コンポーネントへの配布なし）
+- `ballSpawnOffsetY` → `GetBallSpawnLocalPos()` が実行時に `cachedPlayer.localPosition.y` を読んで動的に算出
+- `cachedPlayer` / `cachedUIManager` を `Awake` でキャッシュ（`GetComponentInChildren` / `FindFirstObjectByType` の都度呼び出しを回避）
+- `ArenaRoot` プロパティ (`transform.parent != null ? transform.parent : transform`) に統一
+- Awake で `hitStop.SetShakeTarget(ArenaRoot)` を呼んでシェイク対象をバインド（カメラ参照は持たない）
+- `TriggerHitStop(frames, strong, shake)` を公開 — Block / BallScript / GameManager はこれを呼ぶ
+- `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
+- `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
+- `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
+- `ResetForNewRound()` は ZonePoison / ZoneSlow 両方をクリア
+
+### `LaunchAimer.cs`
+- `ArenaController` の子 GameObject にアタッチ（Setup LaunchAimer で自動生成）
+- `Initialize(ball, playerIndex, arena)` で対象ボール・プレイヤー番号・ArenaController を受け取る
+- `ball.IsWaitingToLaunch` を監視し、true になるとメトロノーム発動
+- sin 波で ±`metronomeAngleRange`° を `metronomePeriodSec` 周期で往復
+- 1P: S キー / 2P: K キーで確定発射 → `ball.LaunchInDirection(localDir)` を呼ぶ
+- LineRenderer でリアルタイムに発射角インジケーターを描画（ワールド座標）
+
+### `BlockSpawner.cs`
+- タイマーで行を生成、毎フレーム降下、底判定
+- 妨害行（`pendingSabotageRows`）と Spike 行（`pendingSpikeRows`）をキューで管理。`IsTopClear()` になり次第スポーン
+- `blockDeadZoneY`（旧 `bottomY`）を超えたブロックを削除し `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知。同時に `TriggerHitStop` でカメラシェイク
+- `ReceiveSabotageRow()` / `ReceiveSpikeRow()` — GameManager から呼ばれる
+- `HardenRandomBlocks()` — LINQ で Normal ブロックをランダムに `hardenCount` 個選び `HardenToHp(hardenTargetHp)` で Hard 化
+- `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
+
+### `BallScript.cs`
+- `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（貫通+高ダメ）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）
+- 速度の3層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow） = 実効速度
+- `slowZoneMul`: ZoneSlow が毎フレーム書き込む public フィールド。ZoneSlow が OnDestroy / 検出失敗時に 1 に戻す。PrepareRespawn でもリセット
+- `FixedUpdate` で毎フレーム実効速度に正規化。時間加速はメインボールのみ（`isExtraBall=false`）。`arenaDwellTime` はリスポーンでリセット
+- `OnCollisionEnter` で衝突直後に角度補正（`ClampAngle`）→ 壁沿いループ防止
+- `OnCollisionEnter` で壁バウンス検出（Block / PlayerController が GetComponent で見つからない衝突 = 壁）。`GetHitStopMultiplier()` が 0 より大なら `TriggerHitStop(wallBounceFrames * mul, shake:true)`
+- `lastVelocity` は `FixedUpdate` でのみ更新（Heavy/Pierce 属性の貫通処理が衝突前速度を復元するために使用）
+- `Launch()`: `transform.parent.TransformDirection()` でローカル→ワールド変換
+- ボール GameObject に `"BallTag"` Unity タグが必須（`Block` / `DeadZone` どちらも `CompareTag("BallTag")` で判定）
+- `PrepareRespawn(localPos)`: コライダー無効化 + `IsWaitingToLaunch=true`。コルーチン停止・速度状態リセットも行う
+- `LaunchInDirection(localDir)`: コライダー再有効化 + 発射。LaunchAimer から呼ばれる
+- `GetHitStopMultiplier()`: `naturalSpeed/baseSpeed` が `hitStopSpeedThreshold` 未満なら 0、以上なら 0→1 にスケール。ブロック衝突・壁バウンスのフレーム数に乗算する
+- `GetAttributeMultiplier()`: 属性倍率のみ（>= 1.0）。Explosive 破壊など速度閾値によらず掛けたい場合に使用。Pierce は 0f（ヒットストップなし）
+- `SetAttributeTemporary(attr, duration)`: アイテム効果で属性を一時変更（コルーチン、重ね掛け上書き）
+- `SetSpeedTemporary(multiplier, duration)`: アイテム効果でボール速度を一時変更（`speedMultiplier` コルーチン、重ね掛け上書き）
+- 境界チェック: `FixedUpdate` でアリーナ外に出た場合、メインボールはペナルティなしリスポーン、追加ボールは Destroy
+
+### `PlayerController.cs`
+- `rb.isKinematic = true` + `transform.localPosition` 直接操作
+- 1P: A/D（または矢印キー）、2P: J/L
+- `SetWidthTemporary(multiplier, duration)`: アイテム効果でパドル幅を一時変更（`localScale.x` 変更、コルーチン）
+
+### `DeadZone.cs`
+- `ballSpawnOffsetY` と PlayerController.localPosition.y から動的にリスポーン位置を算出
+- ArenaController.ballSpawnOffsetY と同じ値にすること
+
+### `ZonePoison.cs`
+- Phase E で新設。BlockSpike 破壊時または InterferencePoison で生成される毒エリア
+- `Setup(playerIndex, targetWorldY)` でパドル Y とオーナー設定 → 落下して着地後 `duration` 秒間持続
+- 着地後は `OverlapSphereNonAlloc`（事前確保バッファ）でパドル接触を毎フレーム検出し `GameManager.OnPoisonTick()` を呼ぶ
+- `Destroy(gameObject, duration)` で自動消滅。`ArenaController.ResetForNewRound()` でも即時削除
+
+### `ZoneSlow.cs`
+- Phase E で新設。InterferenceSlow で生成されるボール減速エリア
+- `Setup(targetWorldY)` でアリーナ中央付近の着地 Y を設定 → 落下して着地後 `duration` 秒間持続
+- 着地後は `OverlapSphereNonAlloc` でボール検出。内部ボールに `ball.slowZoneMul = slowFactor` を毎フレーム設定
+- 前フレームで減速したボールをフレーム先頭でリセット → ゾーン離脱を自動検出
+- `OnDestroy()` で `slowZoneMul` を確実に 1 に戻す（ResetForNewRound による即時破棄対応）
+
+### `Block.cs`
+- `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを増加）/ `Spike`（接触で `OnSpikeHit`、破壊で `SpawnZonePoison`）
+- ブロック種別カラーを `Awake` でキャッシュした `Renderer` に `Start()` で適用（BlockSpawner が blockType を設定した後に実行される）
+- `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定。Renderer を金色（`hardenedColor`）に更新して通常 Hard と視覚的に区別
+- `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須
+- Normal/Hard/Absorb 衝突時: `normalHitFrames / hardHitFrames / absorbHitFrames`（デフォルト 0）に `ball.GetHitStopMultiplier()` を乗算してヒットストップ
+- Explosive 破壊時: `explosiveHitFrames`（デフォルト 6）に `ball.GetAttributeMultiplier()` を乗算してヒットストップ（速度閾値によらず発動）
+- `blockType` / `hp` はパブリックフィールド。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
+- `GetArena()`: `transform.parent?.parent?.GetComponentInChildren<ArenaController>()` — Block → BlockSpawner → Arena root の順で辿る
+- 破壊時に `TryDropItem()` を呼んで確率でアイテムをドロップ（Spike は除く）
+
+### `EffectDefinition.cs`
+- アイテム・スキル効果の抽象基底クラス（`Apply(playerIndex, arena)` メソッド）
+- 実装クラス: `EffectBallAttribute` / `EffectPaddleScale` / `EffectBallSpeed` / `EffectHeal`
+
+### `ItemDrop.cs`
+- `ItemType` enum: `Fire / Ice / Thunder / Heavy / Pierce / Enlarge / SpeedUp / Shrink / Hyper / Heal`
+- `ItemDefinition` static クラス: `GetColor(type)` / `GetName(type)` を提供
+- `ItemDrop` MonoBehaviour: `Setup()` で初期化、`Update()` で落下 + `Physics.OverlapSphere` によるパドル接触判定
+- kinematic-kinematic 間の OnTriggerEnter は発火しないため、毎フレーム OverlapSphere でパドルを検出
+- アイテムは AddComponent で生成（Prefab なし）。public フィールドの値がそのまま使われる
+- `ArenaController.SpawnItem(worldPos, type)` から生成。底 Y を超えたら自動 Destroy
+- パドル接触で `BuildEffect().Apply()` と同時に `GameManager.RegisterActiveItem(playerIndex, name, duration)` を呼ぶ。`GetActiveDuration()` がアイテム種別から duration を判定（Heal は 0 で UI 表示しない）
+
+### `SkillController.cs`
+- ArenaController.Awake() で自動生成・Initialize される
+- エナジーゲージを管理。スキルキー（1P: Q / 2P: U）でスキル発動
+- `maxEnergy` を SerializeField で保持
+
+### `SkillDefinition.cs`
+- スキル効果の抽象基底クラス（`SkillDefinition`）
+- 実装: `SkillPaddle_Enlarge` / `SkillBall_Attribute_Fire` / `SkillBall_Multi` / `SkillForceCatch` / `SkillPanic_BlockClear`
+- すべて public フィールドでパラメータを保持（Profile 参照なし）
+
+### `MatchResultUI.cs`
+- `_UI/_CameraSpace/_Base` Canvas にアタッチ。`GameState.MatchOver` を検出してパネルを表示
+- A/D または J/L で「再戦」/「メニューへ戻る」を選択、スペースで確定
+- 再戦: `GameManager.StartRematch()` — スキル選択画面に戻る
+- SerializeField は `_UI/_CameraSpace/_Components/_MatchResultPanel/...` 配下に**バインド済み**
+
+### `SkillSelectUI.cs`
+- 試合開始前のスキル選択画面。GameState.SkillSelect 中に panel を表示
+- 1P: A/D でサイクル・S で確定 / 2P: J/L でサイクル・K で確定
+- SerializeField は `_UI/_CameraSpace/_Components/_SkillSelectPanel/...` 配下に**バインド済み**
+
+### `UIManager.cs`
+- `_UI/_CameraSpace/_Base` Canvas にアタッチ。毎フレーム GameManager をポーリングして更新
+- SerializeField は **[必須] / [任意] / [演出]** の 3 区分に整理（詳細は「UI 連携の現状」セクション）
+- HP バー色: 白（≥70%）→ 黄（≥30%）→ 赤（<30%）
+- アクティブアイテム表示: `GetActiveItemName / GetActiveItemRemaining` を毎フレーム参照し、残り時間 > 0 のとき `p1ItemInfoRoot` を SetActive(true)、`$P1ItemName` `$P1ItemDuration` を更新
+- スキル READY 表示: `EnergyRatio >= 1` のとき `p1SkillName` に suffix（既定 ` · READY`）を付加
+- 任意セクションは未バインドでも null セーフで動作（コンパイル・実行ともに影響なし）
+- `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン、未バインドなら何もしない）
+
+### `BreathPulse.cs`
+- Material の HDR カラー Intensity を Sin 波で脈動させて Bloom Threshold をまたぐ「呼吸」演出
+- `SpriteRenderer` / `UI.Image` 両対応
+- Inspector で `minIntensity / maxIntensity / cycleSeconds` / `colorPropertyName` を設定
+- Material はインスタンス化される（複数オブジェクトで Material を共有しない）
+
+### シェーダー (`Assets/Shaders/`)
+- `UI/HDRTint` (`UI_HDRTint.shader`): UI Image 用。標準 `UI/Default` に `[HDR]` Tint Color を追加。Stencil / Clip Rect / AlphaClip 完備
+- `Custom/HDRUnlit` (`HDRUnlit.shader`): 3D Mesh / SpriteRenderer 用。HDR Base Color のみのシンプル Unlit。Lit 計算なしで Bloom 発光のみ
+
+### フォント (`Assets/`)
+- `BebasNeue-Regular.ttf` + `BebasNeue-Regular SDF.asset` — 数字表示用（HUD の HP/Score/Combo 等）
+- `JetBrainsMono-{Regular,Bold,ExtraBold}.ttf` + 各 SDF Asset — ラベル・固定文言用
+- TMP Font Asset Creator で Custom Characters 指定で生成
+
+### Editor スクリプト (`Assets/Editor/`)
+- `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— 各 ArenaController の子に HitStopController GameObject を生成
+- `SetupLaunchAimer.cs`: `BurokkuKuzushi > Setup LaunchAimer`（冪等）
+- `SetupCameraViewports.cs`: 単カメラ化前の名残（現状未使用、将来削除予定）
+- `SetupHPUI.cs` / `SetupMatchResultUI.cs` / `SetupSkillSelectUI.cs`: **旧 CenterUI 構造前提のため現 UI には不適合**。実行しないこと。新 UI 確定後にリライト or 削除予定
+
+---
+
+## ローカル座標系の重要事項
+
+**ゲーム内の位置指定はアリーナの親オブジェクトのローカル座標で行う。**
+
+- Arena1 / Arena2 の子の `localPosition(0,0,0)` = そのアリーナの中心
+- `BlockSpawner` が生成するブロックは BlockSpawner の子 → ローカル座標で管理
+- `PlayerController` は `transform.localPosition` で移動
+- 単カメラ化後はカメラがシーン root にあるため、Arena をオフセットしてもカメラとは独立（旧構成と異なる）
+- HitStop シェイクは `ArenaRoot.localPosition` を直接揺らす（Arena1/2 はシーン直下なので localPosition = world position）
+
+---
+
+## 既知の問題
+
+- **Block スコアが SerializeField 未対応**: `Block.cs` の `normalScore` / `hardScore` は Inspector から変更可能だが、Prefab に依存しているため Instantiate 後は BlockSpawner から設定されない。ハードコードと同義。
+- **Recovery ファイル**: `Assets/_Recovery/` 以下の Unity 自動生成ファイルは Git にコミットしない。

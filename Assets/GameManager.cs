@@ -63,7 +63,15 @@ public class GameManager : MonoBehaviour
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
     private int   p1Combo, p2Combo;
-    private float p1ComboTimer, p2ComboTimer;  // 最後のブロック接触からの経過秒（combo>0 のとき加算）
+    private float p1ComboTimer, p2ComboTimer;  // 最後のブロック破壊からの経過秒（combo>0 のとき加算）
+    private float p1PoisonDamageRemainder, p2PoisonDamageRemainder;
+
+    // マッチ統計（DESIGN.md 5.10）。Round=今ラウンド（リザルト用、ラウンド開始でリセット）、
+    // Match=マッチ全体（最終リザルト用、新規マッチ/再戦でリセット）。
+    private int p1MaxComboRound,        p2MaxComboRound;
+    private int p1MaxComboMatch,        p2MaxComboMatch;
+    private int p1BlocksDestroyed,      p2BlocksDestroyed;      // マッチ全体の総破壊ブロック数
+    private int p1InterferenceReceived, p2InterferenceReceived; // マッチ全体の被妨害回数
 
     // アクティブ効果リスト（複数同時効果を追跡。HUD は当面 GetActiveItemName で最新1個のみ表示）
     public struct ActiveEffect
@@ -111,6 +119,7 @@ public class GameManager : MonoBehaviour
         // 起動時はタイトル画面で待機（TitleUI が START でゲーム開始する）
         currentState   = GameState.Title;
         Time.timeScale = 0f;
+        AudioManager.Instance?.PlayTitleBGM();
     }
 
     // タイトルの START から呼ばれる。設定画面（先取数）へ進む
@@ -133,6 +142,7 @@ public class GameManager : MonoBehaviour
     {
         currentState   = GameState.Title;
         Time.timeScale = 0f;
+        AudioManager.Instance?.PlayTitleBGM();
     }
 
     // 設定画面から先取数を変更（1〜5 にクランプ）。試合中の変更は次マッチから有効
@@ -144,9 +154,14 @@ public class GameManager : MonoBehaviour
         if (currentState != GameState.Playing) return;
         TickComboTimer(ref p1Combo, ref p1ComboTimer);
         TickComboTimer(ref p2Combo, ref p2ComboTimer);
+
+        // HP30% 帯で緊迫 BGM レイヤーを重ねる（5% ヒステリシス, DESIGN.md 10.5）
+        float r1 = GetHPRatio(1), r2 = GetHPRatio(2);
+        if (r1 <= 0.30f || r2 <= 0.30f)      AudioManager.Instance?.SetTenseLayer(true);
+        else if (r1 >= 0.35f && r2 >= 0.35f) AudioManager.Instance?.SetTenseLayer(false);
     }
 
-    // 最後のブロック接触から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
+    // 最後のブロック破壊から comboTimeout 経過でコンボを 0 にする（DESIGN.md 5.8）
     private void TickComboTimer(ref int combo, ref float timer)
     {
         if (combo <= 0) return;
@@ -166,9 +181,14 @@ public class GameManager : MonoBehaviour
             p2RoundWins = 0;
             p1Score     = 0;
             p2Score     = 0;
+            // マッチ統計をリセット
+            p1MaxComboMatch = 0; p2MaxComboMatch = 0;
+            p1BlocksDestroyed = 0; p2BlocksDestroyed = 0;
+            p1InterferenceReceived = 0; p2InterferenceReceived = 0;
         }
-        p1Combo = 0; p1ComboTimer = 0f;
-        p2Combo = 0; p2ComboTimer = 0f;
+        ResetPoisonDamageRemainders();
+        p1Combo = 0; p1ComboTimer = 0f; p1MaxComboRound = 0;
+        p2Combo = 0; p2ComboTimer = 0f; p2MaxComboRound = 0;
 
         p1HP.SetMaxHP(maxHP, refill: true);
         p2HP.SetMaxHP(maxHP, refill: true);
@@ -184,6 +204,7 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.SkillSelect) return;
 
+        AudioManager.Instance?.PlayMatchBGM(); // マッチ中 BGM 開始（ラウンド遷移では止めない, DESIGN.md 10.5）
         ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
@@ -197,8 +218,9 @@ public class GameManager : MonoBehaviour
     {
         p1HP.Reset();
         p2HP.Reset();
-        p1Combo = 0; p1ComboTimer = 0f;
-        p2Combo = 0; p2ComboTimer = 0f;
+        ResetPoisonDamageRemainders();
+        p1Combo = 0; p1ComboTimer = 0f; p1MaxComboRound = 0;
+        p2Combo = 0; p2ComboTimer = 0f; p2MaxComboRound = 0;
 
         arena1?.GetSkillController()?.ResetEnergy();
         arena2?.GetSkillController()?.ResetEnergy();
@@ -222,6 +244,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator CountdownCoroutine()
     {
+        AudioManager.Instance?.PlayRoundStart(); // 3-2-1-GO! を 1 ファイルで再生（DESIGN.md 10.4）
         // 3 → 2 → 1（停止したまま）
         CountdownLabel = "3"; yield return new WaitForSecondsRealtime(countdownStepSec);
         CountdownLabel = "2"; yield return new WaitForSecondsRealtime(countdownStepSec);
@@ -251,14 +274,25 @@ public class GameManager : MonoBehaviour
     public void OnBlocksReachedBottom(int playerIndex, int count = 1)
     {
         if (currentState != GameState.Playing) return;
+        GetArena(playerIndex)?.FlashDangerLine(); // 死線ラインを白フラッシュ（DESIGN.md 5.4）
         ApplyDamage(playerIndex, damageBlockReachBottom * count);
     }
 
     public void OnPoisonTick(int playerIndex, float deltaTime)
     {
         if (currentState != GameState.Playing) return;
-        int dmg = Mathf.RoundToInt(damagePoisonPerSec * deltaTime);
+        float remainder = playerIndex == 1 ? p1PoisonDamageRemainder : p2PoisonDamageRemainder;
+        float accumulated = remainder + damagePoisonPerSec * deltaTime;
+        int dmg = Mathf.FloorToInt(accumulated);
+        if (playerIndex == 1) p1PoisonDamageRemainder = accumulated - dmg;
+        else                  p2PoisonDamageRemainder = accumulated - dmg;
         if (dmg > 0) ApplyDamage(playerIndex, dmg);
+    }
+
+    private void ResetPoisonDamageRemainders()
+    {
+        p1PoisonDamageRemainder = 0f;
+        p2PoisonDamageRemainder = 0f;
     }
 
     private void ApplyDamage(int playerIndex, int amount)
@@ -270,7 +304,7 @@ public class GameManager : MonoBehaviour
     }
 
     // スコア = baseScore × HP帯 scoreMul × コンボ scoreComboMul（いずれも乗算, DESIGN.md 5.8）
-    // コンボは接触時 (RegisterBallHitBlock) に加算済みなので AddScore は更新後コンボで計算される
+    // コンボは破壊時 (RegisterBlockDestroyed) に加算済みなので AddScore は更新後コンボで計算される
     public void AddScore(int playerIndex, int amount)
     {
         float mul    = GetCurrentBand(playerIndex).scoreMul * ScoreComboMul(playerIndex);
@@ -279,27 +313,38 @@ public class GameManager : MonoBehaviour
         else                  p2Score += gained;
     }
 
-    // ボールがブロックに接触するたびに呼ばれる（破壊有無を問わない, DESIGN.md 5.8）。
-    // コンボ加算 + タイマーリセット + マイルストーン演出を担う。
-    public void RegisterBallHitBlock(int playerIndex)
+    // ブロック破壊ごとに呼ばれる（DESIGN.md 5.8, 2026-06-01 接触ベース→破壊ベースに戻した）。
+    // コンボ加算（破壊数ぶん）+ タイマーリセット + マイルストーン演出 + エナジー蓄積を担う。
+    // Fire/Thunder 等が複数破壊すれば、破壊ごとに本メソッドが呼ばれてコンボが一気に伸びる。
+    // 妨害送付はしない（コンボ自動妨害は 2026-05-20 撤廃。妨害は SendInterference 経由のみ）。
+    public void RegisterBlockDestroyed(int playerIndex)
     {
         if (currentState != GameState.Playing) return;
 
-        // コンボ加算 + タイマーリセット（最後の接触起点で計測）
+        // 総破壊ブロック数を集計（マッチ統計, DESIGN.md 5.10）
+        if (playerIndex == 1) p1BlocksDestroyed++;
+        else                  p2BlocksDestroyed++;
+
+        // コンボ加算 + タイマーリセット（最後の破壊起点で計測）
         int combo;
         if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
         else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
 
+        // 最大コンボ統計を更新（ラウンド / マッチ）
+        if (playerIndex == 1)
+        {
+            if (combo > p1MaxComboRound) p1MaxComboRound = combo;
+            if (combo > p1MaxComboMatch) p1MaxComboMatch = combo;
+        }
+        else
+        {
+            if (combo > p2MaxComboRound) p2MaxComboRound = combo;
+            if (combo > p2MaxComboMatch) p2MaxComboMatch = combo;
+        }
+
         // コンボマイルストーン演出（丁度その値に達した瞬間のみ。リセット後に再到達で再発火, DESIGN.md 12.10）
         if (System.Array.IndexOf(comboMilestones, combo) >= 0)
             GetArena(playerIndex)?.ShowComboMilestone(combo);
-    }
-
-    // ブロック破壊時にエナジー蓄積。コンボ加算は接触側 (RegisterBallHitBlock) に移譲。妨害送付はしない
-    // （コンボ自動妨害は 2026-05-20 仕様刷新で撤廃。妨害は SendInterference 経由のみ）
-    public void RegisterBlockDestroyed(int playerIndex)
-    {
-        if (currentState != GameState.Playing) return;
 
         // エナジー = energyPerBlock × HP帯 gaugeRateMul × コンボ gaugeComboMul
         float rateMul = GetCurrentBand(playerIndex).gaugeRateMul * GaugeComboMul(playerIndex);
@@ -322,8 +367,13 @@ public class GameManager : MonoBehaviour
         ArenaController target = GetArena(targetPlayerIndex);
         if (target == null) return;
 
+        // 被妨害回数を集計（マッチ統計, DESIGN.md 5.10）
+        if (targetPlayerIndex == 1) p1InterferenceReceived++;
+        else                        p2InterferenceReceived++;
+
         InterferenceType type  = AttackItemToInterference(attackItem);
         string           label = GetInterferenceLabel(type);
+        AudioManager.Instance?.PlayInterferenceRecv(targetPlayerIndex); // 受信側にパン
         ApplyInterference(target, type);
         target.TriggerHitStop(interferenceTriggerFrames);
         target.ShowInterferenceOverlay(label);
@@ -393,6 +443,8 @@ public class GameManager : MonoBehaviour
         if (p1RoundWins >= roundsToWin || p2RoundWins >= roundsToWin)
         {
             currentState = GameState.MatchOver;
+            AudioManager.Instance?.PlayMatchWin(winner);
+            AudioManager.Instance?.PlayResultJingle(); // 試合 BGM フェードアウト + 結果ジングル
             // 勝者はフリーズのみ、敗者にのみカメラシェイクを適用する
             ArenaController matchWinnerArena = winner == 1 ? arena1 : arena2;
             ArenaController matchLoserArena  = winner == 1 ? arena2 : arena1;
@@ -404,6 +456,7 @@ public class GameManager : MonoBehaviour
         else
         {
             currentState = GameState.RoundOver;
+            AudioManager.Instance?.PlayRoundWin(winner);
             RoundIntermissionRemaining = nextRoundDelay;
             ArenaController loserArena  = winner == 1 ? arena2 : arena1;
             ArenaController winnerArena = winner == 1 ? arena1 : arena2;
@@ -443,6 +496,11 @@ public class GameManager : MonoBehaviour
     public float  GetEnergyRatio(int playerIndex)           => GetArena(playerIndex)?.GetSkillController()?.EnergyRatio ?? 0f;
     public string GetEquippedSkillName(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.SkillName    ?? "---";
 
+    // Danger Proximity / Last Stand 用アクセサ（UIManager がポーリング, DESIGN.md 5.4 / 5.10）
+    public float  GetLowestBlockY(int playerIndex)          => GetArena(playerIndex)?.GetSpawner()?.GetLowestBlockY()    ?? float.MaxValue;
+    public float  GetBlockDeadZoneY(int playerIndex)        => GetArena(playerIndex)?.GetSpawner()?.GetBlockDeadZoneY()  ?? 0f;
+    public bool   IsPanicReady(int playerIndex)             => GetArena(playerIndex)?.GetSkillController()?.PanicReady   ?? false;
+
     public void Heal(int playerIndex, int amount)
     {
         if (currentState != GameState.Playing) return;
@@ -457,6 +515,22 @@ public class GameManager : MonoBehaviour
     public int   GetRoundWins(int playerIndex) => playerIndex == 1 ? p1RoundWins    : p2RoundWins;
     public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1Combo : p2Combo;
     public GameState GetCurrentState()         => currentState;
+
+    // Combo Timer Arc 用（DESIGN.md 6.2/12.22）: 直近の破壊で 1、comboTimeout 経過で 0。
+    // combo==0 のときは 0（UI 側で非表示にする）。
+    public float GetComboTimerRatio(int playerIndex)
+    {
+        int   combo = playerIndex == 1 ? p1Combo      : p2Combo;
+        float timer = playerIndex == 1 ? p1ComboTimer : p2ComboTimer;
+        if (combo <= 0 || comboTimeout <= 0f) return 0f;
+        return Mathf.Clamp01((comboTimeout - timer) / comboTimeout);
+    }
+
+    // マッチ統計（DESIGN.md 5.10。RoundResultUI / MatchResultUI が参照）
+    public int GetMaxComboRound(int playerIndex)        => playerIndex == 1 ? p1MaxComboRound        : p2MaxComboRound;
+    public int GetMaxComboMatch(int playerIndex)        => playerIndex == 1 ? p1MaxComboMatch        : p2MaxComboMatch;
+    public int GetBlocksDestroyed(int playerIndex)      => playerIndex == 1 ? p1BlocksDestroyed      : p2BlocksDestroyed;
+    public int GetInterferenceReceived(int playerIndex) => playerIndex == 1 ? p1InterferenceReceived : p2InterferenceReceived;
 
     // =====================================================
     // アクティブ効果（複数同時。HUD は当面最新1個のみ表示）
