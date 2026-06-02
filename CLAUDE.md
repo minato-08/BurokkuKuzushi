@@ -377,14 +377,12 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 - `OnDestroy()` で `slowZoneMul` を確実に 1 に戻す（ResetForNewRound による即時破棄対応）
 
 ### `Block.cs`
-- `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを `explosionHpBuff`(=1) 増加＝硬くする妨害, `Block.cs:217-225`）/ `Item`（HP1・破壊で**確定**1個ドロップ, DESIGN.md 12.17）。※ Spike は現状コードに無い（旧記述削除）
-
-> ⚠️ **仕様とコードの乖離 — Explosive の挙動が真逆（2026-06-02 発覚 / 方針決定済み）**: DESIGN.md 5.4（234/272/517 行）は Explosive を「破壊で周囲に**巻き込みダメージ**＋**連鎖爆発**＋スコア加算」と定義（ポジティブな爆弾）。だが実コードは上記のとおり**周囲ブロックの HP を増やす（硬化させる妨害）**で真逆。よって「Explosive が爆発に巻き込まれて連鎖」も未実装。
-> **決定（2026-06-02・ユーザー判断）: DESIGN が正**。実コードを DESIGN 準拠に作り直す（`Block.cs` の Explosive 処理を「周囲＝同 Explosive 含むブロックに巻き込みダメージ → 巻き込まれた Explosive も連鎖発火、破壊数ぶんスコア/コンボ加算」へ変更）。**未実装（別タスク）**。実装時は `AddHp` の妨害挙動を撤去し、`explosionRadius` 内の Block を `GetDamage` 相当で破壊＋連鎖、範囲 VFX も追加。
+- `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で `explosionRadius`(=2) 内の周囲ブロックに `explosionDamage`(=1) の**巻き込みダメージ**。同 Explosive を巻き込むと**連鎖爆発**, DESIGN.md 5.4）/ `Item`（HP1・破壊で**確定**1個ドロップ, DESIGN.md 12.17）。※ Spike は現状コードに無い（旧記述削除）
+- **Explosive 連鎖**（2026-06-02 DESIGN 準拠に作り直し）: `OnDestroyed` で `OverlapSphere(explosionRadius)` 内の各 Block に `TakeDamage(explosionDamage, ball)`。巻き込まれた Block が HP0 になると自身の `OnDestroyed` が走り、それが Explosive なら同期的に連鎖（`destroyed` フラグで各ブロック一度だけ・`!nearBlock.destroyed` で爆発済みをスキップ→無限再帰なし）。巻き込み破壊のスコア/コンボは各 `OnDestroyed` が個別加算（＝破壊数ぶん伸びる）。HP1 の Normal/Item/他 Explosive は damage1 で破壊し連鎖、Hard(HP2-3) は damage ぶん削れる。旧「周囲 HP 増加（妨害）＝ `AddHp`」挙動は撤去済み。
+  - ⚠️ **範囲 VFX は未実装**（DESIGN 5.4 243「爆発のエフェクト」/ Fire の攻撃範囲表示も同様）。挙動のみ DESIGN 準拠。実機未確認
 - ブロック種別カラーを `Awake` でキャッシュした `Renderer` に `Start()` で適用（BlockSpawner が blockType を設定した後に実行される）
 - **HP pip（残耐久ドット, DESIGN.md 5.4）**: HP>1（Hard/Hardened）は `BuildHpPips()` で子キューブのドットを hp 個生成、`TakeDamage` で currentHp 本に減らす。親の非一様スケール(1.3,0.5,1)をワールド換算で打ち消す。Item/Normal(HP1) は非表示。位置/サイズ/色は SerializeField
 - **多重破壊ガード**: `destroyed` フラグで `OnDestroyed` を一度だけに（Destroy 遅延中の同フレーム追撃での二重カウント防止）
-- `AddHp(amount)`（Explosive 用にHPを外部加算）: **`amount<=0` / 破壊済みはガードして無視 + 加算後に `BuildHpPips()`/`UpdateHpPips()` で HP pip を再生成**（codex レビュー fix 2026-06-02。爆発でHPが増えても pip が更新されない不具合を解消）
 - `FlashImpact(color, dur)`: 妨害行着弾演出のフラッシュ（BlockSpawner から呼ばれる）
 - `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定。Renderer を金色（`hardenedColor`）に更新。HP pip も再生成
 - `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須

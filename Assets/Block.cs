@@ -5,7 +5,7 @@ public enum BlockType
     Normal,    // 通常：1撃で破壊
     Hard,      // 硬い：複数撃必要
     Absorb,    // 吸収：当たるとボール減速
-    Explosive, // 爆発：破壊すると周囲ブロックのHPを増やす（妨害）
+    Explosive, // 爆発：破壊すると周囲ブロックに巻き込みダメージ（同 Explosive は連鎖爆発, DESIGN.md 5.4）
     Item       // アイテム：HP1。破壊で確定 1 個ドロップ（DESIGN.md 5.4/12.17）
 }
 
@@ -24,7 +24,7 @@ public class Block : MonoBehaviour
 
     [Header("爆発設定")]
     [SerializeField] private float explosionRadius    = 2f;
-    [SerializeField] private int   explosionHpBuff    = 1;
+    [SerializeField] private int   explosionDamage    = 1;   // 爆発の巻き込みダメージ。Explosive 含む周囲ブロックへ適用（同 Explosive は連鎖発火）
     [SerializeField] private int   explosiveHitFrames = 6;  // 破壊時ヒットストップフレーム数
 
     [Header("衝突ヒットストップ（フレーム数・0=なし）")]
@@ -186,16 +186,6 @@ public class Block : MonoBehaviour
         // TODO: Phase 4でHPに応じた見た目の変化を追加
     }
 
-    // HPを外部から増やす（爆発ブロック用）
-    public void AddHp(int amount)
-    {
-        if (amount <= 0 || destroyed) return;
-        hp += amount;
-        currentHp += amount;
-        BuildHpPips();
-        UpdateHpPips();
-    }
-
     private void OnDestroyed(BallScript ball)
     {
         // 同一フレーム内の追撃（マルチボール/貫通/連鎖）で二重発火するとコンボ・スコア・破壊数・
@@ -214,15 +204,18 @@ public class Block : MonoBehaviour
             GameManager.Instance.AddScore(ball.playerIndex, score);
         }
 
-        // 爆発ブロック：周囲のブロックのHPを増やして妨害 + ヒットストップ
+        // 爆発ブロック：周囲のブロックに巻き込みダメージ（DESIGN.md 5.4）。
+        // 巻き込まれた Block が HP0 になると OnDestroyed が走り、それが Explosive なら
+        // 同期的に連鎖爆発する（各ブロックは destroyed フラグで一度だけ処理）。
+        // 巻き込みで倒したブロックのスコア/コンボは、各 OnDestroyed が個別に加算する。
         if (blockType == BlockType.Explosive)
         {
             Collider[] nearby = Physics.OverlapSphere(transform.position, explosionRadius);
             foreach (var col in nearby)
             {
                 Block nearBlock = col.GetComponent<Block>();
-                if (nearBlock != null && nearBlock != this)
-                    nearBlock.AddHp(explosionHpBuff);
+                if (nearBlock != null && nearBlock != this && !nearBlock.destroyed)
+                    nearBlock.TakeDamage(explosionDamage, ball);
             }
 
             float mul = ball?.GetAttributeMultiplier() ?? 1f;
