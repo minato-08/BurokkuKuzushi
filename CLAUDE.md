@@ -379,7 +379,8 @@ ScriptableObject / Profile は使用しない。各コンポーネントのパ�
 ### `Block.cs`
 - `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で周囲ブロックのHPを `explosionHpBuff`(=1) 増加＝硬くする妨害, `Block.cs:217-225`）/ `Item`（HP1・破壊で**確定**1個ドロップ, DESIGN.md 12.17）。※ Spike は現状コードに無い（旧記述削除）
 
-> ⚠️ **仕様とコードの乖離 — Explosive の挙動が真逆（要決定, 2026-06-02 発覚）**: DESIGN.md 5.4（234/272/517 行）は Explosive を「破壊で周囲に**巻き込みダメージ**＋**連鎖爆発**＋スコア加算」と定義（ポジティブな爆弾）。だが実コードは上記のとおり**周囲ブロックの HP を増やす（硬化させる妨害）**で真逆。よって「Explosive が爆発に巻き込まれて連鎖」も未実装。DESIGN 準拠に作り直すか、コード現状を正として DESIGN を改訂するかの判断が必要。
+> ⚠️ **仕様とコードの乖離 — Explosive の挙動が真逆（2026-06-02 発覚 / 方針決定済み）**: DESIGN.md 5.4（234/272/517 行）は Explosive を「破壊で周囲に**巻き込みダメージ**＋**連鎖爆発**＋スコア加算」と定義（ポジティブな爆弾）。だが実コードは上記のとおり**周囲ブロックの HP を増やす（硬化させる妨害）**で真逆。よって「Explosive が爆発に巻き込まれて連鎖」も未実装。
+> **決定（2026-06-02・ユーザー判断）: DESIGN が正**。実コードを DESIGN 準拠に作り直す（`Block.cs` の Explosive 処理を「周囲＝同 Explosive 含むブロックに巻き込みダメージ → 巻き込まれた Explosive も連鎖発火、破壊数ぶんスコア/コンボ加算」へ変更）。**未実装（別タスク）**。実装時は `AddHp` の妨害挙動を撤去し、`explosionRadius` 内の Block を `GetDamage` 相当で破壊＋連鎖、範囲 VFX も追加。
 - ブロック種別カラーを `Awake` でキャッシュした `Renderer` に `Start()` で適用（BlockSpawner が blockType を設定した後に実行される）
 - **HP pip（残耐久ドット, DESIGN.md 5.4）**: HP>1（Hard/Hardened）は `BuildHpPips()` で子キューブのドットを hp 個生成、`TakeDamage` で currentHp 本に減らす。親の非一様スケール(1.3,0.5,1)をワールド換算で打ち消す。Item/Normal(HP1) は非表示。位置/サイズ/色は SerializeField
 - **多重破壊ガード**: `destroyed` フラグで `OnDestroyed` を一度だけに（Destroy 遅延中の同フレーム追撃での二重カウント防止）
