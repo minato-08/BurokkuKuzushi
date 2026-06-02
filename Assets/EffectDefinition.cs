@@ -37,6 +37,20 @@ public sealed class EffectBallSpeed : EffectDefinition
         => arena.GetBall()?.SetSpeedTemporary(Multiplier, Duration);
 }
 
+// BuffPaddle_SpeedUp: パドルの移動速度を Duration 秒だけ Multiplier 倍にする（DESIGN.md 5.5）
+public sealed class EffectPaddleSpeed : EffectDefinition
+{
+    public float Multiplier;
+    public float Duration;
+
+    public override void Apply(int playerIndex, ArenaController arena)
+    {
+        // ArenaController は Arena の子。PlayerController は Arena の別の子なので親から検索
+        Transform arenaRoot = arena.transform.parent ?? arena.transform;
+        arenaRoot.GetComponentInChildren<PlayerController>()?.SetSpeedTemporary(Multiplier, Duration);
+    }
+}
+
 public sealed class EffectHeal : EffectDefinition
 {
     public int Amount;

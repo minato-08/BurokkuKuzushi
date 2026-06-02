@@ -363,6 +363,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - 1P: A/D（または矢印キー）、2P: J/L
 - **移動可能なのは `Playing` と `Countdown` のみ**（DESIGN.md 12.12）。Countdown は `timeScale=0` なので `unscaledDeltaTime` で移動（パドルのポジショニング許可）。それ以外の状態（Title/SkillSelect/結果等）は移動不可
 - `SetWidthTemporary(multiplier, duration)`: アイテム効果でパドル幅を一時変更（`localScale.x` 変更、コルーチン）
+- `SetSpeedTemporary(multiplier, duration)`: BuffPaddle_SpeedUp でパドル移動速度を一時変更（`speed = baseMoveSpeed × multiplier`、コルーチン。`baseMoveSpeed` は Start で ApplySharedConfig 後にキャプチャ。ResetState で復元）
 - `SetInputReversedTemporary(duration)`: 左右入力反転（TrapBall_Reversed）
 - `ResetState()`: ラウンド遷移時に幅・入力反転・フラッシュコルーチンを全停止し、スケール/色を初期値へ復元 + **パドル位置を中央(x=0)へ復帰**（`ArenaController.ResetForNewRound` から呼ばれる）
 
@@ -402,7 +403,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ### `EffectDefinition.cs`
 - アイテム・スキル効果の抽象基底クラス（`Apply(playerIndex, arena)` メソッド）
-- 実装クラス: `EffectBallAttribute` / `EffectPaddleScale` / `EffectBallSpeed` / `EffectHeal` / `EffectAttack`（妨害送付）/ `EffectInputReverse`（TrapBall_Reversed）
+- 実装クラス: `EffectBallAttribute` / `EffectPaddleScale` / `EffectBallSpeed`（Hyper 用・ボール速度）/ `EffectPaddleSpeed`（SpeedUp 用・パドル移動速度, DESIGN.md 5.5 BuffPaddle_SpeedUp）/ `EffectHeal` / `EffectAttack`（妨害送付）/ `EffectInputReverse`（TrapBall_Reversed）
 
 ### `ItemDrop.cs`
 - `ItemType` enum（全15種）: **Buff(属性)** `Fire / Ice / Thunder / Heavy / Pierce` / **Buff(パドル・回復)** `Enlarge / SpeedUp / Heal` / **Attack(相手へ妨害送付)** `AttackHarden / AttackAddRow / AttackPoison / AttackSlow` / **Trap(取得回避が戦略)** `Shrink / Hyper / Reversed`
