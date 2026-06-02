@@ -96,7 +96,12 @@ public class ItemDrop : MonoBehaviour
 
     // ── アイテム効果パラメータ（DESIGN.md 5.5）───────────
     // ※ アイテムは AddComponent 生成のため、ここの初期値がそのまま使われる
-    public float attributeDuration  = 8f;   // 属性付与 (Fire/Ice/Thunder/Heavy) 持続時間
+    // 属性付与の持続時間（属性ごとに異なる, DESIGN.md 5.5 効果持続表）
+    public float fireDuration    = 5f;   // Fire
+    public float thunderDuration = 3f;   // Thunder
+    public float iceDuration     = 8f;   // Ice
+    public float heavyDuration   = 8f;   // Heavy
+    public float pierceDuration  = 3f;   // Pierce
     public float paddleDuration     = 10f;  // パドル変化 (Enlarge/Shrink) 持続時間
     public float speedDuration      = 10f;  // 速度変化 (SpeedUp) 持続時間
     public float hyperDuration      = 3f;   // TrapBall_Hyperspeed 持続時間
@@ -149,11 +154,22 @@ public class ItemDrop : MonoBehaviour
         }
     }
 
+    // 属性付与アイテムの持続時間（DESIGN.md 5.5）。属性以外は 0。
+    private float AttributeDuration(ItemType t) => t switch
+    {
+        ItemType.Fire    => fireDuration,
+        ItemType.Ice     => iceDuration,
+        ItemType.Thunder => thunderDuration,
+        ItemType.Heavy   => heavyDuration,
+        ItemType.Pierce  => pierceDuration,
+        _                => 0f
+    };
+
     // 効果の持続時間。Heal や Attack 等の瞬時アイテムは 0（=表示しない）
     private float GetActiveDuration() => itemType switch
     {
         ItemType.Fire or ItemType.Ice or ItemType.Thunder
-            or ItemType.Heavy or ItemType.Pierce         => attributeDuration,
+            or ItemType.Heavy or ItemType.Pierce         => AttributeDuration(itemType),
         ItemType.Enlarge or ItemType.Shrink              => paddleDuration,
         ItemType.SpeedUp                                 => speedDuration,
         ItemType.Hyper                                   => hyperDuration,
@@ -163,11 +179,11 @@ public class ItemDrop : MonoBehaviour
 
     private EffectDefinition BuildEffect() => itemType switch
     {
-        ItemType.Fire    => new EffectBallAttribute { Attr = BallAttribute.Fire,    Duration = attributeDuration },
-        ItemType.Ice     => new EffectBallAttribute { Attr = BallAttribute.Ice,     Duration = attributeDuration },
-        ItemType.Thunder => new EffectBallAttribute { Attr = BallAttribute.Thunder, Duration = attributeDuration },
-        ItemType.Heavy   => new EffectBallAttribute { Attr = BallAttribute.Heavy,   Duration = attributeDuration },
-        ItemType.Pierce  => new EffectBallAttribute { Attr = BallAttribute.Pierce,  Duration = attributeDuration },
+        ItemType.Fire    => new EffectBallAttribute { Attr = BallAttribute.Fire,    Duration = fireDuration    },
+        ItemType.Ice     => new EffectBallAttribute { Attr = BallAttribute.Ice,     Duration = iceDuration     },
+        ItemType.Thunder => new EffectBallAttribute { Attr = BallAttribute.Thunder, Duration = thunderDuration },
+        ItemType.Heavy   => new EffectBallAttribute { Attr = BallAttribute.Heavy,   Duration = heavyDuration   },
+        ItemType.Pierce  => new EffectBallAttribute { Attr = BallAttribute.Pierce,  Duration = pierceDuration  },
         ItemType.Enlarge => new EffectPaddleScale   { Multiplier = enlargeMultiplier, Duration = paddleDuration },
         ItemType.Shrink  => new EffectPaddleScale   { Multiplier = shrinkMultiplier,  Duration = paddleDuration },
         ItemType.SpeedUp => new EffectBallSpeed     { Multiplier = speedUpMultiplier, Duration = speedDuration  },
