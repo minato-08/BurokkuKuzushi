@@ -25,6 +25,8 @@ public class PlayerController : MonoBehaviour, IFreezable
     private bool frozen = false;
     private Vector3 originalScale;
     private Coroutine widthRoutine;
+    private float baseMoveSpeed;          // SpeedUp 解除時に戻す基準移動速度（Start でキャプチャ）
+    private Coroutine speedRoutine;
     private bool inputReversed = false;
     private Coroutine reverseRoutine;
 
@@ -40,9 +42,11 @@ public class PlayerController : MonoBehaviour, IFreezable
     public void ResetState()
     {
         if (widthRoutine   != null) { StopCoroutine(widthRoutine);   widthRoutine   = null; }
+        if (speedRoutine   != null) { StopCoroutine(speedRoutine);   speedRoutine   = null; }
         if (reverseRoutine != null) { StopCoroutine(reverseRoutine); reverseRoutine = null; }
         if (flashRoutine   != null) { StopCoroutine(flashRoutine);   flashRoutine   = null; }
         inputReversed = false;
+        speed = baseMoveSpeed;
         transform.localScale = originalScale;
         if (paddleRenderer != null) paddleRenderer.material.color = originalColor;
         // パドル位置を中央へ戻す（ラウンド遷移リセット）
@@ -56,6 +60,7 @@ public class PlayerController : MonoBehaviour, IFreezable
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = true;
         originalScale = transform.localScale;
+        baseMoveSpeed = speed;   // ApplySharedConfig 後の値を基準として保持（SpeedUp 解除時に復元）
 
         paddleRenderer = GetComponent<Renderer>();
         if (paddleRenderer != null) originalColor = paddleRenderer.material.color;
@@ -115,6 +120,21 @@ public class PlayerController : MonoBehaviour, IFreezable
         yield return new WaitForSeconds(duration);
         transform.localScale = originalScale;
         widthRoutine = null;
+    }
+
+    // BuffPaddle_SpeedUp: パドル移動速度を duration 秒だけ multiplier 倍にする（DESIGN.md 5.5）
+    public void SetSpeedTemporary(float multiplier, float duration)
+    {
+        if (speedRoutine != null) StopCoroutine(speedRoutine);
+        speedRoutine = StartCoroutine(SpeedRoutine(multiplier, duration));
+    }
+
+    private System.Collections.IEnumerator SpeedRoutine(float multiplier, float duration)
+    {
+        speed = baseMoveSpeed * multiplier;
+        yield return new WaitForSeconds(duration);
+        speed = baseMoveSpeed;
+        speedRoutine = null;
     }
 
     // TrapBall_Reversed: 左右入力を duration 秒反転（DESIGN.md 5.5.3 / 12.18）

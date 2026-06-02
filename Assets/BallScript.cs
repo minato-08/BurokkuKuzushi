@@ -89,7 +89,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
     // 速度の2層管理:
     //   naturalSpeed  = baseSpeed + 時間加速（メインボールのみ連続更新）
-    //   speedMultiplier = アイテム効果（SpeedUp/Hyper コルーチンで一時変更）
+    //   speedMultiplier = アイテム効果（Hyper コルーチンで一時変更。SpeedUp はパドル速度なので無関係）
     //   slowZoneMul   = ZoneSlow が毎フレーム書き込む（ゾーン離脱時に ZoneSlow が 1 に戻す）
     //   実効速度 = naturalSpeed * speedMultiplier * slowZoneMul
     private float baseSpeed;

@@ -17,7 +17,7 @@ public enum ItemCategory { Buff, Attack, Trap }
 // 持続効果が占有する「スロット」。同一スロットの効果は重ね掛けで上書きされる
 // （BallScript / PlayerController の各コルーチンが StopCoroutine で上書きする単位と一致）。
 // None = 持続効果を持たない（Heal の即時回復 / Attack の妨害送付）。
-public enum ItemEffectSlot { None, BallAttribute, BallSpeed, PaddleScale, InputReverse }
+public enum ItemEffectSlot { None, BallAttribute, BallSpeed, PaddleScale, PaddleSpeed, InputReverse }
 
 public static class ItemDefinition
 {
@@ -77,7 +77,8 @@ public static class ItemDefinition
     {
         ItemType.Fire or ItemType.Ice or ItemType.Thunder or
         ItemType.Heavy or ItemType.Pierce               => ItemEffectSlot.BallAttribute,
-        ItemType.SpeedUp or ItemType.Hyper              => ItemEffectSlot.BallSpeed,
+        ItemType.SpeedUp                                => ItemEffectSlot.PaddleSpeed,
+        ItemType.Hyper                                  => ItemEffectSlot.BallSpeed,
         ItemType.Enlarge or ItemType.Shrink             => ItemEffectSlot.PaddleScale,
         ItemType.Reversed                               => ItemEffectSlot.InputReverse,
         _                                               => ItemEffectSlot.None, // Heal / Attack*
@@ -103,7 +104,7 @@ public class ItemDrop : MonoBehaviour
     public float reversedDuration   = 5f;   // TrapBall_Reversed 持続時間
     public float enlargeMultiplier  = 1.5f; // パドル拡大倍率
     public float shrinkMultiplier   = 0.7f; // パドル縮小倍率 (Trap)
-    public float speedUpMultiplier  = 1.4f; // 速度アップ倍率
+    public float speedUpMultiplier  = 1.3f; // パドル移動速度 +30%（DESIGN.md 5.5 BuffPaddle_SpeedUp）
     public float hyperMultiplier    = 4f;   // ハイパー速度倍率 (Trap, 制御困難化)
     public int   healAmount         = 50;   // 回復量
 
@@ -170,7 +171,7 @@ public class ItemDrop : MonoBehaviour
         ItemType.Pierce  => new EffectBallAttribute { Attr = BallAttribute.Pierce,  Duration = attributeDuration },
         ItemType.Enlarge => new EffectPaddleScale   { Multiplier = enlargeMultiplier, Duration = paddleDuration },
         ItemType.Shrink  => new EffectPaddleScale   { Multiplier = shrinkMultiplier,  Duration = paddleDuration },
-        ItemType.SpeedUp => new EffectBallSpeed     { Multiplier = speedUpMultiplier, Duration = speedDuration  },
+        ItemType.SpeedUp => new EffectPaddleSpeed   { Multiplier = speedUpMultiplier, Duration = speedDuration  },
         ItemType.Hyper   => new EffectBallSpeed     { Multiplier = hyperMultiplier,   Duration = hyperDuration  },
         ItemType.Reversed => new EffectInputReverse { Duration = reversedDuration },
         ItemType.Heal    => new EffectHeal          { Amount = healAmount },
