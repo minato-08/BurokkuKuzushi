@@ -96,7 +96,45 @@ public class BlockSpawner : MonoBehaviour, IFreezable
 
     void Start()
     {
+        ApplySharedConfig();
         SpawnRow();
+    }
+
+    // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        blocksPerRow  = c.blocksPerRow;
+        blockWidth    = c.blockWidth;
+        blockGap      = c.blockGap;
+        blockHeight   = c.blockHeight;
+        spawnY        = c.spawnY;
+        blockDeadZoneY = c.blockDeadZoneY;
+        spawnIntervalBase        = c.spawnIntervalBase;
+        spawnIntervalDecayPerMin = c.spawnIntervalDecayPerMin;
+        spawnIntervalMin         = c.spawnIntervalMin;
+        descentSpeedBase         = c.descentSpeedBase;
+        descentSpeedGainPerMin   = c.descentSpeedGainPerMin;
+        descentSpeedMax          = c.descentSpeedMax;
+        explosiveBlockChance = c.explosiveBlockChance;
+        hardBlockChance      = c.hardBlockChance;
+        itemBlockChance      = c.itemBlockChance;
+        specialRowChance     = c.specialRowChance;
+        hardBlockHp          = c.hardBlockHp;
+        sabotageHardRatio    = c.sabotageHardRatio;
+        sabotageBlockHp      = c.sabotageBlockHp;
+        hardenCount          = c.hardenCount;
+        hardenTargetHp       = c.hardenTargetHp;
+        blockDeadZoneHitFrames = c.blockDeadZoneHitFrames;
+        blockDeadZoneHitShake  = c.blockDeadZoneHitShake;
+        normalSlideDistance  = c.normalSlideDistance;
+        normalSlideDuration  = c.normalSlideDuration;
+        addRowSlideDistance  = c.addRowSlideDistance;
+        addRowSlideDuration  = c.addRowSlideDuration;
+        addRowImpactFrames   = c.addRowImpactFrames;
+        addRowImpactFlash    = c.addRowImpactFlash;
+        addRowImpactFlashSec = c.addRowImpactFlashSec;
     }
 
     void Update()

@@ -725,6 +725,133 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &112514745
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 112514747}
+  - component: {fileID: 112514746}
+  m_Layer: 0
+  m_Name: ArenaSharedConfig
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &112514746
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 112514745}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82d9cc4570f70475881727072cb24a2d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ArenaSharedConfig
+  paddleSpeed: 16
+  paddleXLimit: 5.2
+  paddleLocalY: -10.5
+  paddleLocalZ: 0.5
+  paddleBounceFrames: 10
+  paddleBuffFlash: {r: 0.30588233, g: 1, b: 0.61025214, a: 1}
+  paddleAttackFlash: {r: 1, g: 0.6519155, b: 0.2352941, a: 1}
+  paddleTrapFlash: {r: 0.8773585, g: 0.26072446, b: 0.3036685, a: 1}
+  pickupFlashDuration: 0.1
+  blocksPerRow: 6
+  blockWidth: 1.566667
+  blockGap: 0.1
+  blockHeight: 0.7
+  spawnY: 7
+  blockDeadZoneY: -6.85
+  spawnIntervalBase: 5
+  spawnIntervalDecayPerMin: 0.2
+  spawnIntervalMin: 3
+  descentSpeedBase: 0.3
+  descentSpeedGainPerMin: 0.03
+  descentSpeedMax: 0.45
+  explosiveBlockChance: 0.05
+  hardBlockChance: 0.2
+  itemBlockChance: 0.03
+  specialRowChance: 0.1
+  hardBlockHp: 2
+  sabotageHardRatio: 0.5
+  sabotageBlockHp: 2
+  hardenCount: 3
+  hardenTargetHp: 3
+  blockDeadZoneHitFrames: 5
+  blockDeadZoneHitShake: 1
+  normalSlideDistance: 1.5
+  normalSlideDuration: 0.2
+  addRowSlideDistance: 6
+  addRowSlideDuration: 0.3
+  addRowImpactFrames: 2
+  addRowImpactFlash: {r: 1, g: 1, b: 1, a: 1}
+  addRowImpactFlashSec: 0.1
+  ballSpeed: 10
+  ballInitialLocalDirection: {x: 1, y: 1, z: 0}
+  relaunchAngleSpread: 3
+  minAxisRatio: 0.2
+  timeAccelRate: 0.1
+  timeAccelMax: 2
+  boundX: 7
+  boundYTop: 11
+  boundYBottom: -13
+  normalDamage: 1
+  iceDamage: 2
+  heavyDamage: 3
+  pierceDamage: 1
+  fireRadius: 1.5
+  thunderRadius: 2.5
+  hitStopSpeedThreshold: 1.5
+  hitStopHeavyMul: 1.5
+  hitStopFireMul: 1.2
+  hitStopThunderMul: 1.1
+  hitStopIceMul: 1.2
+  wallBounceFrames: 0
+  ballNormalColor: {r: 1, g: 1, b: 1, a: 1}
+  ballFireColor: {r: 1, g: 0.478, b: 0.239, a: 1}
+  ballThunderColor: {r: 1, g: 0.847, b: 0.29, a: 1}
+  ballIceColor: {r: 0.306, g: 0.765, b: 1, a: 1}
+  ballHeavyColor: {r: 0.706, g: 0.643, b: 1, a: 1}
+  ballPierceColor: {r: 0.635, g: 1, b: 0.878, a: 1}
+  heatStage1: 10
+  heatStage2: 20
+  heatStage3: 30
+  heatColorLow: {r: 1, g: 0.949, b: 0.69, a: 1}
+  heatColorMid: {r: 1, g: 0.69, b: 0.29, a: 1}
+  heatColorHigh: {r: 1, g: 0.29, b: 0.2, a: 1}
+  heatLerpSpeed: 6
+  trailTime: 0.18
+  trailStartWidth: 0.22
+  indicatorLength: 2.5
+  indicatorColor: {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 1}
+  metronomeAngleRange: 80
+  metronomePeriodSec: 1
+  maxEnergy: 10
+  arenaHalfWidth: 5
+  arenaHalfHeight: 4.5
+  ballSpawnOffsetY: 1
+--- !u!4 &112514747
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 112514745}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.25985, y: 3.31121, z: 39.89418}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &116514139
 GameObject:
   m_ObjectHideFlags: 0
@@ -2963,6 +3090,8 @@ MonoBehaviour:
   descentSpeedMax: 0.45
   explosiveBlockChance: 0.1
   hardBlockChance: 0.2
+  itemBlockChance: 0.08
+  specialRowChance: 0.125
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
@@ -2970,6 +3099,13 @@ MonoBehaviour:
   hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
   blockDeadZoneHitShake: 1
+  normalSlideDistance: 1.5
+  normalSlideDuration: 0.2
+  addRowSlideDistance: 6
+  addRowSlideDuration: 0.3
+  addRowImpactFrames: 2
+  addRowImpactFlash: {r: 1, g: 1, b: 1, a: 1}
+  addRowImpactFlashSec: 0.1
 --- !u!1 &313229945
 GameObject:
   m_ObjectHideFlags: 0
@@ -11986,6 +12122,8 @@ MonoBehaviour:
   descentSpeedMax: 0.45
   explosiveBlockChance: 0.1
   hardBlockChance: 0.2
+  itemBlockChance: 0.08
+  specialRowChance: 0.125
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
@@ -11993,6 +12131,13 @@ MonoBehaviour:
   hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
   blockDeadZoneHitShake: 1
+  normalSlideDistance: 1.5
+  normalSlideDuration: 0.2
+  addRowSlideDistance: 6
+  addRowSlideDuration: 0.3
+  addRowImpactFrames: 2
+  addRowImpactFlash: {r: 1, g: 1, b: 1, a: 1}
+  addRowImpactFlashSec: 0.1
 --- !u!1 &1314645376
 GameObject:
   m_ObjectHideFlags: 0
@@ -16686,6 +16831,11 @@ MonoBehaviour:
   p2SkillName: {fileID: 0}
   p1RoundWins: {fileID: 0}
   p2RoundWins: {fileID: 0}
+  p1ComboArc: {fileID: 0}
+  p2ComboArc: {fileID: 0}
+  comboArcColor: {r: 1, g: 1, b: 1, a: 1}
+  comboArcWarnColor: {r: 1, g: 0.55, b: 0.15, a: 1}
+  comboArcWarnRatio: 0.12
   statusText: {fileID: 0}
   p1InterferenceOverlay: {fileID: 0}
   p1InterferenceLabel: {fileID: 0}
@@ -16727,6 +16877,11 @@ MonoBehaviour:
   lastStandBlinkPeriod: 0.3
   lastStandDimFloor: 0.28
   panicReadyLabel: PANIC READY
+  roundResultWinIntensity: 4
+  roundResultWinDuration: 0.9
+  roundResultLoseFloor: 0.18
+  roundResultLoseFadeIn: 0.25
+  roundResultRestore: 0.4
 --- !u!114 &1934063271
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17806,6 +17961,8 @@ MonoBehaviour:
   volInterferenceRecv: 1
   seAddRowLand: {fileID: 0}
   volAddRowLand: 1
+  seSpecialRow: {fileID: 0}
+  volSpecialRow: 1
   sePoisonLoop: {fileID: 8300000, guid: 06350dfd7dec84e459278ea5eb4f5e22, type: 3}
   volPoisonLoop: 1
   seRoundStart: {fileID: 8300000, guid: 42ca4600920184931af15a6e5063a45a, type: 3}
@@ -17818,7 +17975,7 @@ MonoBehaviour:
   volComboMilestone: 1
   seUiMove: {fileID: 8300000, guid: d166adfeeeeba48a3ab34e6cb1dbb469, type: 3}
   volUiMove: 1
-  seUiConfirm: {fileID: 8300000, guid: 15fd1c6b2b7c04406b5f1872c5dbbed5, type: 3}
+  seUiConfirm: {fileID: 8300000, guid: c3298d9fba5b44ec9dab52372882bd7a, type: 3}
   volUiConfirm: 1
   bgmTitle: {fileID: 0}
   bgmMatch: {fileID: 0}
@@ -18916,3 +19073,4 @@ SceneRoots:
   - {fileID: 1630547086}
   - {fileID: 2074190969}
   - {fileID: 2037302861}
+  - {fileID: 112514747}

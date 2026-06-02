@@ -126,8 +126,53 @@ public class BallScript : MonoBehaviour, IFreezable
         SetTrailVisible(!IsWaitingToLaunch, clear: true);
     }
 
+    // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        speed                 = c.ballSpeed;
+        initialLocalDirection = c.ballInitialLocalDirection;
+        relaunchAngleSpread   = c.relaunchAngleSpread;
+        minAxisRatio          = c.minAxisRatio;
+        timeAccelRate         = c.timeAccelRate;
+        timeAccelMax          = c.timeAccelMax;
+        boundX       = c.boundX;
+        boundYTop    = c.boundYTop;
+        boundYBottom = c.boundYBottom;
+        normalDamage = c.normalDamage;
+        iceDamage    = c.iceDamage;
+        heavyDamage  = c.heavyDamage;
+        pierceDamage = c.pierceDamage;
+        fireRadius    = c.fireRadius;
+        thunderRadius = c.thunderRadius;
+        hitStopSpeedThreshold = c.hitStopSpeedThreshold;
+        hitStopHeavyMul   = c.hitStopHeavyMul;
+        hitStopFireMul    = c.hitStopFireMul;
+        hitStopThunderMul = c.hitStopThunderMul;
+        hitStopIceMul     = c.hitStopIceMul;
+        wallBounceFrames  = c.wallBounceFrames;
+        normalColor  = c.ballNormalColor;
+        fireColor    = c.ballFireColor;
+        thunderColor = c.ballThunderColor;
+        iceColor     = c.ballIceColor;
+        heavyColor   = c.ballHeavyColor;
+        pierceColor  = c.ballPierceColor;
+        heatStage1 = c.heatStage1;
+        heatStage2 = c.heatStage2;
+        heatStage3 = c.heatStage3;
+        heatColorLow  = c.heatColorLow;
+        heatColorMid  = c.heatColorMid;
+        heatColorHigh = c.heatColorHigh;
+        heatLerpSpeed = c.heatLerpSpeed;
+        trailTime       = c.trailTime;
+        trailStartWidth = c.trailStartWidth;
+    }
+
     void Start()
     {
+        ApplySharedConfig(); // baseSpeed=speed の前に共通設定を反映
+
         rb = GetComponent<Rigidbody>();
         cachedRenderer = GetComponent<Renderer>();
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
