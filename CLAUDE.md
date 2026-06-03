@@ -61,11 +61,13 @@ SampleScene
 │                        HDR ON / Post Processing ON / TAA High
 ├── _UI                ← トップレベル UI フォルダ（後述）
 ├── Arena1             ← world (-9.2, 0.66, 0)
-│   ├── TopWall / LeftWall / RightWall
-│   ├── Ball / Player / DeadZone / BlockSpawner
-│   └── ArenaController
-│       ├── HitStopController
-│       └── LaunchAimer
+│   ├── Ball                         ← ★ShakeRoot の外（シェイクに引きずられないため）
+│   ├── ArenaController
+│   │   ├── HitStopController
+│   │   └── LaunchAimer
+│   └── ShakeRoot                    ← シェイク対象（local 0,0,0）。揺らしてよい要素だけを収める
+│       ├── TopWall / LeftWall / RightWall
+│       └── Player / DeadZone / BlockSpawner
 └── Arena2             ← world (9.2, 0.66, 0)、Arena1 と同構成（鏡像）
 ```
 
@@ -76,7 +78,7 @@ SampleScene
 - 旧構成: Arena1/Arena2 にそれぞれ Camera1/Camera2 を子配置、画面分割レンダリング
 - 新構成: **単一 `MainCamera`（Orthographic）**で両アリーナを横並びに収める
 - メリット: ポスプロが単純、UI Canvas が 1 つで済む、Scene 編集楽
-- 影響: HitStop はアリーナ Transform 自体を揺らす方式に変更（`HitStopController.SetShakeTarget`）
+- 影響: HitStop は **`Arena{N}/ShakeRoot` を揺らす方式**（`HitStopController.SetShakeTarget`）。**Ball は ShakeRoot の外（Arena 直下）に置く**。非キネマティック Rigidbody は親 Transform を揺らすと毎フレーム teleport されて飛行が止まる/トレイルが裂けるため、ボールだけシェイク対象から除外（2026-06-03）。壁/パドル/DeadZone/BlockSpawner は ShakeRoot 配下で揺れる
 
 ### 現在の主要な Inspector 値
 
@@ -297,8 +299,8 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `TriggerHitStop(frames, strong, shake, freeze)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
 - **フリーズ/シェイク分離**（`freeze` 引数, 2026-06-03, DESIGN.md 5.x）: `freeze:false` で**フリーズせずシェイクのみ**。ボール衝突でないイベント（底到達・スライド着地）が飛行中ボールを空中で止めないため。割り込みガードは `activeFroze` フラグで「前ルーチンがフリーズ無し（shake-only）なら `UnfreezeAll` を呼ばない」＝未フリーズ対象を `Unfreeze`（速度復元）して壊さない
 - **多重発火ガード**（codex レビュー fix, 2026-06-02）: シェイク中に再度 `TriggerHitStop` が来たら、旧コルーチン停止時に `RestoreShakeTarget()` でアリーナ位置を基準へ戻してから再開（中断でアリーナがオフセットしたまま残るのを防止）。`RestoreShakeTarget()` は正常終了時も呼ぶ共通メソッド
-- 単カメラ運用に合わせ、カメラではなくアリーナ Transform 自体（`ArenaRoot`）を揺らす方式。アリーナごとに独立してシェイク可能
-- `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ArenaRoot` を渡す）
+- 単カメラ運用に合わせ、カメラではなく **`Arena{N}/ShakeRoot`**（壁/パドル/DeadZone/BlockSpawner を収める空オブジェクト, local 0,0,0）を揺らす方式。アリーナごとに独立してシェイク可能。**Ball は ShakeRoot の外（Arena 直下）**なのでシェイクに引きずられない
+- `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ShakeRoot` を渡す。未解決なら `ArenaRoot.Find("ShakeRoot")`→ArenaRoot にフォールバック）
 - `strong=true` で強シェイク（ラウンド/マッチ決着時）
 - Freeze 中はボール `linearVelocity=0`、Player は kinematic、Block は Rigidbody なし → 親 Transform 駆動の移動でも物理的攪乱なし
 
@@ -307,7 +309,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `ballSpawnOffsetY` → `GetBallSpawnLocalPos()` が実行時に `cachedPlayer.localPosition.y` を読んで動的に算出
 - `cachedPlayer` / `cachedUIManager` を `Awake` でキャッシュ（`GetComponentInChildren` / `FindFirstObjectByType` の都度呼び出しを回避）
 - `ArenaRoot` プロパティ (`transform.parent != null ? transform.parent : transform`) に統一
-- Awake で `hitStop.SetShakeTarget(ArenaRoot)` を呼んでシェイク対象をバインド（カメラ参照は持たない）
+- Awake で `hitStop.SetShakeTarget(shakeRoot)` を呼んでシェイク対象をバインド（`shakeRoot` 未設定なら `ArenaRoot.Find("ShakeRoot")`→ArenaRoot にフォールバック。カメラ参照は持たない）。`[SerializeField] shakeRoot` は Inspector 未バインドでも名前解決で動く
 - `TriggerHitStop(frames, strong, shake, freeze)` を公開 — Block / BallScript / GameManager はこれを呼ぶ。`freeze:false` でシェイクのみ（BlockSpawner の底到達・スライド着地が使用）
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
@@ -340,6 +342,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ### `BallScript.cs`
 - `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（高ダメ・速度0.7倍・**非貫通**=通常反射, DESIGN.md 5.2）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）。`OnHitBlock` の貫通（`lastVelocity` 復元）case は **Pierce のみ**（2026-06-03 Heavy を非貫通に修正）
+- **Pierce 素通り（軌道カクつき対策, 2026-06-03）**: 旧実装は衝突後に `lastVelocity` を復元するだけで、物理の押し戻し（depenetration）でブロックごとに軌道が横に折れてトレイルがカクついた。現在は **Pierce 中 `FixedUpdate` で `OverlapSphereNonAlloc`** によりブロックを検出し、`Physics.IgnoreCollision(ball, block, true)` で**物理反発を無効化して直進**させ、ダメージは**衝突経由でなく overlap で1回だけ**与える（`pierceIgnored` HashSet で重複防止）。高速で検出より先に衝突した場合は従来の `OnHitBlock` 復元がフォールバックし、当該ブロックを `pierceIgnored` 登録して二重ダメージを防ぐ。Pierce 終了/`PrepareRespawn` で `RestorePierceCollisions()` が IgnoreCollision を解除
 - 速度の3層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow） = 実効速度
 - `slowZoneMul`: ZoneSlow が毎フレーム書き込む public フィールド。ZoneSlow が OnDestroy / 検出失敗時に 1 に戻す。PrepareRespawn でもリセット
 - `FixedUpdate` で毎フレーム実効速度に正規化。時間加速はメインボールのみ（`isExtraBall=false`）。`arenaDwellTime` はリスポーンでリセット

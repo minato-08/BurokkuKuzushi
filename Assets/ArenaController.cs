@@ -19,6 +19,11 @@ public class ArenaController : MonoBehaviour
 
     [Header("メトロノーム発射")]
     [SerializeField] private LaunchAimer launchAimer;
+
+    // シェイク対象。ボール（非キネマティック Rigidbody）はこの配下に置かない＝シェイクに
+    // 引きずられないようにするため、壁/パドル/ブロック等を収める ShakeRoot を揺らす。
+    // 未設定なら名前で解決、それも無ければ ArenaRoot にフォールバック（後方互換）。
+    [SerializeField] private Transform shakeRoot;
     private HitStopController hitStop;
     private SkillController   skillController;
     private PlayerController  cachedPlayer;
@@ -92,8 +97,11 @@ public class ArenaController : MonoBehaviour
         hitStop = GetComponentInChildren<HitStopController>();
         if (hitStop != null)
         {
-            // 単カメラ運用に合わせ、シェイク対象はアリーナ Transform 自体
-            hitStop.SetShakeTarget(ArenaRoot);
+            // シェイク対象は ShakeRoot（壁/パドル/ブロックを収める）。ボールはこの配下に
+            // 置かないので、シェイクで Rigidbody が引きずられない（飛行が止まる/トレイルが裂ける問題の対策）。
+            Transform shakeTarget = shakeRoot != null ? shakeRoot : ArenaRoot.Find("ShakeRoot");
+            if (shakeTarget == null) shakeTarget = ArenaRoot;
+            hitStop.SetShakeTarget(shakeTarget);
             if (ball         != null) hitStop.RegisterFreezable(ball);
             if (spawner      != null) hitStop.RegisterFreezable(spawner);
             if (cachedPlayer != null) hitStop.RegisterFreezable(cachedPlayer);

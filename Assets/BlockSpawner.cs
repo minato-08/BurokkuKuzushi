@@ -403,7 +403,8 @@ public class BlockSpawner : MonoBehaviour, IFreezable
 
     private ArenaController GetArena()
     {
-        // BlockSpawner → Arena root → ArenaController（兄弟ノード）
-        return transform.parent?.GetComponentInChildren<ArenaController>();
+        // Arena ルート（transform.root）配下から ArenaController を探す。
+        // ShakeRoot を挟んでも壊れないよう、親階層の深さに依存しない（2026-06-03）。
+        return transform.root.GetComponentInChildren<ArenaController>();
     }
 }

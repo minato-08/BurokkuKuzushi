@@ -81,6 +81,15 @@ public class BallScript : MonoBehaviour, IFreezable
     private Vector3 lastVelocity;
     private TrailRenderer trail;
     private Renderer cachedRenderer;
+    private Collider cachedCollider;
+
+    // Pierce（貫通）中に物理反発を無効化したブロック群。反発で軌道が折れて
+    // トレイルがカクつくのを防ぐため、検出したブロックは IgnoreCollision で素通りさせ、
+    // ダメージは衝突ではなくオーバーラップ経由で1回だけ与える。
+    [SerializeField] private float pierceDetectMargin = 0.12f; // 貫通検出オーバーラップの余白
+    private readonly System.Collections.Generic.HashSet<Block> pierceIgnored
+        = new System.Collections.Generic.HashSet<Block>();
+    private static readonly Collider[] pierceBuf = new Collider[16];
 
     private bool frozen = false;
     private Vector3 frozenVelocity;
@@ -175,6 +184,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
         rb = GetComponent<Rigidbody>();
         cachedRenderer = GetComponent<Renderer>();
+        cachedCollider = GetComponent<Collider>();
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
@@ -219,7 +229,42 @@ public class BallScript : MonoBehaviour, IFreezable
             lastVelocity = rb.linearVelocity;
         }
 
+        // 貫通中はブロックを物理的に素通りさせる（反発による軌道の折れ＝トレイルのカクつき防止）。
+        if (attribute == BallAttribute.Pierce) PierceThroughBlocks();
+        else if (pierceIgnored.Count > 0)      RestorePierceCollisions();
+
         CheckBounds();
+    }
+
+    // 接近したブロックとの衝突を無効化して直進させ、ダメージはここで1回だけ与える。
+    // 物理ステップ前（FixedUpdate）に IgnoreCollision を立てるので、その後の衝突解決では反発しない。
+    private void PierceThroughBlocks()
+    {
+        if (cachedCollider == null) return;
+        float radius = cachedCollider.bounds.extents.x + pierceDetectMargin;
+        int n = Physics.OverlapSphereNonAlloc(transform.position, radius, pierceBuf);
+        for (int i = 0; i < n; i++)
+        {
+            Block b = pierceBuf[i].GetComponent<Block>();
+            if (b == null || pierceIgnored.Contains(b)) continue;
+            Physics.IgnoreCollision(cachedCollider, pierceBuf[i], true);
+            pierceIgnored.Add(b);
+            b.TakeDamage(GetDamage(), this); // 衝突経由でないのでここでダメージ
+        }
+    }
+
+    private void RestorePierceCollisions()
+    {
+        if (cachedCollider != null)
+        {
+            foreach (var b in pierceIgnored)
+            {
+                if (b == null) continue;
+                Collider bc = b.GetComponent<Collider>();
+                if (bc != null) Physics.IgnoreCollision(cachedCollider, bc, false);
+            }
+        }
+        pierceIgnored.Clear();
     }
 
     // Ball Heat（DESIGN.md 5.3）: 属性 Normal のときコンボ段階でボール色を Lerp。
@@ -302,6 +347,9 @@ public class BallScript : MonoBehaviour, IFreezable
         if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
         if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
         CancelInvoke();
+
+        // 貫通中に無効化したブロック衝突を元に戻す（次ラウンドへ持ち越さない）
+        RestorePierceCollisions();
 
         frozen          = false;
         speedMultiplier = 1f;
@@ -409,8 +457,17 @@ public class BallScript : MonoBehaviour, IFreezable
         switch (attribute)
         {
             case BallAttribute.Pierce:
-                // 衝突前の速度ベクトルを復元して貫通（Pierce のみ。Heavy は非貫通=通常反射, DESIGN.md 5.2）
+                // 高速で PierceThroughBlocks の検出より先に衝突した場合のフォールバック:
+                // 衝突前の速度ベクトルを復元して直進を維持し、以後はこのブロックを素通りさせる。
+                // すでに当該ブロックは衝突経由でダメージ済みなので、ここでは重複ダメージを与えない
+                // （overlap 経路が pierceIgnored で二重加算しないよう登録だけ行う）。
                 rb.linearVelocity = lastVelocity;
+                if (cachedCollider != null && hitBlock != null && !pierceIgnored.Contains(hitBlock))
+                {
+                    Collider bc = hitBlock.GetComponent<Collider>();
+                    if (bc != null) Physics.IgnoreCollision(cachedCollider, bc, true);
+                    pierceIgnored.Add(hitBlock);
+                }
                 break;
             case BallAttribute.Fire:
                 ApplyAreaDamage(hitBlock, fireRadius, sameTypeOnly: false);
