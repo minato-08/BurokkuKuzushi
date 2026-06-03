@@ -17,7 +17,13 @@ public class HitStopController : MonoBehaviour
     private Vector3 shakeBaseLocalPos;
     private bool activeFroze;   // 進行中ルーチンがフリーズを伴うか（割り込み時に未フリーズ対象を Unfreeze しないため）
 
+    // アリーナ枠（P{N}ArenaFrame, UI キャンバス上の SpriteRenderer）も同じワールド変位で揺らす。
+    // キャンバスのスケールに依存しないよう localPosition ではなく world position をオフセットする。
+    private Transform frameTarget;
+    private Vector3 frameBasePos;
+
     public void SetShakeTarget(Transform t) => shakeTarget = t;
+    public void SetFrameShakeTarget(Transform t) => frameTarget = t;
 
     public void RegisterFreezable(IFreezable f)
     {
@@ -44,20 +50,23 @@ public class HitStopController : MonoBehaviour
     private IEnumerator HitStopRoutine(float duration, float intensity, bool freeze)
     {
         if (freeze) FreezeAll();
-        if (shakeTarget != null)
-            shakeBaseLocalPos = shakeTarget.localPosition;
+        if (shakeTarget != null) shakeBaseLocalPos = shakeTarget.localPosition;
+        if (frameTarget != null) frameBasePos     = frameTarget.position;
 
         float elapsed = 0f;
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
-            if (shakeTarget != null && intensity > 0f)
+            if (intensity > 0f)
             {
-                shakeTarget.localPosition = shakeBaseLocalPos + new Vector3(
+                // 同一オフセットをアリーナ（local）とアリーナ枠（world）の両方へ適用＝同期して揺れる
+                Vector3 offset = new Vector3(
                     Random.Range(-intensity, intensity),
                     Random.Range(-intensity, intensity),
                     0f
                 );
+                if (shakeTarget != null) shakeTarget.localPosition = shakeBaseLocalPos + offset;
+                if (frameTarget != null) frameTarget.position      = frameBasePos     + offset;
             }
             yield return null;
         }
@@ -70,8 +79,8 @@ public class HitStopController : MonoBehaviour
 
     private void RestoreShakeTarget()
     {
-        if (shakeTarget != null)
-            shakeTarget.localPosition = shakeBaseLocalPos;
+        if (shakeTarget != null) shakeTarget.localPosition = shakeBaseLocalPos;
+        if (frameTarget != null) frameTarget.position      = frameBasePos;
     }
 
     private void FreezeAll()

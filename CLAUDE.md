@@ -301,6 +301,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - **多重発火ガード**（codex レビュー fix, 2026-06-02）: シェイク中に再度 `TriggerHitStop` が来たら、旧コルーチン停止時に `RestoreShakeTarget()` でアリーナ位置を基準へ戻してから再開（中断でアリーナがオフセットしたまま残るのを防止）。`RestoreShakeTarget()` は正常終了時も呼ぶ共通メソッド
 - 単カメラ運用に合わせ、カメラではなく **`Arena{N}/ShakeRoot`**（壁/パドル/DeadZone/BlockSpawner を収める空オブジェクト, local 0,0,0）を揺らす方式。アリーナごとに独立してシェイク可能。**Ball は ShakeRoot の外（Arena 直下）**なのでシェイクに引きずられない
 - `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ShakeRoot` を渡す。未解決なら `ArenaRoot.Find("ShakeRoot")`→ArenaRoot にフォールバック）
+- **アリーナ枠も同期シェイク**（`SetFrameShakeTarget(Transform)`, 2026-06-03）: `P{N}ArenaFrame`（UI キャンバス上の SpriteRenderer）を ShakeRoot と**同一のワールド変位**で揺らす。キャンバスのスケール(0.0224)に依存しないよう `localPosition` ではなく **world `position` をオフセット**。ArenaController.Awake が `UIManager.GetArenaFrameTransform(playerIndex)` で枠 Transform を取得して渡す（未バインドなら null セーフで枠は揺れない）。枠の色は UIManager の Last Stand が別途制御するため位置シェイクと競合しない
 - `strong=true` で強シェイク（ラウンド/マッチ決着時）
 - Freeze 中はボール `linearVelocity=0`、Player は kinematic、Block は Rigidbody なし → 親 Transform 駆動の移動でも物理的攪乱なし
 

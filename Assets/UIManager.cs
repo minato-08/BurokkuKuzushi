@@ -453,6 +453,13 @@ public class UIManager : MonoBehaviour
     // Last Stand（HP10% 以下でアリーナ枠と HP バーを赤アラーム, DESIGN.md 5.10）
     // =====================================================
 
+    // アリーナ枠（P{N}ArenaFrame）の Transform を返す。HitStopController がシェイク対象に使う。
+    public Transform GetArenaFrameTransform(int playerIndex)
+    {
+        SpriteRenderer f = playerIndex == 1 ? p1ArenaFrame : p2ArenaFrame;
+        return f != null ? f.transform : null;
+    }
+
     private void UpdateLastStand(int playerIndex, Image hpFill, SpriteRenderer frame)
     {
         var gm = GameManager.Instance;

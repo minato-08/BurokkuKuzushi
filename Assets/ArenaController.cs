@@ -102,6 +102,9 @@ public class ArenaController : MonoBehaviour
             Transform shakeTarget = shakeRoot != null ? shakeRoot : ArenaRoot.Find("ShakeRoot");
             if (shakeTarget == null) shakeTarget = ArenaRoot;
             hitStop.SetShakeTarget(shakeTarget);
+            // アリーナ枠（P{N}ArenaFrame）も同じワールド変位でシェイクさせる
+            if (cachedUIManager != null)
+                hitStop.SetFrameShakeTarget(cachedUIManager.GetArenaFrameTransform(playerIndex));
             if (ball         != null) hitStop.RegisterFreezable(ball);
             if (spawner      != null) hitStop.RegisterFreezable(spawner);
             if (cachedPlayer != null) hitStop.RegisterFreezable(cachedPlayer);
