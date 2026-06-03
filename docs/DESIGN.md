@@ -149,6 +149,9 @@
 | Pierce | ダメージ1、ブロックを貫通、ヒットストップ抑制 | テンポ重視貫通。属性倍率 0（ヒットストップ無効化） | トレイルを長くする。 |
 
 >**2026-5-28**属性効果とは、カメラシェイクなどに与えられる係数という認識でいい？
+>
+>**2026-6-03 確定**: 属性倍率＝**手応え（ヒットストップ／シェイク）の「攻撃力」重み**。ブロック衝突の停止フレーム数を `impact = speedTerm × 属性倍率` で算出する（速い・攻撃力が高いほど手応えが増す）。閾値未満は 0（軽い当たりはテンポ維持）。Pierce は 0（ヒットストップ抑制）。実装は `BallScript.GetImpactFrames()`、係数は `ArenaSharedConfig` で一元調整。詳細は `IMPLEMENTATION.md` 5.2/5.9。
+>※ **Heavy の「速度0.7倍」実装済み**（2026-6-03, `heavySpeedFactor`。実効速度 = naturalSpeed × アイテム加減速 × ZoneSlow × 属性速度係数）。
 
 ### 5.3 パドル
 
@@ -1294,6 +1297,7 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 
 ## 14. 関連ドキュメント
 
+- 実装の As-Built 対応表（本仕様 ↔ 実装の差異・未実装）: [`IMPLEMENTATION.md`](./IMPLEMENTATION.md)
 - 開発フェーズ・進捗管理: [`ROADMAP.md`](./ROADMAP.md)
 - 実装アーキテクチャ詳細: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - C# / Unity 学習ロードマップ: [`LEARNING.md`](./LEARNING.md)

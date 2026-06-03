@@ -41,6 +41,7 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private int pierceDamage = 1;
     [SerializeField] private float fireRadius    = 1.5f;
     [SerializeField] private float thunderRadius = 2.5f;
+    [SerializeField] private float heavySpeedFactor = 0.7f; // Heavy 属性中の速度倍率（DESIGN 5.2）
 
     [Header("ヒットストップ係数")]
     [SerializeField] private float hitStopSpeedThreshold = 1.5f; // baseSpeed の何倍超えで発動
@@ -51,6 +52,12 @@ public class BallScript : MonoBehaviour, IFreezable
 
     [Header("壁バウンスヒットストップ（フレーム数・0=なし）")]
     [SerializeField] private int wallBounceFrames = 0;
+
+    [Header("手応え（ブロック衝突インパクト）— ArenaSharedConfig で一元調整")]
+    [SerializeField] private int   impactBaseFrames  = 2;    // 標準的な一撃の基準フレーム
+    [SerializeField] private float impactSpeedWeight = 0.6f; // 速度寄与の強さ
+    [SerializeField] private float impactThreshold   = 1.4f; // これ未満は手応えを出さない
+    [SerializeField] private int   impactMaxFrames   = 10;   // 停止フレーム上限
 
     [Header("属性別カラー")]
     [SerializeField] private Color normalColor  = Color.white;
@@ -81,6 +88,15 @@ public class BallScript : MonoBehaviour, IFreezable
     private Vector3 lastVelocity;
     private TrailRenderer trail;
     private Renderer cachedRenderer;
+    private Collider cachedCollider;
+
+    // Pierce（貫通）中に物理反発を無効化したブロック群。反発で軌道が折れて
+    // トレイルがカクつくのを防ぐため、検出したブロックは IgnoreCollision で素通りさせ、
+    // ダメージは衝突ではなくオーバーラップ経由で1回だけ与える。
+    [SerializeField] private float pierceDetectMargin = 0.12f; // 貫通検出オーバーラップの余白
+    private readonly System.Collections.Generic.HashSet<Block> pierceIgnored
+        = new System.Collections.Generic.HashSet<Block>();
+    private static readonly Collider[] pierceBuf = new Collider[16];
 
     private bool frozen = false;
     private Vector3 frozenVelocity;
@@ -91,7 +107,7 @@ public class BallScript : MonoBehaviour, IFreezable
     //   naturalSpeed  = baseSpeed + 時間加速（メインボールのみ連続更新）
     //   speedMultiplier = アイテム効果（Hyper コルーチンで一時変更。SpeedUp はパドル速度なので無関係）
     //   slowZoneMul   = ZoneSlow が毎フレーム書き込む（ゾーン離脱時に ZoneSlow が 1 に戻す）
-    //   実効速度 = naturalSpeed * speedMultiplier * slowZoneMul
+    //   実効速度 = naturalSpeed * speedMultiplier * slowZoneMul * 属性速度係数(Heavy=0.7)
     private float baseSpeed;
     private float naturalSpeed;
     private float speedMultiplier = 1f;
@@ -146,12 +162,17 @@ public class BallScript : MonoBehaviour, IFreezable
         pierceDamage = c.pierceDamage;
         fireRadius    = c.fireRadius;
         thunderRadius = c.thunderRadius;
+        heavySpeedFactor = c.heavySpeedFactor;
         hitStopSpeedThreshold = c.hitStopSpeedThreshold;
         hitStopHeavyMul   = c.hitStopHeavyMul;
         hitStopFireMul    = c.hitStopFireMul;
         hitStopThunderMul = c.hitStopThunderMul;
         hitStopIceMul     = c.hitStopIceMul;
         wallBounceFrames  = c.wallBounceFrames;
+        impactBaseFrames  = c.impactBaseFrames;
+        impactSpeedWeight = c.impactSpeedWeight;
+        impactThreshold   = c.impactThreshold;
+        impactMaxFrames   = c.impactMaxFrames;
         normalColor  = c.ballNormalColor;
         fireColor    = c.ballFireColor;
         thunderColor = c.ballThunderColor;
@@ -175,6 +196,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
         rb = GetComponent<Rigidbody>();
         cachedRenderer = GetComponent<Renderer>();
+        cachedCollider = GetComponent<Collider>();
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
@@ -212,14 +234,49 @@ public class BallScript : MonoBehaviour, IFreezable
                                      baseSpeed + timeAccelRate * arenaDwellTime);
         }
 
-        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
+        float effectiveSpeed = EffectiveSpeed();
         if (rb.linearVelocity != Vector3.zero)
         {
             rb.linearVelocity = rb.linearVelocity.normalized * effectiveSpeed;
             lastVelocity = rb.linearVelocity;
         }
 
+        // 貫通中はブロックを物理的に素通りさせる（反発による軌道の折れ＝トレイルのカクつき防止）。
+        if (attribute == BallAttribute.Pierce) PierceThroughBlocks();
+        else if (pierceIgnored.Count > 0)      RestorePierceCollisions();
+
         CheckBounds();
+    }
+
+    // 接近したブロックとの衝突を無効化して直進させ、ダメージはここで1回だけ与える。
+    // 物理ステップ前（FixedUpdate）に IgnoreCollision を立てるので、その後の衝突解決では反発しない。
+    private void PierceThroughBlocks()
+    {
+        if (cachedCollider == null) return;
+        float radius = cachedCollider.bounds.extents.x + pierceDetectMargin;
+        int n = Physics.OverlapSphereNonAlloc(transform.position, radius, pierceBuf);
+        for (int i = 0; i < n; i++)
+        {
+            Block b = pierceBuf[i].GetComponent<Block>();
+            if (b == null || pierceIgnored.Contains(b)) continue;
+            Physics.IgnoreCollision(cachedCollider, pierceBuf[i], true);
+            pierceIgnored.Add(b);
+            b.TakeDamage(GetDamage(), this); // 衝突経由でないのでここでダメージ
+        }
+    }
+
+    private void RestorePierceCollisions()
+    {
+        if (cachedCollider != null)
+        {
+            foreach (var b in pierceIgnored)
+            {
+                if (b == null) continue;
+                Collider bc = b.GetComponent<Collider>();
+                if (bc != null) Physics.IgnoreCollision(cachedCollider, bc, false);
+            }
+        }
+        pierceIgnored.Clear();
     }
 
     // Ball Heat（DESIGN.md 5.3）: 属性 Normal のときコンボ段階でボール色を Lerp。
@@ -266,7 +323,7 @@ public class BallScript : MonoBehaviour, IFreezable
     private void OnCollisionEnter(Collision collision)
     {
         if (rb.linearVelocity.sqrMagnitude < 0.01f) return;
-        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
+        float effectiveSpeed = EffectiveSpeed();
         rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * effectiveSpeed;
 
         // 壁判定（Block・PlayerController 以外への衝突 = 壁）
@@ -302,6 +359,9 @@ public class BallScript : MonoBehaviour, IFreezable
         if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
         if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
         CancelInvoke();
+
+        // 貫通中に無効化したブロック衝突を元に戻す（次ラウンドへ持ち越さない）
+        RestorePierceCollisions();
 
         frozen          = false;
         speedMultiplier = 1f;
@@ -379,7 +439,7 @@ public class BallScript : MonoBehaviour, IFreezable
         return Mathf.Clamp01((ratio - hitStopSpeedThreshold) / range);
     }
 
-    // 属性倍率のみ（Explosive 破壊など、速度閾値によらず掛けたい場合に使う）
+    // 属性倍率のみ（手応えの「攻撃力」重み。Normal1.0 / Ice・Fire1.2 / Thunder1.1 / Heavy3.0 / Pierce0）
     public float GetAttributeMultiplier()
     {
         return attribute switch
@@ -392,6 +452,35 @@ public class BallScript : MonoBehaviour, IFreezable
             _ => 1f
         };
     }
+
+    // ブロック衝突の「手応え」フレーム数（速度 × 攻撃力）。
+    //   impact = speedTerm × attackWeight
+    //     speedTerm   = 1 + impactSpeedWeight × (naturalSpeed/baseSpeed − 1)   ← 速いほど大
+    //     attackWeight = GetAttributeMultiplier()                              ← 強属性ほど大
+    //   impact < impactThreshold は 0（軽い当たりは止めずテンポ維持）、以上は base×impact を上限クランプ。
+    // 仕様（DESIGN 5.2）の「速い/攻撃力が高いほど手応え」を 1 本化したもの。Pierce は 0。
+    public int GetImpactFrames()
+    {
+        float attackWeight = GetAttributeMultiplier();
+        if (attackWeight <= 0f) return 0; // Pierce
+        // 実効速度（時間加速 × アイテム加減速 × ZoneSlow）で見る＝速い当たりほど手応え、
+        // 遅延ゾーンで減速した当たりは弱くなる。
+        float effectiveSpeed = EffectiveSpeed();
+        float speedFactor = baseSpeed > 0f ? effectiveSpeed / baseSpeed : 1f;
+        float speedTerm   = 1f + impactSpeedWeight * (speedFactor - 1f);
+        float impact      = speedTerm * attackWeight;
+        if (impact < impactThreshold) return 0;
+        return Mathf.Clamp(Mathf.RoundToInt(impactBaseFrames * impact), 1, impactMaxFrames);
+    }
+
+    // 実効速度 = 自然速度 × アイテム加減速 × ZoneSlow × 属性速度係数。FixedUpdate での正規化・
+    // 衝突時の角度補正・手応え算出で共通利用する。
+    private float EffectiveSpeed()
+        => naturalSpeed * speedMultiplier * slowZoneMul * AttributeSpeedFactor();
+
+    // 属性による速度倍率。Heavy は重い分だけ遅い（DESIGN 5.2「速度0.7倍」）。
+    private float AttributeSpeedFactor()
+        => attribute == BallAttribute.Heavy ? heavySpeedFactor : 1f;
 
     public int GetDamage()
     {
@@ -409,8 +498,17 @@ public class BallScript : MonoBehaviour, IFreezable
         switch (attribute)
         {
             case BallAttribute.Pierce:
-                // 衝突前の速度ベクトルを復元して貫通（Pierce のみ。Heavy は非貫通=通常反射, DESIGN.md 5.2）
+                // 高速で PierceThroughBlocks の検出より先に衝突した場合のフォールバック:
+                // 衝突前の速度ベクトルを復元して直進を維持し、以後はこのブロックを素通りさせる。
+                // すでに当該ブロックは衝突経由でダメージ済みなので、ここでは重複ダメージを与えない
+                // （overlap 経路が pierceIgnored で二重加算しないよう登録だけ行う）。
                 rb.linearVelocity = lastVelocity;
+                if (cachedCollider != null && hitBlock != null && !pierceIgnored.Contains(hitBlock))
+                {
+                    Collider bc = hitBlock.GetComponent<Collider>();
+                    if (bc != null) Physics.IgnoreCollision(cachedCollider, bc, true);
+                    pierceIgnored.Add(hitBlock);
+                }
                 break;
             case BallAttribute.Fire:
                 ApplyAreaDamage(hitBlock, fireRadius, sameTypeOnly: false);

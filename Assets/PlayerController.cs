@@ -173,7 +173,9 @@ public class PlayerController : MonoBehaviour, IFreezable
 
     private ArenaController GetArena()
     {
-        return (transform.parent ?? transform).GetComponentInChildren<ArenaController>();
+        // Arena ルート（transform.root）配下から ArenaController を探す。
+        // ShakeRoot を挟んでも壊れないよう、親階層の深さに依存しない（2026-06-03）。
+        return transform.root.GetComponentInChildren<ArenaController>();
     }
 
     void Update()
