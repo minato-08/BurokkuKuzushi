@@ -5,6 +5,7 @@
 | ドキュメント | 内容 |
 |---|---|
 | [`docs/DESIGN.md`](./docs/DESIGN.md) | ゲーム設計仕様書（**最新仕様の真実**） |
+| [`docs/IMPLEMENTATION.md`](./docs/IMPLEMENTATION.md) | **As-Built 対応表**（DESIGN ↔ 実装の差異・未実装を節番号順に一覧） |
 | [`docs/ROADMAP.md`](./docs/ROADMAP.md) | 開発フェーズ計画・進捗・発表逆算スケジュール |
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | 実装アーキテクチャ詳細・依存関係 |
 | [`docs/BALANCE.md`](./docs/BALANCE.md) | バランス哲学・パラメータ調整ガイド・デモ設定 |

@@ -1294,6 +1294,7 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 
 ## 14. 関連ドキュメント
 
+- 実装の As-Built 対応表（本仕様 ↔ 実装の差異・未実装）: [`IMPLEMENTATION.md`](./IMPLEMENTATION.md)
 - 開発フェーズ・進捗管理: [`ROADMAP.md`](./ROADMAP.md)
 - 実装アーキテクチャ詳細: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 - C# / Unity 学習ロードマップ: [`LEARNING.md`](./LEARNING.md)
