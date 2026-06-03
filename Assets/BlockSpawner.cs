@@ -356,6 +356,7 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         if (reachedCount > 0)
         {
             GameManager.Instance?.OnBlocksReachedBottom(playerIndex, reachedCount);
+            AudioManager.Instance?.PlayBlockBottom(playerIndex);  // 自ブロック底到達（被ペナルティ）SE
             // ボール衝突でないペナルティ演出なのでフリーズせずシェイクのみ（飛行中ボールを止めない, DESIGN.md 5.x）
             GetArena()?.TriggerHitStop(blockDeadZoneHitFrames, shake: blockDeadZoneHitShake, freeze: false);
         }

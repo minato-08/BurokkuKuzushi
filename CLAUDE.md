@@ -271,10 +271,12 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 > **Phase F-Audio 実装状況（2026-06-02 実コード照合で更新。旧「未実装」記述は誤りだった）**: `AudioManager.cs`（シングルトン・約16KB）が存在し、以下は**コード実装＋全発火点配線済み**:
 > - **dB 変換 + 音量適用**: `dB = 20 × log10(value/100)`、PlayerPrefs(vol.master/bgm/se)→`ApplyVolumes`。**実装済み**（Mixer asset 未作成のため Expose Param バインドは残）。
-> - **SE コードトリガーマッピング**: ボール反射 / ブロック衝突(Normal/Hard/Absorb 音色差) / 破壊(Explosive 専用) / アイテム取得・出現 / スキル発動・チャージ完了 / 妨害受信 / コンボマイルストーン / ラウンド・マッチ勝利 を `BallScript`/`Block`/`PlayerController`/`SkillController`/`GameManager`/`UIManager` 等に**配線済み**。
+> - **SE コードトリガーマッピング**: ボール反射 / ブロック衝突・破壊 / アイテム取得・出現 / スキル発動・チャージ完了 / 妨害受信 / コンボマイルストーン / ラウンド・マッチ勝利 を `BallScript`/`Block`/`PlayerController`/`SkillController`/`GameManager`/`UIManager` 等に**配線済み**。
+> - **ブロック衝突/破壊 SE は種別ごとに設定可能**（2026-06-04）: 衝突 `PlayBlockHit`・破壊 `PlayBlockBreak` ともに **BlockType（Normal/Hard/Absorb/Explosive/Item）ごとに AudioClip 割り当て可**（`seBlockHit*` / `seBlockBreak*` + 各 vol。未割り当ては Normal / `seBlockBreak` にフォールバック。Hard 衝突のみ -2 半音）。**とどめの一撃は衝突音を鳴らさず破壊音だけ**にして二重発音を回避（`Block.OnCollisionEnter` で `willBreak` 判定）。範囲/連鎖で倒れる周囲ブロックは元々破壊音のみ。
+> - **底到達 SE**（`PlayBlockBottom`, 2026-06-04）: 自ブロックが底到達（被ペナルティ）時に発火（`BlockSpawner.CheckBottomReached`）。妨害行着地の `se_addrow_land` とは別物。
 > - **ブロック衝突 SE 50ms クールダウン**: `AudioManager` 側でアリーナごとに実装済み。
 > - **BGM クロスフェード（HP 30% 帯・5% ヒステリシス）**: `PlayTitleBGM`/`PlayMatchBGM`/`PlayResultJingle`/`SetTenseLayer` 実装済み。`GameManager.Update` が HP 30% で `SetTenseLayer` 切替（`GameManager.cs:160` 付近）。
-> - **残（コード以外）**: ① 音源クリップの割り当て（BGM 4種・`se_addrow_land`・`se_special_row` 等が未配置、未割当でも無音で安全動作）② `Assets/Audio/MasterMixer.mixer` の作成と Expose Param バインド。
+> - **残（コード以外）**: ① 音源クリップの割り当て（BGM 4種・`se_block_bottom`・種別別 break/hit・`se_addrow_land`・`se_special_row` 等が未配置、未割当でも無音で安全動作）② `Assets/Audio/MasterMixer.mixer` の作成と Expose Param バインド。
 
 > **Phase F-Title 実装状況**:
 > - **`GameState` enum 実体（2026-06-02 照合）**: `Title`（旧 `WaitingToStart`, 起動時 `Time.timeScale=0`）/ `Settings` / `SkillSelect` / `Countdown`（3,2,1,GO!）/ `Playing` / `RoundOver` / `MatchOver` の 7 状態。フロー: `StartFromTitle()`→Settings、`ConfirmSettings()`→SkillSelect、スキル確定→`BeginCountdown()`→Countdown→Playing、`ReturnToTitle()`。`SetRoundsToWin` あり。
