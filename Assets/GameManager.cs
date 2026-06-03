@@ -375,7 +375,8 @@ public class GameManager : MonoBehaviour
         string           label = GetInterferenceLabel(type);
         AudioManager.Instance?.PlayInterferenceRecv(targetPlayerIndex); // 受信側にパン
         ApplyInterference(target, type);
-        target.TriggerHitStop(interferenceTriggerFrames);
+        // 妨害受信はボール衝突でない＝飛行中ボールを空中で止めないようシェイクのみ（DESIGN.md 5.x）
+        target.TriggerHitStop(interferenceTriggerFrames, shake: true, freeze: false);
         target.ShowInterferenceOverlay(label);
         target.PushIncoming(type);
 

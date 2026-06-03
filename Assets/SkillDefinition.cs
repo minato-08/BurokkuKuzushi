@@ -81,6 +81,7 @@ public sealed class SkillPanic_BlockClear : SkillDefinition
                 Object.Destroy(b.gameObject);
         }
 
-        arena.TriggerHitStop(hitStopFrames, strong: true, shake: true);
+        // スキル発動はボール衝突でない＝飛行中ボールを空中で止めないようシェイクのみ（DESIGN.md 5.x）
+        arena.TriggerHitStop(hitStopFrames, strong: true, shake: true, freeze: false);
     }
 }

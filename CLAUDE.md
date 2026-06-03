@@ -297,7 +297,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `ArenaController` の子 GameObject にアタッチ（Setup HitStop で自動生成）
 - `RegisterFreezable(IFreezable)` で管理対象を登録（ArenaController.Awake で呼ばれる）
 - `TriggerHitStop(frames, strong, shake, freeze)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
-- **フリーズ/シェイク分離**（`freeze` 引数, 2026-06-03, DESIGN.md 5.x）: `freeze:false` で**フリーズせずシェイクのみ**。ボール衝突でないイベント（底到達・スライド着地）が飛行中ボールを空中で止めないため。割り込みガードは `activeFroze` フラグで「前ルーチンがフリーズ無し（shake-only）なら `UnfreezeAll` を呼ばない」＝未フリーズ対象を `Unfreeze`（速度復元）して壊さない
+- **フリーズ/シェイク分離**（`freeze` 引数, 2026-06-03, DESIGN.md 5.x）: `freeze:false` で**フリーズせずシェイクのみ**。**ボール衝突以外のイベントは全て `freeze:false`**（飛行中ボールを空中で止めない）。該当: 底到達 / スライド着地 / **妨害受信**(`GameManager.SendInterference`) / **スキル発動**(`SkillPanic_BlockClear`)。フリーズするのは**ボール衝突のみ**（ブロック衝突・壁バウンス・パドル反射・Explosive 破壊）。※ラウンド/マッチ決着は意図的にフリーズ（勝者は `shake:false` でフリーズが唯一の演出、かつ既にラウンド確定で飛行中ボールは無いため例外）。割り込みガードは `activeFroze` フラグで「前ルーチンがフリーズ無し（shake-only）なら `UnfreezeAll` を呼ばない」＝未フリーズ対象を `Unfreeze`（速度復元）して壊さない
 - **多重発火ガード**（codex レビュー fix, 2026-06-02）: シェイク中に再度 `TriggerHitStop` が来たら、旧コルーチン停止時に `RestoreShakeTarget()` でアリーナ位置を基準へ戻してから再開（中断でアリーナがオフセットしたまま残るのを防止）。`RestoreShakeTarget()` は正常終了時も呼ぶ共通メソッド
 - 単カメラ運用に合わせ、カメラではなく **`Arena{N}/ShakeRoot`**（壁/パドル/DeadZone/BlockSpawner を収める空オブジェクト, local 0,0,0）を揺らす方式。アリーナごとに独立してシェイク可能。**Ball は ShakeRoot の外（Arena 直下）**なのでシェイクに引きずられない
 - `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ShakeRoot` を渡す。未解決なら `ArenaRoot.Find("ShakeRoot")`→ArenaRoot にフォールバック）
