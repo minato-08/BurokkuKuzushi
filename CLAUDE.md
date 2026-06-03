@@ -346,7 +346,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 ### `BallScript.cs`
 - `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（高ダメ・速度0.7倍・**非貫通**=通常反射, DESIGN.md 5.2）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）。`OnHitBlock` の貫通（`lastVelocity` 復元）case は **Pierce のみ**（2026-06-03 Heavy を非貫通に修正）
 - **Pierce 素通り（軌道カクつき対策, 2026-06-03）**: 旧実装は衝突後に `lastVelocity` を復元するだけで、物理の押し戻し（depenetration）でブロックごとに軌道が横に折れてトレイルがカクついた。現在は **Pierce 中 `FixedUpdate` で `OverlapSphereNonAlloc`** によりブロックを検出し、`Physics.IgnoreCollision(ball, block, true)` で**物理反発を無効化して直進**させ、ダメージは**衝突経由でなく overlap で1回だけ**与える（`pierceIgnored` HashSet で重複防止）。高速で検出より先に衝突した場合は従来の `OnHitBlock` 復元がフォールバックし、当該ブロックを `pierceIgnored` 登録して二重ダメージを防ぐ。Pierce 終了/`PrepareRespawn` で `RestorePierceCollisions()` が IgnoreCollision を解除
-- 速度の3層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow） = 実効速度
+- 速度の4層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow）× **属性速度係数**（Heavy=`heavySpeedFactor`(0.7)・他1.0, DESIGN 5.2「速度0.7倍」, 2026-06-03） = 実効速度。共通計算は `EffectiveSpeed()` / `AttributeSpeedFactor()` に集約（FixedUpdate 正規化・衝突角度補正・`GetImpactFrames` で共用）
 - `slowZoneMul`: ZoneSlow が毎フレーム書き込む public フィールド。ZoneSlow が OnDestroy / 検出失敗時に 1 に戻す。PrepareRespawn でもリセット
 - `FixedUpdate` で毎フレーム実効速度に正規化。時間加速はメインボールのみ（`isExtraBall=false`）。`arenaDwellTime` はリスポーンでリセット
 - `OnCollisionEnter` で衝突直後に角度補正（`ClampAngle`）→ 壁沿いループ防止

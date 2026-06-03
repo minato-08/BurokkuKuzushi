@@ -94,13 +94,14 @@ public class ArenaSharedConfig : MonoBehaviour
     public float boundYTop    = 11f;
     public float boundYBottom = -13f;
 
-    [Header("ボール 属性ダメージ / 半径")]
+    [Header("ボール 属性ダメージ / 半径 / 速度係数")]
     public int   normalDamage = 1;
     public int   iceDamage    = 2;
     public int   heavyDamage  = 3;
     public int   pierceDamage = 1;
     public float fireRadius    = 1.5f;
     public float thunderRadius = 2.5f;
+    public float heavySpeedFactor = 0.7f;  // Heavy 属性中の速度倍率（DESIGN 5.2「速度0.7倍」）
 
     [Header("ボール ヒットストップ倍率（属性の手応え重み・壁/パドルの速度ゲート）")]
     public float hitStopSpeedThreshold = 1.5f;  // 壁/パドルの速度ゲート（baseSpeed の何倍超で発動）

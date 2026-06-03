@@ -76,7 +76,7 @@
 ### 5.2 ボール ⚠️
 - ✅ 速度の3層管理（`naturalSpeed` × `speedMultiplier` × `slowZoneMul`）、時間加速（メインボールのみ）、軌道補正（`ClampAngle` で壁沿いループ防止）、最小軸成分比率。
 - ✅ 属性5種: `Normal / Fire`(範囲) `/ Thunder`(同種連鎖) `/ Ice`(高ダメ) `/ Heavy / Pierce`。
-- ⚠️ **Heavy = 非貫通**（通常反射・高ダメ）。DESIGN の貫通的解釈から変更し、貫通は Pierce のみに一本化（2026-06-03）。❌ **Heavy の「速度0.7倍」は未実装**（コードに減速処理が無い）。
+- ⚠️ **Heavy = 非貫通**（通常反射・高ダメ）。DESIGN の貫通的解釈から変更し、貫通は Pierce のみに一本化（2026-06-03）。✅ **Heavy の「速度0.7倍」実装済み**（2026-06-03, `heavySpeedFactor`。実効速度に属性速度係数を乗算＝Heavy 中は 0.7×。`ArenaSharedConfig` で調整可）。
 - ✅ **手応え（ヒットストップ）を「速度×攻撃力」で実装**（2026-06-03, `BallScript.GetImpactFrames()`）。`impact = speedTerm × 属性倍率`、閾値未満は0（軽い当たりはテンポ維持）、以上は `clamp(round(impactBaseFrames×impact),1,impactMaxFrames)`。**ブロック通常衝突・Explosive 破壊**が使用。旧実装は通常衝突の基準フレームが全て0＋属性倍率が Explosive にしか配線されておらず、仕様の「速い/強いほど手応え」が機能していなかった（是正）。Heavy@基本速度=6f / Normal@基本速度=0f を実機確認。
   - ⚠️ 属性倍率の意味を **「手応え（ヒットストップ）の攻撃力重み」と確定**（DESIGN 5.2 151行の未解決の問いに対する実装側の回答）。壁/パドルは攻撃力概念が無いので速度のみ（`GetHitStopMultiplier`）。
 - ⚠️ **Pierce = 物理素通り**: 旧実装は衝突後に `lastVelocity` を復元するだけで、反発の押し戻しにより軌道が折れトレイルがカクついた。現在は Pierce 中 `FixedUpdate` で `OverlapSphere` 検出 → `Physics.IgnoreCollision(ball, block, true)` で**反発を無効化して直進**、ダメージは overlap で1回だけ（`pierceIgnored` で重複防止／高速衝突時は従来復元がフォールバック）。`RestorePierceCollisions()` で解除（2026-06-03）。

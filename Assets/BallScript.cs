@@ -41,6 +41,7 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private int pierceDamage = 1;
     [SerializeField] private float fireRadius    = 1.5f;
     [SerializeField] private float thunderRadius = 2.5f;
+    [SerializeField] private float heavySpeedFactor = 0.7f; // Heavy 属性中の速度倍率（DESIGN 5.2）
 
     [Header("ヒットストップ係数")]
     [SerializeField] private float hitStopSpeedThreshold = 1.5f; // baseSpeed の何倍超えで発動
@@ -106,7 +107,7 @@ public class BallScript : MonoBehaviour, IFreezable
     //   naturalSpeed  = baseSpeed + 時間加速（メインボールのみ連続更新）
     //   speedMultiplier = アイテム効果（SpeedUp/Hyper コルーチンで一時変更）
     //   slowZoneMul   = ZoneSlow が毎フレーム書き込む（ゾーン離脱時に ZoneSlow が 1 に戻す）
-    //   実効速度 = naturalSpeed * speedMultiplier * slowZoneMul
+    //   実効速度 = naturalSpeed * speedMultiplier * slowZoneMul * 属性速度係数(Heavy=0.7)
     private float baseSpeed;
     private float naturalSpeed;
     private float speedMultiplier = 1f;
@@ -161,6 +162,7 @@ public class BallScript : MonoBehaviour, IFreezable
         pierceDamage = c.pierceDamage;
         fireRadius    = c.fireRadius;
         thunderRadius = c.thunderRadius;
+        heavySpeedFactor = c.heavySpeedFactor;
         hitStopSpeedThreshold = c.hitStopSpeedThreshold;
         hitStopHeavyMul   = c.hitStopHeavyMul;
         hitStopFireMul    = c.hitStopFireMul;
@@ -232,7 +234,7 @@ public class BallScript : MonoBehaviour, IFreezable
                                      baseSpeed + timeAccelRate * arenaDwellTime);
         }
 
-        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
+        float effectiveSpeed = EffectiveSpeed();
         if (rb.linearVelocity != Vector3.zero)
         {
             rb.linearVelocity = rb.linearVelocity.normalized * effectiveSpeed;
@@ -321,7 +323,7 @@ public class BallScript : MonoBehaviour, IFreezable
     private void OnCollisionEnter(Collision collision)
     {
         if (rb.linearVelocity.sqrMagnitude < 0.01f) return;
-        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
+        float effectiveSpeed = EffectiveSpeed();
         rb.linearVelocity = ClampAngle(rb.linearVelocity.normalized) * effectiveSpeed;
 
         // 壁判定（Block・PlayerController 以外への衝突 = 壁）
@@ -463,13 +465,22 @@ public class BallScript : MonoBehaviour, IFreezable
         if (attackWeight <= 0f) return 0; // Pierce
         // 実効速度（時間加速 × アイテム加減速 × ZoneSlow）で見る＝速い当たりほど手応え、
         // 遅延ゾーンで減速した当たりは弱くなる。
-        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
+        float effectiveSpeed = EffectiveSpeed();
         float speedFactor = baseSpeed > 0f ? effectiveSpeed / baseSpeed : 1f;
         float speedTerm   = 1f + impactSpeedWeight * (speedFactor - 1f);
         float impact      = speedTerm * attackWeight;
         if (impact < impactThreshold) return 0;
         return Mathf.Clamp(Mathf.RoundToInt(impactBaseFrames * impact), 1, impactMaxFrames);
     }
+
+    // 実効速度 = 自然速度 × アイテム加減速 × ZoneSlow × 属性速度係数。FixedUpdate での正規化・
+    // 衝突時の角度補正・手応え算出で共通利用する。
+    private float EffectiveSpeed()
+        => naturalSpeed * speedMultiplier * slowZoneMul * AttributeSpeedFactor();
+
+    // 属性による速度倍率。Heavy は重い分だけ遅い（DESIGN 5.2「速度0.7倍」）。
+    private float AttributeSpeedFactor()
+        => attribute == BallAttribute.Heavy ? heavySpeedFactor : 1f;
 
     public int GetDamage()
     {
