@@ -775,10 +775,10 @@ MonoBehaviour:
   descentSpeedBase: 0.3
   descentSpeedGainPerMin: 0.03
   descentSpeedMax: 0.45
-  explosiveBlockChance: 0.05
+  explosiveBlockChance: 0.03
   hardBlockChance: 0.2
   itemBlockChance: 0.03
-  specialRowChance: 0.1
+  specialRowChance: 0.056
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
@@ -809,11 +809,19 @@ MonoBehaviour:
   fireRadius: 1.5
   thunderRadius: 2.5
   hitStopSpeedThreshold: 1.5
-  hitStopHeavyMul: 1.5
+  hitStopHeavyMul: 3
   hitStopFireMul: 1.2
   hitStopThunderMul: 1.1
   hitStopIceMul: 1.2
   wallBounceFrames: 0
+  impactBaseFrames: 2
+  impactSpeedWeight: 0.6
+  impactThreshold: 1.4
+  impactMaxFrames: 10
+  explosiveHitFrames: 6
+  shakeIntensityNormal: 0.08
+  shakeIntensityStrong: 0.2
+  skillPanicHitStopFrames: 15
   ballNormalColor: {r: 1, g: 1, b: 1, a: 1}
   ballFireColor: {r: 1, g: 0.478, b: 0.239, a: 1}
   ballThunderColor: {r: 1, g: 0.847, b: 0.29, a: 1}
@@ -8040,6 +8048,10 @@ MonoBehaviour:
   hitStopThunderMul: 1.1
   hitStopIceMul: 1.2
   wallBounceFrames: 0
+  impactBaseFrames: 2
+  impactSpeedWeight: 0.6
+  impactThreshold: 1.4
+  impactMaxFrames: 10
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   fireColor: {r: 1, g: 0.3, b: 0.1, a: 1}
   thunderColor: {r: 1, g: 0.9, b: 0.2, a: 1}
@@ -10206,7 +10218,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: f06393cde25054c67be1819e00503d8a, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d8a860859ddc8427095ca84a6f4e1893, type: 3}
   m_Color: {r: 0.14117645, g: 0.3221856, b: 0.85882354, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -15041,6 +15053,10 @@ MonoBehaviour:
   hitStopThunderMul: 1.1
   hitStopIceMul: 1.2
   wallBounceFrames: 0
+  impactBaseFrames: 2
+  impactSpeedWeight: 0.6
+  impactThreshold: 1.4
+  impactMaxFrames: 10
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   fireColor: {r: 1, g: 0.3, b: 0.1, a: 1}
   thunderColor: {r: 1, g: 0.9, b: 0.2, a: 1}
@@ -15254,7 +15270,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: f257923fad9b7472a8299f8b53d4f140, type: 3}
+  m_Sprite: {fileID: 21300000, guid: cab8827cbc83941c8bc6ee3efe8e3def, type: 3}
   m_Color: {r: 0.764151, g: 0.38037637, b: 0.1477839, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -18477,10 +18493,10 @@ MonoBehaviour:
   comboScoreStep: 5
   comboGaugeStep: 5
   comboItemStep: 20
-  comboMilestones: 14000000280000003c000000
+  comboMilestones: 0a000000140000001e000000
   interferenceTriggerFrames: 10
   roundEndFrames: 30
-  matchEndFrames: 60
+  matchEndFrames: 120
   hpStateBands: []
   arena1: {fileID: 1342564224}
   arena2: {fileID: 1085258024}

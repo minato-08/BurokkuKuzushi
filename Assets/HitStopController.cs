@@ -25,6 +25,17 @@ public class HitStopController : MonoBehaviour
     public void SetShakeTarget(Transform t) => shakeTarget = t;
     public void SetFrameShakeTarget(Transform t) => frameTarget = t;
 
+    void Awake() => ApplySharedConfig();
+
+    // 共有設定があればシェイク強度を一元値で上書き（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        shakeIntensityNormal = c.shakeIntensityNormal;
+        shakeIntensityStrong = c.shakeIntensityStrong;
+    }
+
     public void RegisterFreezable(IFreezable f)
     {
         if (f != null && !freezables.Contains(f))

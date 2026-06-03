@@ -238,6 +238,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 ### `ArenaSharedConfig.cs`
 - Arena1/Arena2 で同値であるべき**共通チューニング値を集約**するシーン内 MonoBehaviour（1 個前提）。`Instance`（未解決なら `FindFirstObjectByType` で都度解決）
 - 保持: パドル（speed/xLimit/paddleLocalY 等・フラッシュ色）/ ブロックスポーン（行数・幅・spawnY・Escalation・各種確率・HP・妨害・スライド演出）/ ボール（速度・軌道・属性ダメージ・半径・ヒットストップ倍率・属性色・Ball Heat・トレイル）/ エイマー / `maxEnergy` / `arenaHalfWidth`/`arenaHalfHeight`/`ballSpawnOffsetY`
+- **ヒットストップ/カメラシェイクの「手応え」を一元集約**（2026-06-03）: `impactBaseFrames`/`impactSpeedWeight`/`impactThreshold`/`impactMaxFrames`（ブロック衝突の手応え）/ `explosiveHitFrames`（Explosive 破壊の下限）/ `shakeIntensityNormal`/`shakeIntensityStrong`（シェイク振幅）/ `skillPanicHitStopFrames`。これらは従来 HitStopController(×2)・Block プレハブ・SkillDefinition コードに散在していたものを集約。`HitStopController`/`Block`/`BallScript` が `ApplySharedConfig` で読む。**試合フロー系（`interferenceTriggerFrames`/`roundEndFrames`/`matchEndFrames`）は単一インスタンスの `GameManager` SerializeField のまま**（重複しないため集約対象外）
 - 各コンポーネントが Awake/Start/Initialize 冒頭で `ApplySharedConfig()`（自分の private フィールドへ上書き適用）。**未配置なら各自の SerializeField 値で動作（null セーフ）**
 - 共有しないのは `playerIndex` と各アリーナ子オブジェクト参照のみ。詳細は「設定方針」セクション
 
@@ -303,7 +304,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - 単カメラ運用に合わせ、カメラではなく **`Arena{N}/ShakeRoot`**（壁/パドル/DeadZone/BlockSpawner を収める空オブジェクト, local 0,0,0）を揺らす方式。アリーナごとに独立してシェイク可能。**Ball は ShakeRoot の外（Arena 直下）**なのでシェイクに引きずられない
 - `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ShakeRoot` を渡す。未解決なら `ArenaRoot.Find("ShakeRoot")`→ArenaRoot にフォールバック）
 - **アリーナ枠も同期シェイク**（`SetFrameShakeTarget(Transform)`, 2026-06-03）: `P{N}ArenaFrame`（UI キャンバス上の SpriteRenderer）を ShakeRoot と**同一のワールド変位**で揺らす。キャンバスのスケール(0.0224)に依存しないよう `localPosition` ではなく **world `position` をオフセット**。ArenaController.Awake が `UIManager.GetArenaFrameTransform(playerIndex)` で枠 Transform を取得して渡す（未バインドなら null セーフで枠は揺れない）。枠の色は UIManager の Last Stand が別途制御するため位置シェイクと競合しない
-- `strong=true` で強シェイク（ラウンド/マッチ決着時）
+- `strong=true` で強シェイク（ラウンド/マッチ決着時）。`shakeIntensityNormal`/`shakeIntensityStrong` は `Awake` の `ApplySharedConfig` で `ArenaSharedConfig` から読む（P1/P2 二重管理を解消, 2026-06-03）
 - Freeze 中はボール `linearVelocity=0`、Player は kinematic、Block は Rigidbody なし → 親 Transform 駆動の移動でも物理的攪乱なし
 
 ### `ArenaController.cs`
@@ -357,8 +358,9 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - **Ball Heat**（`Update()`, DESIGN.md 5.3）: 属性 Normal のときコンボ段階でボール色を 白→クリーム→橙→赤 に Lerp（`GetHeatColor`）。属性付与中は属性カラー優先。`unscaledDeltaTime` 駆動で HitStop 中も継続。**トレイルも追従**（`SetTrailColor` 共通化＋Gradient キャッシュ再利用で GC 回避）。Renderer は `cachedRenderer` にキャッシュ
 - **トレイル可視制御**（`SetTrailVisible(visible, clear)`, codex レビュー fix 2026-06-02）: Freeze/Unfreeze/PrepareRespawn/LaunchInDirection の全箇所をこのヘルパに統一。`emitting` だけでなく **履歴 Clear（裂け防止）＋`enabled` トグル**を一括で行う。TrailRenderer はワールド座標に履歴を持つため、親アリーナのシェイクで履歴が置き去りになり裂ける問題への対処。`Start()` は `AddComponent` 前に `GetComponent<TrailRenderer>()` を試行（二重生成防止）
 - `LaunchInDirection(localDir)`: コライダー再有効化 + 発射。LaunchAimer から呼ばれる
-- `GetHitStopMultiplier()`: `naturalSpeed/baseSpeed` が `hitStopSpeedThreshold` 未満なら 0、以上なら 0→1 にスケール。ブロック衝突・壁バウンスのフレーム数に乗算する
-- `GetAttributeMultiplier()`: 属性倍率のみ（>= 1.0）。Explosive 破壊など速度閾値によらず掛けたい場合に使用。Pierce は 0f（ヒットストップなし）
+- **`GetImpactFrames()`（手応え, 2026-06-03, DESIGN.md 5.2）**: ブロック衝突の停止フレーム数を **速度×攻撃力** で算出。`impact = speedTerm × GetAttributeMultiplier()`、`speedTerm = 1 + impactSpeedWeight×(実効速度/baseSpeed − 1)`（実効速度 = naturalSpeed×speedMultiplier×slowZoneMul）。`impact < impactThreshold` は 0（軽い当たりは止めずテンポ維持）、以上は `clamp(round(impactBaseFrames×impact), 1, impactMaxFrames)`。Pierce は 0。**Block の通常衝突・Explosive 破壊はこれを使う**（旧 per-type frames は撤去）。「速い/強属性ほど手応え」を一本化
+- `GetHitStopMultiplier()`: `naturalSpeed/baseSpeed` が `hitStopSpeedThreshold` 未満なら 0、以上なら 0→1 にスケール。**壁バウンス・パドル反射**（攻撃力概念が無い面）のフレーム数に乗算する
+- `GetAttributeMultiplier()`: 属性倍率＝**手応えの攻撃力重み**（Normal1.0 / Ice・Fire1.2 / Thunder1.1 / Heavy3.0 / Pierce0）。`GetImpactFrames` から使われる
 - `SetAttributeTemporary(attr, duration)`: アイテム効果で属性を一時変更（コルーチン、重ね掛け上書き）
 - `SetSpeedTemporary(multiplier, duration)`: アイテム効果でボール速度を一時変更（`speedMultiplier` コルーチン、重ね掛け上書き）
 - 境界チェック: `FixedUpdate` でアリーナ外に出た場合、メインボールはペナルティなしリスポーン、追加ボールは Destroy
@@ -399,8 +401,8 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `FlashImpact(color, dur)`: 妨害行着弾演出のフラッシュ（BlockSpawner から呼ばれる）
 - `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定。Renderer を金色（`hardenedColor`）に更新。HP pip も再生成
 - `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須
-- Normal/Hard/Absorb 衝突時: `normalHitFrames / hardHitFrames / absorbHitFrames`（デフォルト 0）に `ball.GetHitStopMultiplier()` を乗算してヒットストップ
-- Explosive 破壊時: `explosiveHitFrames`（デフォルト 6）に `ball.GetAttributeMultiplier()` を乗算してヒットストップ（速度閾値によらず発動）
+- Normal/Hard/Absorb 衝突時: `ball.GetImpactFrames()`（速度×攻撃力, BallScript 節参照）で停止。0 ならヒットストップ無し（軽い当たり）。**旧 per-type frames は撤去**（2026-06-03）
+- Explosive 破壊時: `Mathf.Max(ball.GetImpactFrames(), explosiveHitFrames)` で停止（手応えが下限未満でも `explosiveHitFrames`(=6) を保証）。`explosiveHitFrames` は `ArenaSharedConfig` で一元調整
 - `blockType` / `hp` はパブリックフィールド。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
 - `GetArena()`: `transform.parent?.parent?.GetComponentInChildren<ArenaController>()` — Block → BlockSpawner → Arena root の順で辿る
 - 破壊時に `TryDropItem()` を呼ぶ。通常は確率ドロップ、**`BlockType.Item` は確定ドロップ**（確率/スロット抑制をスキップ）

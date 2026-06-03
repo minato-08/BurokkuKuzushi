@@ -52,6 +52,12 @@ public class BallScript : MonoBehaviour, IFreezable
     [Header("壁バウンスヒットストップ（フレーム数・0=なし）")]
     [SerializeField] private int wallBounceFrames = 0;
 
+    [Header("手応え（ブロック衝突インパクト）— ArenaSharedConfig で一元調整")]
+    [SerializeField] private int   impactBaseFrames  = 2;    // 標準的な一撃の基準フレーム
+    [SerializeField] private float impactSpeedWeight = 0.6f; // 速度寄与の強さ
+    [SerializeField] private float impactThreshold   = 1.4f; // これ未満は手応えを出さない
+    [SerializeField] private int   impactMaxFrames   = 10;   // 停止フレーム上限
+
     [Header("属性別カラー")]
     [SerializeField] private Color normalColor  = Color.white;
     [SerializeField] private Color fireColor    = new Color(1.0f, 0.478f, 0.239f); // #ff7a3d
@@ -161,6 +167,10 @@ public class BallScript : MonoBehaviour, IFreezable
         hitStopThunderMul = c.hitStopThunderMul;
         hitStopIceMul     = c.hitStopIceMul;
         wallBounceFrames  = c.wallBounceFrames;
+        impactBaseFrames  = c.impactBaseFrames;
+        impactSpeedWeight = c.impactSpeedWeight;
+        impactThreshold   = c.impactThreshold;
+        impactMaxFrames   = c.impactMaxFrames;
         normalColor  = c.ballNormalColor;
         fireColor    = c.ballFireColor;
         thunderColor = c.ballThunderColor;
@@ -427,7 +437,7 @@ public class BallScript : MonoBehaviour, IFreezable
         return Mathf.Clamp01((ratio - hitStopSpeedThreshold) / range);
     }
 
-    // 属性倍率のみ（Explosive 破壊など、速度閾値によらず掛けたい場合に使う）
+    // 属性倍率のみ（手応えの「攻撃力」重み。Normal1.0 / Ice・Fire1.2 / Thunder1.1 / Heavy3.0 / Pierce0）
     public float GetAttributeMultiplier()
     {
         return attribute switch
@@ -439,6 +449,26 @@ public class BallScript : MonoBehaviour, IFreezable
             BallAttribute.Pierce  => 0f,   // 貫通中はヒットストップなし
             _ => 1f
         };
+    }
+
+    // ブロック衝突の「手応え」フレーム数（速度 × 攻撃力）。
+    //   impact = speedTerm × attackWeight
+    //     speedTerm   = 1 + impactSpeedWeight × (naturalSpeed/baseSpeed − 1)   ← 速いほど大
+    //     attackWeight = GetAttributeMultiplier()                              ← 強属性ほど大
+    //   impact < impactThreshold は 0（軽い当たりは止めずテンポ維持）、以上は base×impact を上限クランプ。
+    // 仕様（DESIGN 5.2）の「速い/攻撃力が高いほど手応え」を 1 本化したもの。Pierce は 0。
+    public int GetImpactFrames()
+    {
+        float attackWeight = GetAttributeMultiplier();
+        if (attackWeight <= 0f) return 0; // Pierce
+        // 実効速度（時間加速 × アイテム加減速 × ZoneSlow）で見る＝速い当たりほど手応え、
+        // 遅延ゾーンで減速した当たりは弱くなる。
+        float effectiveSpeed = naturalSpeed * speedMultiplier * slowZoneMul;
+        float speedFactor = baseSpeed > 0f ? effectiveSpeed / baseSpeed : 1f;
+        float speedTerm   = 1f + impactSpeedWeight * (speedFactor - 1f);
+        float impact      = speedTerm * attackWeight;
+        if (impact < impactThreshold) return 0;
+        return Mathf.Clamp(Mathf.RoundToInt(impactBaseFrames * impact), 1, impactMaxFrames);
     }
 
     public int GetDamage()

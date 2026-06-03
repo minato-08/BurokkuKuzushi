@@ -26,13 +26,9 @@ public class Block : MonoBehaviour
     [Header("爆発設定")]
     [SerializeField] private float explosionRadius    = 2f;
     [SerializeField] private int   explosionDamage    = 1;   // 爆発の巻き込みダメージ。Explosive 含む周囲ブロックへ適用（同 Explosive は連鎖発火）
-    [SerializeField] private int   explosiveHitFrames = 6;  // 破壊時ヒットストップフレーム数
-
-    [Header("衝突ヒットストップ（フレーム数・0=なし）")]
-    [SerializeField] private int normalHitFrames = 0;   // Normal ブロック衝突時
-    [SerializeField] private int hardHitFrames   = 0;   // Hard ブロック衝突時
-    [SerializeField] private int absorbHitFrames = 0;   // Absorb ブロック衝突時
-    // Explosive は破壊時に explosiveHitFrames を使用するため衝突時は 0 固定
+    [SerializeField] private int   explosiveHitFrames = 6;  // Explosive 破壊の最低保証フレーム（ArenaSharedConfig で一元調整）
+    // 通常衝突（Normal/Hard/Absorb）のヒットストップは BallScript.GetImpactFrames()（速度×攻撃力）に一本化。
+    // 以前の per-type フレーム（全て0で死にパラメータ）は撤去（2026-06-03）。
 
     [Header("アイテムドロップ設定")]
     [SerializeField] private float baseDropChance = 0.15f;
@@ -65,6 +61,7 @@ public class Block : MonoBehaviour
     void Awake()
     {
         blockRenderer = GetComponent<Renderer>();
+        ApplySharedConfig();
     }
 
     void Start()
@@ -72,6 +69,14 @@ public class Block : MonoBehaviour
         currentHp = hp;
         RefreshColor();
         BuildHpPips();
+    }
+
+    // 共有設定があればヒットストップ系を一元値で上書き（null セーフ）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        explosiveHitFrames = c.explosiveHitFrames;
     }
 
     // HP>1 ブロックの残耐久ドット（●●●）を子に生成。親が非一様スケール(1.3,0.5,1)なので
@@ -150,21 +155,11 @@ public class Block : MonoBehaviour
                 rb.linearVelocity *= absorbSpeedMultiplier;
         }
 
-        // 衝突ヒットストップ（Explosive は破壊時に処理、値0のときはスキップ）
+        // 衝突ヒットストップ（手応え＝速度×攻撃力。Explosive は破壊時に別途処理）
         if (blockType != BlockType.Explosive)
         {
-            int baseFrames = blockType switch
-            {
-                BlockType.Normal => normalHitFrames,
-                BlockType.Hard   => hardHitFrames,
-                BlockType.Absorb => absorbHitFrames,
-                _ => 0
-            };
-            if (baseFrames > 0)
-            {
-                float mul = ball?.GetHitStopMultiplier() ?? 1f;
-                GetArena()?.TriggerHitStop(Mathf.RoundToInt(baseFrames * mul));
-            }
+            int frames = ball != null ? ball.GetImpactFrames() : 0;
+            if (frames > 0) GetArena()?.TriggerHitStop(frames);
         }
 
         // ボールの属性に応じたダメージ量を取得
@@ -224,8 +219,11 @@ public class Block : MonoBehaviour
                     nearBlock.TakeDamage(explosionDamage, ball);
             }
 
-            float mul = ball?.GetAttributeMultiplier() ?? 1f;
-            GetArena()?.TriggerHitStop(Mathf.RoundToInt(explosiveHitFrames * mul), shake: true);
+            // 破壊の手応え（速度×攻撃力）。最低でも explosiveHitFrames は確保してドラマ性を残す。
+            int frames = ball != null
+                ? Mathf.Max(ball.GetImpactFrames(), explosiveHitFrames)
+                : explosiveHitFrames;
+            GetArena()?.TriggerHitStop(frames, shake: true);
         }
 
         if (ball != null) TryDropItem(ball);

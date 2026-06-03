@@ -76,7 +76,9 @@
 ### 5.2 ボール ⚠️
 - ✅ 速度の3層管理（`naturalSpeed` × `speedMultiplier` × `slowZoneMul`）、時間加速（メインボールのみ）、軌道補正（`ClampAngle` で壁沿いループ防止）、最小軸成分比率。
 - ✅ 属性5種: `Normal / Fire`(範囲) `/ Thunder`(同種連鎖) `/ Ice`(高ダメ) `/ Heavy / Pierce`。
-- ⚠️ **Heavy = 非貫通**（通常反射・高ダメ・速度0.7倍）。DESIGN の貫通的解釈から変更し、貫通は Pierce のみに一本化（2026-06-03）。
+- ⚠️ **Heavy = 非貫通**（通常反射・高ダメ）。DESIGN の貫通的解釈から変更し、貫通は Pierce のみに一本化（2026-06-03）。❌ **Heavy の「速度0.7倍」は未実装**（コードに減速処理が無い）。
+- ✅ **手応え（ヒットストップ）を「速度×攻撃力」で実装**（2026-06-03, `BallScript.GetImpactFrames()`）。`impact = speedTerm × 属性倍率`、閾値未満は0（軽い当たりはテンポ維持）、以上は `clamp(round(impactBaseFrames×impact),1,impactMaxFrames)`。**ブロック通常衝突・Explosive 破壊**が使用。旧実装は通常衝突の基準フレームが全て0＋属性倍率が Explosive にしか配線されておらず、仕様の「速い/強いほど手応え」が機能していなかった（是正）。Heavy@基本速度=6f / Normal@基本速度=0f を実機確認。
+  - ⚠️ 属性倍率の意味を **「手応え（ヒットストップ）の攻撃力重み」と確定**（DESIGN 5.2 151行の未解決の問いに対する実装側の回答）。壁/パドルは攻撃力概念が無いので速度のみ（`GetHitStopMultiplier`）。
 - ⚠️ **Pierce = 物理素通り**: 旧実装は衝突後に `lastVelocity` を復元するだけで、反発の押し戻しにより軌道が折れトレイルがカクついた。現在は Pierce 中 `FixedUpdate` で `OverlapSphere` 検出 → `Physics.IgnoreCollision(ball, block, true)` で**反発を無効化して直進**、ダメージは overlap で1回だけ（`pierceIgnored` で重複防止／高速衝突時は従来復元がフォールバック）。`RestorePierceCollisions()` で解除（2026-06-03）。
 - ✅ **Ball Heat**（5.3 由来の演出）: Normal 時にコンボ段階で白→クリーム→橙→赤、トレイルも追従。
 - ❌ **属性ビジュアル**（Fire 炎/Thunder 電気のパーティクル・オーラ）は未実装。色とトレイル色のみ。
@@ -133,6 +135,8 @@
   - 例外: ラウンド/マッチ決着は**意図的にフリーズ**（勝者は `shake:false` でフリーズが唯一の演出、かつ決着済みで飛行中ボールが無い）。
 - ⚠️ **シェイク対象 = `Arena{N}/ShakeRoot`**（壁/パドル/DeadZone/BlockSpawner を収める空オブジェクト, local 0,0,0）。**Ball は ShakeRoot 外（Arena 直下）** に置き、シェイクで Rigidbody が teleport される問題を回避。
 - ⚠️ **アリーナ枠 `P{N}ArenaFrame` も同期シェイク**（`SetFrameShakeTarget`、world position を同一オフセットで揺らす）。
+- ✅ **手応えは速度×攻撃力**（5.2 `GetImpactFrames()`）。衝突のフレーム数は速い/強属性ほど増える。
+- ✅ **全パラメータを `ArenaSharedConfig` に一元集約**（2026-06-03）: `impactBaseFrames`/`impactSpeedWeight`/`impactThreshold`/`impactMaxFrames`/`explosiveHitFrames`/`shakeIntensityNormal`/`shakeIntensityStrong`/`skillPanicHitStopFrames`。Inspector（ArenaSharedConfig GameObject）1 箇所で調整可。**試合フロー系（`interferenceTriggerFrames`/`roundEndFrames`/`matchEndFrames`）は `GameManager` SerializeField**（単一インスタンス）。
 - ✅ `IFreezable`（Ball/Spawner/Player）、多重発火ガード（`RestoreShakeTarget`/`activeFroze`）。
 - 全トリガーの一覧は CLAUDE.md「HitStopController」節を参照。
 

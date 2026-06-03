@@ -102,13 +102,32 @@ public class ArenaSharedConfig : MonoBehaviour
     public float fireRadius    = 1.5f;
     public float thunderRadius = 2.5f;
 
-    [Header("ボール ヒットストップ倍率")]
-    public float hitStopSpeedThreshold = 1.5f;
-    public float hitStopHeavyMul   = 1.5f;
+    [Header("ボール ヒットストップ倍率（属性の手応え重み・壁/パドルの速度ゲート）")]
+    public float hitStopSpeedThreshold = 1.5f;  // 壁/パドルの速度ゲート（baseSpeed の何倍超で発動）
+    public float hitStopHeavyMul   = 3.0f;       // 属性の手応え重み（GetImpactFrames で使用）
     public float hitStopFireMul    = 1.2f;
     public float hitStopThunderMul = 1.1f;
     public float hitStopIceMul     = 1.2f;
-    public int   wallBounceFrames  = 0;
+    public int   wallBounceFrames  = 0;          // 壁バウンスの基準フレーム（速度倍率を乗算）
+
+    // ---------------- ヒットストップ / カメラシェイク（手応え集約・Inspector 一元調整） ----------------
+    [Header("手応え（ブロック衝突インパクト）")]
+    // ブロック衝突の停止フレーム = clamp(round(impactBaseFrames × impact), 1, impactMaxFrames)
+    //   impact = speedTerm × attackWeight,  speedTerm = 1 + impactSpeedWeight×(naturalSpeed/baseSpeed − 1)
+    //   attackWeight = 属性倍率（Normal1.0 / Ice・Fire1.2 / Thunder1.1 / Heavy3.0 / Pierce0）
+    //   impact < impactThreshold は 0（軽い当たりは止めずテンポ維持）
+    public int   impactBaseFrames  = 2;    // 標準的な一撃の基準フレーム
+    public float impactSpeedWeight = 0.6f; // 速度寄与の強さ（0=速度無視 / 1=線形）
+    public float impactThreshold   = 1.4f; // これ未満は手応えを出さない（0フレーム）
+    public int   impactMaxFrames   = 10;   // 一撃の停止フレーム上限
+    public int   explosiveHitFrames = 6;   // Explosive 破壊の最低保証フレーム（手応えがこれ未満でも下限）
+
+    [Header("カメラシェイク強度")]
+    public float shakeIntensityNormal = 0.08f; // 通常シェイク振幅（ワールド単位）
+    public float shakeIntensityStrong = 0.20f; // 強シェイク振幅（ラウンド/マッチ決着）
+
+    [Header("スキル ヒットストップ")]
+    public int   skillPanicHitStopFrames = 15; // SkillPanic_BlockClear 発動時（シェイクのみ）
 
     [Header("ボール 色 / Ball Heat / トレイル")]
     public Color ballNormalColor  = Color.white;
