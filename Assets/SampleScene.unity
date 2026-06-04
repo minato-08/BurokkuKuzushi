@@ -808,6 +808,7 @@ MonoBehaviour:
   pierceDamage: 1
   fireRadius: 1.5
   thunderRadius: 2.5
+  heavySpeedFactor: 0.85
   hitStopSpeedThreshold: 1.5
   hitStopHeavyMul: 3
   hitStopFireMul: 1.2
@@ -8042,6 +8043,7 @@ MonoBehaviour:
   pierceDamage: 1
   fireRadius: 1.5
   thunderRadius: 2.5
+  heavySpeedFactor: 0.7
   hitStopSpeedThreshold: 1.5
   hitStopHeavyMul: 1.5
   hitStopFireMul: 1.2
@@ -15047,6 +15049,7 @@ MonoBehaviour:
   pierceDamage: 1
   fireRadius: 1.5
   thunderRadius: 2.5
+  heavySpeedFactor: 0.7
   hitStopSpeedThreshold: 1.5
   hitStopHeavyMul: 1.5
   hitStopFireMul: 1.2
@@ -18018,9 +18021,9 @@ MonoBehaviour:
   bgmVolParam: BGMVol
   seVolParam: SEVol
   sePoolSize: 12
-  seBallWall: {fileID: 8300000, guid: 1cb190a3446dc4232b48676cc0c08498, type: 3}
+  seBallWall: {fileID: 8300000, guid: 30f0d33e821cb41018885d8b05466c76, type: 3}
   volBallWall: 0.36
-  seBallPaddle: {fileID: 8300000, guid: 30f0d33e821cb41018885d8b05466c76, type: 3}
+  seBallPaddle: {fileID: 8300000, guid: 1cb190a3446dc4232b48676cc0c08498, type: 3}
   volBallPaddle: 1
   seBallLaunch: {fileID: 8300000, guid: 2fb37f5e56ca84a4f9c42836eed45e96, type: 3}
   volBallLaunch: 1
@@ -18030,10 +18033,22 @@ MonoBehaviour:
   volBlockHitHard: 0.7
   seBlockHitAbsorb: {fileID: 8300000, guid: 5714611dbe3db4c64807c48d4968a1b7, type: 3}
   volBlockHitAbsorb: 1
+  seBlockHitExplosive: {fileID: 0}
+  volBlockHitExplosive: 1
+  seBlockHitItem: {fileID: 0}
+  volBlockHitItem: 1
   seBlockBreak: {fileID: 8300000, guid: 1583833e0b93d43c98344c345d3deef2, type: 3}
   volBlockBreak: 0.7
+  seBlockBreakHard: {fileID: 8300000, guid: 1583833e0b93d43c98344c345d3deef2, type: 3}
+  volBlockBreakHard: 1
+  seBlockBreakAbsorb: {fileID: 8300000, guid: 1583833e0b93d43c98344c345d3deef2, type: 3}
+  volBlockBreakAbsorb: 1
+  seBlockBreakItem: {fileID: 0}
+  volBlockBreakItem: 1
   seBlockExplosive: {fileID: 8300000, guid: 0494486d1089c402caee8e2b51bfdbeb, type: 3}
   volBlockExplosive: 1
+  seBlockBottom: {fileID: 8300000, guid: 4b98c1a495501473192815c76ba45c74, type: 3}
+  volBlockBottom: 1
   seItemDrop: {fileID: 8300000, guid: 2fc248a1ee6554063964e01b7ff4c7d9, type: 3}
   volItemDrop: 1
   seItemBuff: {fileID: 8300000, guid: 055779da0c91e40428bbd2aa2369600c, type: 3}
@@ -18048,9 +18063,9 @@ MonoBehaviour:
   volSkillActivate: 1
   seInterferenceRecv: {fileID: 8300000, guid: 18f2d4ea1d6584b8cba3d3f009267d46, type: 3}
   volInterferenceRecv: 1
-  seAddRowLand: {fileID: 0}
+  seAddRowLand: {fileID: 8300000, guid: e1e84432f36dd40f59012258ea49419f, type: 3}
   volAddRowLand: 1
-  seSpecialRow: {fileID: 0}
+  seSpecialRow: {fileID: 8300000, guid: 76f97f8f14b624b069e0fae39f705a42, type: 3}
   volSpecialRow: 1
   sePoisonLoop: {fileID: 8300000, guid: 06350dfd7dec84e459278ea5eb4f5e22, type: 3}
   volPoisonLoop: 1
@@ -18484,7 +18499,7 @@ MonoBehaviour:
   nextRoundDelay: 5
   countdownStepSec: 1
   countdownGoSec: 1.5
-  maxHP: 300
+  maxHP: 500
   damageBallDrop: 0
   damageBlockReachBottom: 10
   damagePoisonPerSec: 5
