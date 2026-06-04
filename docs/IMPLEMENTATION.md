@@ -190,7 +190,9 @@
 
 ## 10. 音響設計 ◐ / ❌
 - ✅ `AudioManager`（dB 変換・SE トリガーマッピング・50ms クールダウン・BGM クロスフェード/緊迫レイヤーの**コードは全て実装**）。
-- ◐ **BGM クリップ全未配置**（4種）＝最大の体験ギャップ。`se_addrow_land`/`se_special_row` も未配置（発火点は配線済）。
+- ✅ **ブロック衝突/破壊 SE は BlockType ごとに設定可能**（2026-06-04, `seBlockHit*`/`seBlockBreak*` + vol。未割り当ては Normal/`seBlockBreak` にフォールバック）。**とどめの一撃は衝突音を抑制**して破壊音との二重発音を回避。
+- ✅ **底到達 SE**（`PlayBlockBottom`）追加（自ブロック底到達＝被ペナルティ）。
+- ◐ **BGM クリップ全未配置**（4種）＝最大の体験ギャップ。`se_block_bottom`・種別別 hit/break・`se_addrow_land`・`se_special_row` も未配置（発火点は配線済）。
 - ❌ **AudioMixer**（Master/BGM/SE バス + Expose Param）未作成。
 
 ---

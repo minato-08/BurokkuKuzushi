@@ -144,8 +144,12 @@ public class Block : MonoBehaviour
 
         // コンボは破壊時に加算（DESIGN.md 5.8, OnDestroyed → RegisterBlockDestroyed）。接触では加算しない。
 
-        // ブロック衝突 SE（アリーナごと 50ms クールダウン, DESIGN.md 10.4）
-        if (ball != null)
+        // 属性ダメージ量と、この一撃でとどめ（破壊）になるか
+        int damage = ball != null ? ball.GetDamage() : 1;
+        bool willBreak = currentHp - damage <= 0;
+
+        // ブロック衝突 SE。とどめの一撃は破壊音と競合するため鳴らさない（アリーナごと 50ms クールダウン, DESIGN.md 10.4）
+        if (ball != null && !willBreak)
             AudioManager.Instance?.PlayBlockHit((int)blockType, ball.playerIndex);
 
         // 吸収ブロック：ボールを減速
@@ -163,8 +167,6 @@ public class Block : MonoBehaviour
             if (frames > 0) GetArena()?.TriggerHitStop(frames);
         }
 
-        // ボールの属性に応じたダメージ量を取得
-        int damage = ball != null ? ball.GetDamage() : 1;
         TakeDamage(damage, ball);
 
         // ボールの属性効果（炎の範囲ダメージ・雷の連鎖・重の貫通）を発動
@@ -191,7 +193,7 @@ public class Block : MonoBehaviour
         destroyed = true;
 
         // ブロック破壊 SE（Explosive は専用音, DESIGN.md 10.4）
-        AudioManager.Instance?.PlayBlockBreak(blockType == BlockType.Explosive, ball != null ? ball.playerIndex : 0);
+        AudioManager.Instance?.PlayBlockBreak((int)blockType, ball != null ? ball.playerIndex : 0);
 
         // コンボ加算 → スコア加算の順（AddScore が更新後コンボで scoreComboMul を計算する）
         if (ball != null && GameManager.Instance != null)

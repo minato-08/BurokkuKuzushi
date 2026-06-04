@@ -31,11 +31,19 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip seBallWall;        [SerializeField, Range(0f, 1.5f)] private float volBallWall = 1f;
     [SerializeField] private AudioClip seBallPaddle;      [SerializeField, Range(0f, 1.5f)] private float volBallPaddle = 1f;
     [SerializeField] private AudioClip seBallLaunch;      [SerializeField, Range(0f, 1.5f)] private float volBallLaunch = 1f;
-    [SerializeField] private AudioClip seBlockHitNormal;  [SerializeField, Range(0f, 1.5f)] private float volBlockHitNormal = 1f;
-    [SerializeField] private AudioClip seBlockHitHard;    [SerializeField, Range(0f, 1.5f)] private float volBlockHitHard = 1f;
-    [SerializeField] private AudioClip seBlockHitAbsorb;  [SerializeField, Range(0f, 1.5f)] private float volBlockHitAbsorb = 1f;
-    [SerializeField] private AudioClip seBlockBreak;      [SerializeField, Range(0f, 1.5f)] private float volBlockBreak = 1f;
-    [SerializeField] private AudioClip seBlockExplosive;  [SerializeField, Range(0f, 1.5f)] private float volBlockExplosive = 1f;
+    // ブロック衝突音（種別ごと。未割り当ては Normal にフォールバック）
+    [SerializeField] private AudioClip seBlockHitNormal;    [SerializeField, Range(0f, 1.5f)] private float volBlockHitNormal = 1f;
+    [SerializeField] private AudioClip seBlockHitHard;      [SerializeField, Range(0f, 1.5f)] private float volBlockHitHard = 1f;
+    [SerializeField] private AudioClip seBlockHitAbsorb;    [SerializeField, Range(0f, 1.5f)] private float volBlockHitAbsorb = 1f;
+    [SerializeField] private AudioClip seBlockHitExplosive; [SerializeField, Range(0f, 1.5f)] private float volBlockHitExplosive = 1f;
+    [SerializeField] private AudioClip seBlockHitItem;      [SerializeField, Range(0f, 1.5f)] private float volBlockHitItem = 1f;
+    // ブロック破壊音（種別ごと。未割り当ては seBlockBreak にフォールバック）
+    [SerializeField] private AudioClip seBlockBreak;        [SerializeField, Range(0f, 1.5f)] private float volBlockBreak = 1f;
+    [SerializeField] private AudioClip seBlockBreakHard;    [SerializeField, Range(0f, 1.5f)] private float volBlockBreakHard = 1f;
+    [SerializeField] private AudioClip seBlockBreakAbsorb;  [SerializeField, Range(0f, 1.5f)] private float volBlockBreakAbsorb = 1f;
+    [SerializeField] private AudioClip seBlockBreakItem;    [SerializeField, Range(0f, 1.5f)] private float volBlockBreakItem = 1f;
+    [SerializeField] private AudioClip seBlockExplosive;    [SerializeField, Range(0f, 1.5f)] private float volBlockExplosive = 1f;
+    [SerializeField] private AudioClip seBlockBottom;       [SerializeField, Range(0f, 1.5f)] private float volBlockBottom = 1f; // 自ブロックが底到達（被ペナルティ）
 
     [Header("SE — アイテム / スキル / 妨害")]
     [SerializeField] private AudioClip seItemDrop;        [SerializeField, Range(0f, 1.5f)] private float volItemDrop = 1f;
@@ -179,17 +187,37 @@ public class AudioManager : MonoBehaviour
         }
 
         float pan = PanFor(arenaIndex);
+        AudioClip clip; float vol; float pitch = 1f;
         switch ((BlockType)blockType)
         {
-            case BlockType.Hard:   PlaySE(seBlockHitHard, Semitone(-2f), volBlockHitHard, pan); break;
-            case BlockType.Absorb: PlaySE(seBlockHitAbsorb, 1f, volBlockHitAbsorb, pan);        break;
-            default:               PlaySE(seBlockHitNormal, 1f, volBlockHitNormal, pan);        break;
+            case BlockType.Hard:      clip = seBlockHitHard;      vol = volBlockHitHard;      pitch = Semitone(-2f); break;
+            case BlockType.Absorb:    clip = seBlockHitAbsorb;    vol = volBlockHitAbsorb;    break;
+            case BlockType.Explosive: clip = seBlockHitExplosive; vol = volBlockHitExplosive; break;
+            case BlockType.Item:      clip = seBlockHitItem;      vol = volBlockHitItem;      break;
+            default:                  clip = seBlockHitNormal;    vol = volBlockHitNormal;    break;
         }
+        if (clip == null) { clip = seBlockHitNormal; vol = volBlockHitNormal; } // 未割り当ては Normal にフォールバック
+        PlaySE(clip, pitch, vol, pan);
     }
 
-    public void PlayBlockBreak(bool explosive, int playerIndex = 0)
-        => PlaySE(explosive ? seBlockExplosive : seBlockBreak,
-                  1f, explosive ? volBlockExplosive : volBlockBreak, PanFor(playerIndex));
+    // ブロック破壊音（種別ごと。未割り当ては seBlockBreak にフォールバック）
+    public void PlayBlockBreak(int blockType, int playerIndex = 0)
+    {
+        AudioClip clip; float vol;
+        switch ((BlockType)blockType)
+        {
+            case BlockType.Hard:      clip = seBlockBreakHard;   vol = volBlockBreakHard;   break;
+            case BlockType.Absorb:    clip = seBlockBreakAbsorb; vol = volBlockBreakAbsorb; break;
+            case BlockType.Explosive: clip = seBlockExplosive;   vol = volBlockExplosive;   break;
+            case BlockType.Item:      clip = seBlockBreakItem;   vol = volBlockBreakItem;   break;
+            default:                  clip = seBlockBreak;       vol = volBlockBreak;       break;
+        }
+        if (clip == null) { clip = seBlockBreak; vol = volBlockBreak; }
+        PlaySE(clip, 1f, vol, PanFor(playerIndex));
+    }
+
+    // 自ブロックが底到達（被ペナルティ）
+    public void PlayBlockBottom(int playerIndex = 0) => PlaySE(seBlockBottom, 1f, volBlockBottom, PanFor(playerIndex));
 
     public void PlayItemDrop(int playerIndex = 0) => PlaySE(seItemDrop, 1f, volItemDrop, PanFor(playerIndex));
 
