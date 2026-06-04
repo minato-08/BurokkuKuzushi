@@ -59,10 +59,65 @@ public class ArenaController : MonoBehaviour
     public void SpawnItem(Vector3 worldPos, ItemType type)
     {
         AudioManager.Instance?.PlayItemDrop(playerIndex); // アイテム出現 SE（DESIGN.md 10.4）
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.name = "Item_" + type;
+
+        Sprite icon = ArenaSharedConfig.Instance?.GetItemIcon(type);
+        GameObject go = icon != null ? CreateIconItem(type, icon) : CreateSphereItem(type);
+
         go.transform.SetParent(ArenaRoot, worldPositionStays: true);
         go.transform.position = worldPos;
+
+        go.AddComponent<ItemDrop>().Setup(type, playerIndex, this);
+    }
+
+    // Bloom 発光する透過スプライト用マテリアル（全アイテムで共有・遅延生成）。
+    private static Material _iconMaterial;
+    private static Material IconMaterial
+    {
+        get
+        {
+            if (_iconMaterial == null)
+            {
+                Shader sh = Shader.Find("Custom/HDRSprite");
+                if (sh != null) _iconMaterial = new Material(sh);
+            }
+            return _iconMaterial;
+        }
+    }
+
+    // アイコンスプライトを持つ落下アイテム本体（SpriteRenderer）。
+    // ピックアップ判定は ItemDrop 側がパドルを OverlapSphere で拾うため、本体にコライダーは不要。
+    private GameObject CreateIconItem(ItemType type, Sprite icon)
+    {
+        GameObject go = new GameObject("Item_" + type);
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = icon;
+
+        var cfg = ArenaSharedConfig.Instance;
+
+        // HDR スプライトマテリアルで Bloom 発光。
+        // ※ SpriteRenderer.color は Color32(0〜1) にパックされ 1 超がクランプされるため使えない。
+        //   発光量はクランプされないマテリアル _Color(HDR float4) に載せて閾値(1.0)を越えさせる。
+        // シェーダーが見つからなければデフォルトマテリアルのまま（発光なしでアイコンは表示される）。
+        if (IconMaterial != null)
+        {
+            float glow = cfg != null ? cfg.itemIconGlow : 1.8f;
+            IconMaterial.SetColor("_Color", new Color(glow, glow, glow, 1f));
+            sr.sharedMaterial = IconMaterial;
+        }
+
+        // スプライトの実寸（PPU 込み）を基準に、共有設定の目標ワールド高さへスケール。
+        float worldSize = cfg != null ? cfg.itemIconWorldSize : 0.9f;
+        float spriteH   = icon.bounds.size.y;
+        float scale     = spriteH > 0.0001f ? worldSize / spriteH : 1f;
+        go.transform.localScale = Vector3.one * scale;
+        return go;
+    }
+
+    // アイコン未割り当て時のフォールバック（従来の色付き球）。
+    private GameObject CreateSphereItem(ItemType type)
+    {
+        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = "Item_" + type;
         go.transform.localScale = Vector3.one * 0.4f;
 
         // アイテムはキネマティック運動なので Rigidbody は不要
@@ -72,8 +127,7 @@ public class ArenaController : MonoBehaviour
         go.GetComponent<Collider>().isTrigger = true;
 
         go.GetComponent<Renderer>().material.color = ItemDefinition.GetColor(type);
-
-        go.AddComponent<ItemDrop>().Setup(type, playerIndex, this);
+        return go;
     }
 
     // freeze=false でフリーズせずシェイクのみ（ボール衝突でない底到達・スライド着地用, DESIGN.md 5.x）

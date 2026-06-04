@@ -778,7 +778,7 @@ MonoBehaviour:
   explosiveBlockChance: 0.03
   hardBlockChance: 0.2
   itemBlockChance: 0.03
-  specialRowChance: 0.056
+  specialRowChance: 0.05
   hardBlockHp: 2
   sabotageHardRatio: 0.5
   sabotageBlockHp: 2
@@ -806,14 +806,14 @@ MonoBehaviour:
   iceDamage: 2
   heavyDamage: 3
   pierceDamage: 1
-  fireRadius: 1.5
-  thunderRadius: 2.5
-  heavySpeedFactor: 0.85
+  fireRadius: 1
+  thunderRadius: 2
+  heavySpeedFactor: 0.8
   hitStopSpeedThreshold: 1.5
   hitStopHeavyMul: 3
-  hitStopFireMul: 1.2
-  hitStopThunderMul: 1.1
-  hitStopIceMul: 1.2
+  hitStopFireMul: 2
+  hitStopThunderMul: 5
+  hitStopIceMul: 1.5
   wallBounceFrames: 0
   impactBaseFrames: 2
   impactSpeedWeight: 0.6
@@ -821,7 +821,7 @@ MonoBehaviour:
   impactMaxFrames: 10
   explosiveHitFrames: 6
   shakeIntensityNormal: 0.08
-  shakeIntensityStrong: 0.2
+  shakeIntensityStrong: 0.3
   skillPanicHitStopFrames: 15
   ballNormalColor: {r: 1, g: 1, b: 1, a: 1}
   ballFireColor: {r: 1, g: 0.478, b: 0.239, a: 1}
@@ -838,7 +838,7 @@ MonoBehaviour:
   heatLerpSpeed: 6
   trailTime: 0.18
   trailStartWidth: 0.22
-  indicatorLength: 2.5
+  indicatorLength: 2
   indicatorColor: {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 1}
   metronomeAngleRange: 80
   metronomePeriodSec: 1
@@ -846,6 +846,39 @@ MonoBehaviour:
   arenaHalfWidth: 5
   arenaHalfHeight: 4.5
   ballSpawnOffsetY: 1
+  itemIcons:
+  - type: 0
+    sprite: {fileID: 21300000, guid: 55955d462f3ea445c9d15a58f7313295, type: 3}
+  - type: 1
+    sprite: {fileID: 21300000, guid: 704bb570a1581413cb552a08ee1bc0b5, type: 3}
+  - type: 2
+    sprite: {fileID: 21300000, guid: 6b50696abd28f454aabf2e8a5e6c0655, type: 3}
+  - type: 3
+    sprite: {fileID: 21300000, guid: 04d63c65ecf584b4787f48cb7c64fc3b, type: 3}
+  - type: 4
+    sprite: {fileID: 21300000, guid: ca6754d89e35543e99d244d740f3fe5b, type: 3}
+  - type: 5
+    sprite: {fileID: 21300000, guid: 17e8fb2cf5dcd434c9833f596ca76562, type: 3}
+  - type: 6
+    sprite: {fileID: 21300000, guid: f3bf48137b3894ebc9b94ba16900c5bb, type: 3}
+  - type: 7
+    sprite: {fileID: 21300000, guid: 909b4474b33b04215b5dcb3b1012c4e7, type: 3}
+  - type: 8
+    sprite: {fileID: 21300000, guid: 158f1ac1597e5416793525f7147f1311, type: 3}
+  - type: 9
+    sprite: {fileID: 21300000, guid: 4c7b75577061b477da10544f1affdd21, type: 3}
+  - type: 10
+    sprite: {fileID: 21300000, guid: 27990ff6d5ff6435ebbc03b6f0a5114a, type: 3}
+  - type: 11
+    sprite: {fileID: 21300000, guid: 8dc46e1d2b2844f37a7caf09533741bc, type: 3}
+  - type: 12
+    sprite: {fileID: 21300000, guid: 2b319d39cad9f4b549bd272543d0cdcd, type: 3}
+  - type: 13
+    sprite: {fileID: 21300000, guid: b6ab57546d44242e7a505c847f2875ea, type: 3}
+  - type: 14
+    sprite: {fileID: 21300000, guid: 815a8b3fd790b4cfd9c8296cdd2ff121, type: 3}
+  itemIconWorldSize: 1.5
+  itemIconGlow: 2
 --- !u!4 &112514747
 Transform:
   m_ObjectHideFlags: 0

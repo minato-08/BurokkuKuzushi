@@ -237,7 +237,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ### `ArenaSharedConfig.cs`
 - Arena1/Arena2 で同値であるべき**共通チューニング値を集約**するシーン内 MonoBehaviour（1 個前提）。`Instance`（未解決なら `FindFirstObjectByType` で都度解決）
-- 保持: パドル（speed/xLimit/paddleLocalY 等・フラッシュ色）/ ブロックスポーン（行数・幅・spawnY・Escalation・各種確率・HP・妨害・スライド演出）/ ボール（速度・軌道・属性ダメージ・半径・ヒットストップ倍率・属性色・Ball Heat・トレイル）/ エイマー / `maxEnergy` / `arenaHalfWidth`/`arenaHalfHeight`/`ballSpawnOffsetY`
+- 保持: パドル（speed/xLimit/paddleLocalY 等・フラッシュ色）/ ブロックスポーン（行数・幅・spawnY・Escalation・各種確率・HP・妨害・スライド演出）/ ボール（速度・軌道・属性ダメージ・半径・ヒットストップ倍率・属性色・Ball Heat・トレイル）/ エイマー / `maxEnergy` / `arenaHalfWidth`/`arenaHalfHeight`/`ballSpawnOffsetY` / **アイテムアイコン**（`itemIcons[]`＝ItemType→Sprite マップ＋`GetItemIcon(type)`、`itemIconWorldSize`、`itemIconGlow`＝Bloom 発光量。落下アイテム本体の見た目に使用、`BurokkuKuzushi > Setup Item Icons` で自動結線）
 - **ヒットストップ/カメラシェイクの「手応え」を一元集約**（2026-06-03）: `impactBaseFrames`/`impactSpeedWeight`/`impactThreshold`/`impactMaxFrames`（ブロック衝突の手応え）/ `explosiveHitFrames`（Explosive 破壊の下限）/ `shakeIntensityNormal`/`shakeIntensityStrong`（シェイク振幅）/ `skillPanicHitStopFrames`。これらは従来 HitStopController(×2)・Block プレハブ・SkillDefinition コードに散在していたものを集約。`HitStopController`/`Block`/`BallScript` が `ApplySharedConfig` で読む。**試合フロー系（`interferenceTriggerFrames`/`roundEndFrames`/`matchEndFrames`）は単一インスタンスの `GameManager` SerializeField のまま**（重複しないため集約対象外）
 - 各コンポーネントが Awake/Start/Initialize 冒頭で `ApplySharedConfig()`（自分の private フィールドへ上書き適用）。**未配置なら各自の SerializeField 値で動作（null セーフ）**
 - 共有しないのは `playerIndex` と各アリーナ子オブジェクト参照のみ。詳細は「設定方針」セクション
@@ -319,6 +319,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `launchAimer` を Inspector でバインド（Setup LaunchAimer で自動設定）→ Awake で Initialize
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
 - `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
+- `SpawnItem(worldPos, type)` — 落下アイテム本体を生成。**`ArenaSharedConfig.GetItemIcon(type)` でアイコン Sprite が取れれば SpriteRenderer 製のアイコン本体**（`CreateIconItem`、`itemIconWorldSize` でワールド高さにスケール、`Custom/HDRSprite` 共有マテリアル＋`_Color`(HDR)=`itemIconGlow` で Bloom 発光、コライダー無し＝ピックアップは ItemDrop 側のパドル OverlapSphere）、**取れなければ従来の色付き球**（`CreateSphereItem`、null セーフフォールバック）。アイコンは `Assets/UI/item-icons/` 配下＋`BurokkuKuzushi > Setup Item Icons` で取り込み・結線
 - 追加ボール生成（SkillBall_Multi）時に **`hitStop?.RegisterFreezable(bs)` を呼ぶ**（codex レビュー fix 2026-06-02。追加ボールが HitStopController に未登録でヒットストップ中も止まらなかった不具合を解消）
 - `ResetForNewRound()` は次をクリア/解除: メインボール再配置 + スポーナー再生成 / **SkillBall_Multi の追加ボール破棄** / **未取得の落下アイテム破棄** / **パドル一時効果解除 (`PlayerController.ResetState()`)** / ZonePoison / ZoneSlow。加えて `GameManager` 側で `ClearActiveItems()` を BeginMatch/StartNextRound で呼ぶ
 
@@ -499,7 +500,8 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ### シェーダー (`Assets/Shaders/`)
 - `UI/HDRTint` (`UI_HDRTint.shader`): UI Image 用。標準 `UI/Default` に `[HDR]` Tint Color を追加。Stencil / Clip Rect / AlphaClip 完備
-- `Custom/HDRUnlit` (`HDRUnlit.shader`): 3D Mesh / SpriteRenderer 用。HDR Base Color のみのシンプル Unlit。Lit 計算なしで Bloom 発光のみ
+- `Custom/HDRUnlit` (`HDRUnlit.shader`): 3D Mesh / **不透明** SpriteRenderer 用。HDR Base Color のみのシンプル Unlit。Lit 計算なしで Bloom 発光のみ。**不透明固定（Blend One Zero）なので透過 PNG には不可**（黒四角になる）
+- `Custom/HDRSprite` (`HDRSprite.shader`): **透過スプライト用** HDR Unlit。`_MainTex`(PerRendererData)＋頂点カラー＋`SrcAlpha OneMinusSrcAlpha`。テクスチャ×(頂点カラー×HDR ティント)。**落下アイテムアイコンの Bloom 発光に使用**（`ArenaController.CreateIconItem` が遅延生成・共有マテリアルを割当、マテリアル `_Color`(HDR) に `itemIconGlow` を載せて閾値超え）。⚠️ **発光は `SpriteRenderer.color` では不可**（Color32 0〜1 にクランプされ 1 超が消える）→ 必ずマテリアル `_Color` 経由。⚠️ ランタイム `Shader.Find` 生成のため、**ビルドで使うなら Always Included Shaders に追加**（Editor/Play は不要）
 - `Custom/KawaseBlur` (`KawaseBlur.shader`): メニュー背景の磨りガラス（止め画ブラー）用。`BackdropBlur.cs` が使用
 
 ### `BackdropBlur.cs`
@@ -517,6 +519,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 ### Editor スクリプト (`Assets/Editor/`)
 - `SetupHitStop.cs`: `BurokkuKuzushi > Setup HitStop`（冪等）— 各 ArenaController の子に HitStopController GameObject を生成
 - `SetupLaunchAimer.cs`: `BurokkuKuzushi > Setup LaunchAimer`（冪等）
+- `SetupItemIcons.cs`: `BurokkuKuzushi > Setup Item Icons`（冪等）— `Assets/UI/item-icons/*.png` を Texture Type=Sprite に揃えて再インポートし、ファイル名→ItemType の対応で `ArenaSharedConfig.itemIcons[]` を自動結線。`item-attack-direct` は対応 ItemType 無しでスキップ（余り）
 - `SetupCameraViewports.cs`: 単カメラ化前の名残（現状未使用、将来削除予定）
 - `SetupUIManager.cs`: 新 UI 構造へ UIManager の SerializeField を結線する補助
 - `SetupHPUI.cs` / `SetupMatchResultUI.cs` / `SetupSkillSelectUI.cs`: **旧 CenterUI 構造前提のため現 UI には不適合**。実行しないこと。新 UI 確定後にリライト or 削除予定
