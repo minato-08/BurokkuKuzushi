@@ -21,7 +21,7 @@ public class DeadZone : MonoBehaviour
 
         BallScript ball = other.GetComponent<BallScript>();
 
-        // 追加ボール（SkillBall_Multi）は落下してもペナルティなし
+        // 追加ボール（BURST 等）は落下してもペナルティなし
         if (ball != null && ball.isExtraBall)
         {
             Object.Destroy(ball.gameObject);

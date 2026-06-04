@@ -1,9 +1,13 @@
 using UnityEngine;
 
-// スキル効果の抽象基底クラス
+// スキル効果の抽象基底クラス（2026-06-05 刷新, DESIGN.md 5.6）
+// 性能差は EnergyCost（必要ゲージ量）で差別化する。
 public abstract class SkillDefinition
 {
     public abstract string DisplayName { get; }
+
+    // 発動に必要なエナジー量（スキルごとに差別化。SkillController が EnergyRatio / 発動判定に使う）
+    public abstract float EnergyCost { get; }
 
     // 発動条件チェック（条件なしスキルは true を返す）
     public virtual bool CanActivate(int playerIndex) => true;
@@ -12,80 +16,81 @@ public abstract class SkillDefinition
 }
 
 // =====================================================
-// 具体的なスキル実装
+// 具体的なスキル実装（すべて自己強化 / 盤面有利。攻撃系は持たない）
+// パラメータは public フィールドの既定値で調整する。
 // =====================================================
 
-// パドルを一定時間拡大する
-public sealed class SkillPaddle_Enlarge : SkillDefinition
+// HYPER: ボールを高速化し、Dead Zone 付近に一時的な床を出して暴れさせる
+public sealed class SkillHyper : SkillDefinition
 {
-    public float multiplier = 1.5f;
-    public float duration   = 10f;
+    public float energyCost      = 6f;
+    public float duration        = 6f;
+    public float speedMultiplier = 5f;
 
-    public override string DisplayName => "Paddle Enlarge";
+    public override string DisplayName => "HYPER";
+    public override float  EnergyCost  => energyCost;
 
     public override void Activate(int playerIndex, ArenaController arena)
     {
-        Transform root = arena.transform.parent ?? arena.transform;
-        root.GetComponentInChildren<PlayerController>()?.SetWidthTemporary(multiplier, duration);
+        arena.GetBall()?.SetSpeedTemporary(speedMultiplier, duration);
+        arena.SpawnHyperFloor(duration);
     }
 }
 
-// ボールを一定時間 Fire 属性にする
-public sealed class SkillBall_Attribute_Fire : SkillDefinition
+// EXPLOSION: 自陣のブロックをランダムに複数 Explosive 化する
+public sealed class SkillExplosion : SkillDefinition
 {
-    public float duration = 10f;
+    public float energyCost = 8f;
+    public int   minCount   = 10;
+    public int   maxCount   = 20;
 
-    public override string DisplayName => "Fire Ball";
+    public override string DisplayName => "EXPLOSION";
+    public override float  EnergyCost  => energyCost;
 
     public override void Activate(int playerIndex, ArenaController arena)
     {
-        arena.GetBall()?.SetAttributeTemporary(BallAttribute.Fire, duration);
-    }
-}
+        int count = Random.Range(minCount, maxCount + 1);
+        arena.GetSpawner()?.ConvertRandomToExplosive(count);
 
-// 一定時間、追加ボールをスポーンする
-public sealed class SkillBall_Multi : SkillDefinition
-{
-    public float duration = 10f;
-
-    public override string DisplayName => "Multi Ball";
-
-    public override void Activate(int playerIndex, ArenaController arena)
-    {
-        arena.SpawnExtraBall(duration);
-    }
-}
-
-// 上半分のブロックを全破壊。HP 1/3 以下のみ発動可
-public sealed class SkillPanic_BlockClear : SkillDefinition
-{
-    public int   hitStopFrames = 15;
-
-    public override string DisplayName => "Block Clear!";
-
-    public override bool CanActivate(int playerIndex)
-    {
-        return GameManager.Instance != null
-            && GameManager.Instance.GetCurrentState() == GameManager.GameState.Playing
-            && GameManager.Instance.GetHPRatio(playerIndex) <= 1f / 3f;
-    }
-
-    public override void Activate(int playerIndex, ArenaController arena)
-    {
-        BlockSpawner spawner = arena.GetSpawner();
-        if (spawner == null) return;
-
-        foreach (Block b in spawner.GetComponentsInChildren<Block>())
-        {
-            if (b.transform.localPosition.y > 0f)
-                Object.Destroy(b.gameObject);
-        }
-
-        // スキル発動はボール衝突でない＝飛行中ボールを空中で止めないようシェイクのみ（DESIGN.md 5.x）
-        // フレーム数は ArenaSharedConfig で一元調整（未配置なら自身の hitStopFrames を使用）。
+        // 発動の手応え＝シェイクのみ（ボール衝突ではないのでフリーズしない, DESIGN.md 5.x）
         int frames = ArenaSharedConfig.Instance != null
-            ? ArenaSharedConfig.Instance.skillPanicHitStopFrames
-            : hitStopFrames;
+            ? ArenaSharedConfig.Instance.skillPanicHitStopFrames : 15;
         arena.TriggerHitStop(frames, strong: true, shake: true, freeze: false);
+    }
+}
+
+// BURST: 発動中、最大 shots 発のボールを連射できる（撃ち切る or 時間切れで終了）
+public sealed class SkillBurst : SkillDefinition
+{
+    public float energyCost   = 10f;
+    public float duration     = 5f;
+    public int   shots        = 10;
+    public float ballLifetime = 8f; // 撃ったボールの寿命
+
+    public override string DisplayName => "BURST";
+    public override float  EnergyCost  => energyCost;
+
+    public override void Activate(int playerIndex, ArenaController arena)
+    {
+        arena.BeginBurst(shots, duration, ballLifetime);
+    }
+}
+
+// GIANT: ボールを巨大化し Pierce 化する（巨大貫通弾）
+public sealed class SkillGiant : SkillDefinition
+{
+    public float energyCost      = 5f;
+    public float duration        = 6f;
+    public float scaleMultiplier = 3f;
+
+    public override string DisplayName => "GIANT";
+    public override float  EnergyCost  => energyCost;
+
+    public override void Activate(int playerIndex, ArenaController arena)
+    {
+        BallScript ball = arena.GetBall();
+        if (ball == null) return;
+        ball.SetAttributeTemporary(BallAttribute.Pierce, duration);
+        ball.SetScaleTemporary(scaleMultiplier, duration);
     }
 }

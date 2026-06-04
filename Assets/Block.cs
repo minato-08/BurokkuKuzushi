@@ -27,6 +27,7 @@ public class Block : MonoBehaviour
     [Header("爆発設定")]
     [SerializeField] private float explosionRadius    = 2f;
     [SerializeField] private int   explosionDamage    = 1;   // 爆発の巻き込みダメージ。Explosive 含む周囲ブロックへ適用（同 Explosive は連鎖発火）
+    [SerializeField] private float explosionChainDelay = 0.07f; // 爆発が周囲へ伝播するまでの遅延（秒）。連鎖が一拍ずつ広がって見える（DESIGN.md 5.4）
     [SerializeField] private int   explosiveHitFrames = 6;  // Explosive 破壊の最低保証フレーム（ArenaSharedConfig で一元調整）
     // 通常衝突（Normal/Hard/Absorb）のヒットストップは BallScript.GetImpactFrames()（速度×攻撃力）に一本化。
     // 以前の per-type フレーム（全て0で死にパラメータ）は撤去（2026-06-03）。
@@ -57,6 +58,7 @@ public class Block : MonoBehaviour
     private int currentHp;
     private Renderer blockRenderer;
     private bool destroyed;   // 多重破壊ガード（Destroy は遅延実行なので同フレームの追撃で二重発火するのを防ぐ）
+    public bool IsDestroyed => destroyed; // 遅延爆発コルーチンが破壊済みブロックをスキップするために参照
     private GameObject[] hpPips;
 
     void Awake()
@@ -164,7 +166,8 @@ public class Block : MonoBehaviour
         if (blockType != BlockType.Explosive)
         {
             int frames = ball != null ? ball.GetImpactFrames() : 0;
-            if (frames > 0) GetArena()?.TriggerHitStop(frames);
+            // 高速時（HYPER 等）はフリーズせずシェイクのみ＝止まらない爽快さ＋トレイルが途切れない
+            if (frames > 0) GetArena()?.TriggerHitStop(frames, shake: true, freeze: ball.ShouldFreezeOnImpact());
         }
 
         TakeDamage(damage, ball);
@@ -210,24 +213,34 @@ public class Block : MonoBehaviour
         }
 
         // 爆発ブロック：周囲のブロックに巻き込みダメージ（DESIGN.md 5.4）。
-        // 巻き込まれた Block が HP0 になると OnDestroyed が走り、それが Explosive なら
-        // 同期的に連鎖爆発する（各ブロックは destroyed フラグで一度だけ処理）。
-        // 巻き込みで倒したブロックのスコア/コンボは、各 OnDestroyed が個別に加算する。
+        // 巻き込みダメージは explosionChainDelay 秒「遅らせて」適用する＝連鎖が一拍ずつ外へ広がって見える。
+        // 巻き込まれた Block が Explosive なら、その OnDestroyed が再び遅延スケジュールして波が伝播する
+        // （各ブロックは destroyed フラグで一度だけ処理。倒したブロックのスコア/コンボは各 OnDestroyed が個別加算）。
+        // コルーチンは破壊されるこのブロックではなく、永続する BlockSpawner 上で走らせる。
         if (blockType == BlockType.Explosive)
         {
-            Collider[] nearby = Physics.OverlapSphere(transform.position, explosionRadius);
-            foreach (var col in nearby)
+            BlockSpawner spawner = GetComponentInParent<BlockSpawner>();
+            if (spawner != null)
+                spawner.ScheduleExplosion(transform.position, explosionRadius, explosionDamage, ball, explosionChainDelay);
+            else
             {
-                Block nearBlock = col.GetComponent<Block>();
-                if (nearBlock != null && nearBlock != this && !nearBlock.destroyed)
-                    nearBlock.TakeDamage(explosionDamage, ball);
+                // スポーナー未取得時のフォールバック（即時）
+                Collider[] nearby = Physics.OverlapSphere(transform.position, explosionRadius);
+                foreach (var col in nearby)
+                {
+                    Block nearBlock = col.GetComponent<Block>();
+                    if (nearBlock != null && nearBlock != this && !nearBlock.destroyed)
+                        nearBlock.TakeDamage(explosionDamage, ball);
+                }
             }
 
             // 破壊の手応え（速度×攻撃力）。最低でも explosiveHitFrames は確保してドラマ性を残す。
             int frames = ball != null
                 ? Mathf.Max(ball.GetImpactFrames(), explosiveHitFrames)
                 : explosiveHitFrames;
-            GetArena()?.TriggerHitStop(frames, shake: true);
+            // 高速時（HYPER 等）はフリーズせずシェイクのみ
+            bool freeze = ball == null || ball.ShouldFreezeOnImpact();
+            GetArena()?.TriggerHitStop(frames, shake: true, freeze: freeze);
         }
 
         if (ball != null) TryDropItem(ball);
@@ -259,6 +272,19 @@ public class Block : MonoBehaviour
         if (blockRenderer != null)
             blockRenderer.material.color = hardenedColor;
         BuildHpPips(); // 硬化で HP>1 になったので残耐久ドットを生成
+    }
+
+    // EXPLOSION スキルで実行時に Explosive へ変換する（DESIGN.md 5.6）。
+    // 爆発挙動・連鎖は既存の BlockType.Explosive 経路（OnDestroyed）をそのまま使う。
+    public void ConvertToExplosive()
+    {
+        if (destroyed) return;
+        blockType = BlockType.Explosive;
+        hp        = 1;
+        currentHp = 1;
+        if (blockRenderer != null)
+            blockRenderer.material.color = explosiveColor;
+        BuildHpPips(); // HP1 なのでドットは消える
     }
 
     private void TryDropItem(BallScript ball)
