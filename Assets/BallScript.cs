@@ -58,6 +58,7 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private float impactSpeedWeight = 0.6f; // 速度寄与の強さ
     [SerializeField] private float impactThreshold   = 1.4f; // これ未満は手応えを出さない
     [SerializeField] private int   impactMaxFrames   = 10;   // 停止フレーム上限
+    [SerializeField] private float freezeSkipSpeedFactor = 2.5f; // 実効速度がこの倍率超でブロック衝突はフリーズせずシェイクのみ（HYPER 等）
 
     [Header("属性別カラー")]
     [SerializeField] private Color normalColor  = Color.white;
@@ -96,7 +97,7 @@ public class BallScript : MonoBehaviour, IFreezable
     [SerializeField] private float pierceDetectMargin = 0.12f; // 貫通検出オーバーラップの余白
     private readonly System.Collections.Generic.HashSet<Block> pierceIgnored
         = new System.Collections.Generic.HashSet<Block>();
-    private static readonly Collider[] pierceBuf = new Collider[16];
+    private static readonly Collider[] pierceBuf = new Collider[32]; // GIANT で多数のブロックに重なるため広め
 
     private bool frozen = false;
     private Vector3 frozenVelocity;
@@ -117,8 +118,10 @@ public class BallScript : MonoBehaviour, IFreezable
 
     private Coroutine attributeRoutine;
     private Coroutine speedRoutine;
+    private Coroutine scaleRoutine;
+    private Vector3   baseScale = Vector3.one; // Start で実スケールをキャプチャ（GIANT の復元用）
 
-    // SkillBall_Multi で生成された追加ボール（時間加速なし、落下ペナルティなし）
+    // BURST 等で生成された追加ボール（時間加速なし、落下ペナルティなし）
     public bool isExtraBall = false;
 
     public void Freeze()
@@ -127,9 +130,11 @@ public class BallScript : MonoBehaviour, IFreezable
         frozen = true;
         frozenVelocity = rb.linearVelocity;
         rb.linearVelocity = Vector3.zero;
-        // TrailRenderer はワールド座標に履歴を保持するため、親アリーナを揺らすと履歴だけが
-        // 置き去りになって裂ける。ヒットストップ中は履歴を消して非表示にする。
-        SetTrailVisible(false, clear: true);
+        // ボールは ShakeRoot の外（Arena 直下）なのでシェイクで動かず、履歴は置き去りにならない＝裂けない。
+        // よってフリーズ中は履歴を消さず、新規頂点の追加だけ止める（emitting=false / 描画は継続）。
+        // 旧実装は毎フリーズで Clear+非表示にしていたため、HYPER 等で頻繁にヒットストップが起きると
+        // トレイルが毎回消えて見えなくなっていた（2026-06-05 修正）。再開後は履歴が残るので連続して見える。
+        if (trail != null) trail.emitting = false;
     }
 
     public void Unfreeze()
@@ -138,8 +143,8 @@ public class BallScript : MonoBehaviour, IFreezable
         if (rb == null) return;
         rb.linearVelocity = frozenVelocity;
         lastVelocity = frozenVelocity;
-        // 再開直後のシェイク最終位置と通常位置をつなぐ線が出ないよう、空の履歴から再開する。
-        SetTrailVisible(!IsWaitingToLaunch, clear: true);
+        // 履歴は保ったまま発射中なら再び新規頂点を出す（Clear しない＝フリーズ前の軌跡と連続する）。
+        if (trail != null) trail.emitting = !IsWaitingToLaunch;
     }
 
     // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
@@ -173,6 +178,7 @@ public class BallScript : MonoBehaviour, IFreezable
         impactSpeedWeight = c.impactSpeedWeight;
         impactThreshold   = c.impactThreshold;
         impactMaxFrames   = c.impactMaxFrames;
+        freezeSkipSpeedFactor = c.freezeSkipSpeedFactor;
         normalColor  = c.ballNormalColor;
         fireColor    = c.ballFireColor;
         thunderColor = c.ballThunderColor;
@@ -202,6 +208,7 @@ public class BallScript : MonoBehaviour, IFreezable
 
         baseSpeed    = speed;
         naturalSpeed = baseSpeed;
+        baseScale    = transform.localScale; // GIANT の一時拡大からの復元基準
 
         trail = GetComponent<TrailRenderer>();
         if (trail == null) trail = gameObject.AddComponent<TrailRenderer>();
@@ -358,6 +365,8 @@ public class BallScript : MonoBehaviour, IFreezable
     {
         if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
         if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
+        if (scaleRoutine     != null) { StopCoroutine(scaleRoutine);     scaleRoutine = null; }
+        transform.localScale = baseScale; // GIANT の一時拡大を次ラウンドへ持ち越さない
         CancelInvoke();
 
         // 貫通中に無効化したブロック衝突を元に戻す（次ラウンドへ持ち越さない）
@@ -428,6 +437,21 @@ public class BallScript : MonoBehaviour, IFreezable
         speedRoutine = null;
     }
 
+    // GIANT スキル: ボールを一定時間巨大化する（Pierce 検出半径は bounds 由来なので薙ぎ払い幅も自動拡大）
+    public void SetScaleTemporary(float multiplier, float duration)
+    {
+        if (scaleRoutine != null) StopCoroutine(scaleRoutine);
+        scaleRoutine = StartCoroutine(ScaleRoutine(multiplier, duration));
+    }
+
+    private System.Collections.IEnumerator ScaleRoutine(float multiplier, float duration)
+    {
+        transform.localScale = baseScale * multiplier;
+        yield return new WaitForSeconds(duration);
+        transform.localScale = baseScale;
+        scaleRoutine = null;
+    }
+
     // 速度が hitStopSpeedThreshold 倍を超えた場合のみ 0→1 を返す
     // ブロック衝突・壁バウンスのフレーム数にそのまま乗算する（上限がフレーム数そのもの）
     public float GetHitStopMultiplier()
@@ -471,6 +495,15 @@ public class BallScript : MonoBehaviour, IFreezable
         float impact      = speedTerm * attackWeight;
         if (impact < impactThreshold) return 0;
         return Mathf.Clamp(Mathf.RoundToInt(impactBaseFrames * impact), 1, impactMaxFrames);
+    }
+
+    // ブロック衝突でボールをフリーズ（一時停止）すべきか。実効速度が freezeSkipSpeedFactor 倍を
+    // 超える高速時（HYPER 等）は false＝止めずシェイクのみ（爽快さ維持＋トレイルが途切れない, DESIGN.md 5.2/5.6）。
+    public bool ShouldFreezeOnImpact()
+    {
+        if (freezeSkipSpeedFactor <= 0f) return true; // 機能無効＝常にフリーズ
+        float speedFactor = baseSpeed > 0f ? EffectiveSpeed() / baseSpeed : 1f;
+        return speedFactor < freezeSkipSpeedFactor;
     }
 
     // 実効速度 = 自然速度 × アイテム加減速 × ZoneSlow × 属性速度係数。FixedUpdate での正規化・

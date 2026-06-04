@@ -13,6 +13,7 @@ public class EnergySystem
     public EnergySystem(float max) { maxEnergy = Mathf.Max(1f, max); }
 
     public void AddEnergy(float amount) { energy = Mathf.Min(maxEnergy, energy + amount); }
+    public void Consume(float amount)   { energy = Mathf.Max(0f, energy - amount); }
     public void ConsumeAll()            { energy = 0f; }
     public void Reset()                 { energy = 0f; }
     public void SetMax(float max)       { maxEnergy = Mathf.Max(1f, max); }

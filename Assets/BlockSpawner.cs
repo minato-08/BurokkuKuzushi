@@ -376,6 +376,41 @@ public class BlockSpawner : MonoBehaviour, IFreezable
             b.HardenToHp(hardenTargetHp);
     }
 
+    // Explosive の巻き込みダメージを delay 秒遅らせて適用する（Block.OnDestroyed から呼ばれる, DESIGN.md 5.4）。
+    // 破壊される Block 自身ではなく永続する Spawner で走らせる。ClearAndRespawn の StopAllCoroutines で
+    // ラウンド遷移時に自動キャンセルされるので、跨いだ爆発は残らない。
+    public void ScheduleExplosion(Vector3 worldPos, float radius, int damage, BallScript ball, float delay)
+    {
+        StartCoroutine(ExplosionRoutine(worldPos, radius, damage, ball, delay));
+    }
+
+    private System.Collections.IEnumerator ExplosionRoutine(Vector3 worldPos, float radius, int damage, BallScript ball, float delay)
+    {
+        if (delay > 0f) yield return new WaitForSeconds(delay);
+
+        Collider[] nearby = Physics.OverlapSphere(worldPos, radius);
+        foreach (var col in nearby)
+        {
+            if (col == null) continue;
+            Block b = col.GetComponent<Block>();
+            if (b != null && !b.IsDestroyed)
+                b.TakeDamage(damage, ball); // Explosive ならここで OnDestroyed → 再び遅延スケジュールして連鎖が伝播
+        }
+    }
+
+    // EXPLOSION スキル: 自陣のブロックをランダムに count 個 Explosive へ変換する（DESIGN.md 5.6）
+    public void ConvertRandomToExplosive(int count)
+    {
+        Block[] candidates = allBlocks
+            .Where(b => b != null && b.blockType != BlockType.Explosive)
+            .OrderBy(_ => Random.value)
+            .Take(count)
+            .ToArray();
+
+        foreach (Block b in candidates)
+            b.ConvertToExplosive();
+    }
+
     private bool IsTopClear()
     {
         foreach (var block in allBlocks)

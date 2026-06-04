@@ -14,7 +14,6 @@ public class HPStateBand
     public float scoreMul     = 1.0f;      // スコア倍率
     [Range(0f, 1f)]
     public float goodItemBias = 0f;        // 有利アイテムへの偏重（0=均等、1=有利のみ）
-    public bool  panicMode    = false;     // ピンチ専用スキル解禁などのフラグ
 }
 
 public class GameManager : MonoBehaviour
@@ -504,7 +503,7 @@ public class GameManager : MonoBehaviour
     // Danger Proximity / Last Stand 用アクセサ（UIManager がポーリング, DESIGN.md 5.4 / 5.10）
     public float  GetLowestBlockY(int playerIndex)          => GetArena(playerIndex)?.GetSpawner()?.GetLowestBlockY()    ?? float.MaxValue;
     public float  GetBlockDeadZoneY(int playerIndex)        => GetArena(playerIndex)?.GetSpawner()?.GetBlockDeadZoneY()  ?? 0f;
-    public bool   IsPanicReady(int playerIndex)             => GetArena(playerIndex)?.GetSkillController()?.PanicReady   ?? false;
+    public bool   IsSkillReady(int playerIndex)             => GetArena(playerIndex)?.GetSkillController()?.IsReady      ?? false;
 
     public void Heal(int playerIndex, int amount)
     {

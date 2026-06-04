@@ -123,13 +123,18 @@ public class ArenaSharedConfig : MonoBehaviour
     public float impactThreshold   = 1.4f; // これ未満は手応えを出さない（0フレーム）
     public int   impactMaxFrames   = 10;   // 一撃の停止フレーム上限
     public int   explosiveHitFrames = 6;   // Explosive 破壊の最低保証フレーム（手応えがこれ未満でも下限）
+    // 実効速度が baseSpeed の何倍を超えたらブロック衝突を「フリーズせずシェイクのみ」にするか（HYPER 等の高速時）。
+    // フリーズで止まらない＝爽快さ維持＋トレイルが途切れない。0 以下なら無効（常にフリーズ）, DESIGN.md 5.2/5.6。
+    public float freezeSkipSpeedFactor = 2.5f;
 
     [Header("カメラシェイク強度")]
     public float shakeIntensityNormal = 0.08f; // 通常シェイク振幅（ワールド単位）
     public float shakeIntensityStrong = 0.20f; // 強シェイク振幅（ラウンド/マッチ決着）
 
     [Header("スキル ヒットストップ")]
-    public int   skillPanicHitStopFrames = 15; // SkillPanic_BlockClear 発動時（シェイクのみ）
+    // スキル発動時のシェイク演出フレーム数（現状 EXPLOSION の発動シェイクで使用, DESIGN.md 5.6）。
+    // ※ serialize 名は旧 SkillPanic から踏襲（シーンの調整値を保つため改名しない）。
+    public int   skillPanicHitStopFrames = 15;
 
     [Header("ボール 色 / Ball Heat / トレイル")]
     public Color ballNormalColor  = Color.white;

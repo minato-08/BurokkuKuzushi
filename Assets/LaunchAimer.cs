@@ -15,15 +15,38 @@ public class LaunchAimer : MonoBehaviour
 
     private BallScript       ball;
     private int              playerIndex;
+    private ArenaController  arena;
     private bool             isAiming;
     private float            metronomeTime;
     private float            currentAngleDeg;
     private LineRenderer     line;
 
+    // BURST スキル（DESIGN.md 5.6）: 連射モード
+    private bool  burstActive;
+    private int   burstShotsLeft;
+    private float burstTimer;
+    private float burstBallLifetime;
+
     public void Initialize(BallScript b, int pIndex, ArenaController a)
     {
         ball        = b;
         playerIndex = pIndex;
+        arena       = a;
+    }
+
+    // BURST 発動: shots 発・duration 秒の連射モードに入る
+    public void BeginBurst(int shots, float duration, float ballLifetime)
+    {
+        burstActive       = true;
+        burstShotsLeft    = shots;
+        burstTimer        = duration;
+        burstBallLifetime = ballLifetime;
+    }
+
+    private void EndBurst()
+    {
+        burstActive = false;
+        StopAiming();
     }
 
     // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
@@ -66,11 +89,17 @@ public class LaunchAimer : MonoBehaviour
 
     void Update()
     {
-        if (GameManager.Instance?.GetCurrentState() == GameManager.GameState.SkillSelect)
+        var state = GameManager.Instance?.GetCurrentState();
+
+        if (state == GameManager.GameState.SkillSelect)
         {
-            if (isAiming) StopAiming();
+            if (burstActive) EndBurst();
+            else if (isAiming) StopAiming();
             return;
         }
+
+        // BURST 連射モードは通常照準より優先（メインボール飛行中でも照準できる）
+        if (burstActive) { UpdateBurst(state); return; }
 
         if (ball == null)
         {
@@ -95,12 +124,46 @@ public class LaunchAimer : MonoBehaviour
         currentAngleDeg = Mathf.Sin(metronomeTime * (2f * Mathf.PI / metronomePeriodSec))
                           * metronomeAngleRange;
 
-        UpdateLine();
+        UpdateLineAt(ball.transform.position);
 
         // 発射は Playing 中のみ（カウントダウン中は S/K 無効, DESIGN.md 12.12）
-        if (IsLaunchKeyPressed()
-            && GameManager.Instance?.GetCurrentState() == GameManager.GameState.Playing)
+        if (IsLaunchKeyPressed() && state == GameManager.GameState.Playing)
             Fire();
+    }
+
+    // BURST 連射モードの毎フレーム処理
+    private void UpdateBurst(GameManager.GameState? state)
+    {
+        // Playing 以外（ラウンド間など）では時間・弾を消費しない（照準も止める）
+        if (state != GameManager.GameState.Playing) { if (isAiming) StopAiming(); return; }
+
+        burstTimer -= Time.deltaTime;
+        if (burstTimer <= 0f || burstShotsLeft <= 0) { EndBurst(); return; }
+
+        if (!isAiming) { metronomeTime = 0f; isAiming = true; }
+        metronomeTime  += Time.deltaTime;
+        currentAngleDeg = Mathf.Sin(metronomeTime * (2f * Mathf.PI / metronomePeriodSec))
+                          * metronomeAngleRange;
+
+        Vector3 originWorld = BurstOriginWorld();
+        UpdateLineAt(originWorld);
+
+        if (IsLaunchKeyPressed() && arena != null)
+        {
+            float rad        = currentAngleDeg * Mathf.Deg2Rad;
+            Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
+            arena.SpawnBurstBall(localDir, burstBallLifetime);
+            AudioManager.Instance?.PlayBallLaunch(playerIndex);
+            burstShotsLeft--;
+        }
+    }
+
+    // BURST のインジケーター原点＝ボール生成位置（パドル上）のワールド座標
+    private Vector3 BurstOriginWorld()
+    {
+        if (ball != null && ball.transform.parent != null && arena != null)
+            return ball.transform.parent.TransformPoint(arena.GetBallSpawnLocalPos());
+        return ball != null ? ball.transform.position : transform.position;
     }
 
     // ラウンド遷移でエイマーの位相をリセットする（ArenaController.ResetForNewRound から呼ばれる）。
@@ -111,9 +174,10 @@ public class LaunchAimer : MonoBehaviour
         metronomeTime   = 0f;
         currentAngleDeg = 0f;
         isAiming        = false;
+        burstActive     = false; // BURST 連射中にラウンドが終わっても持ち越さない
     }
 
-    private void UpdateLine()
+    private void UpdateLineAt(Vector3 origin)
     {
         if (ball == null) return;
         line.enabled = true;
@@ -124,7 +188,6 @@ public class LaunchAimer : MonoBehaviour
             ? ball.transform.parent.TransformDirection(localDir)
             : localDir;
 
-        Vector3 origin = ball.transform.position;
         line.SetPosition(0, origin);
         line.SetPosition(1, origin + worldDir * indicatorLength);
     }
