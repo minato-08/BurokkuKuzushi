@@ -499,6 +499,7 @@ public class GameManager : MonoBehaviour
     public ArenaController GetArena(int playerIndex)        => playerIndex == 1 ? arena1 : arena2;
     public float  GetEnergyRatio(int playerIndex)           => GetArena(playerIndex)?.GetSkillController()?.EnergyRatio ?? 0f;
     public string GetEquippedSkillName(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.SkillName    ?? "---";
+    public SkillId? GetEquippedSkillId(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.EquippedSkillId;
 
     // Danger Proximity / Last Stand 用アクセサ（UIManager がポーリング, DESIGN.md 5.4 / 5.10）
     public float  GetLowestBlockY(int playerIndex)          => GetArena(playerIndex)?.GetSpawner()?.GetLowestBlockY()    ?? float.MaxValue;

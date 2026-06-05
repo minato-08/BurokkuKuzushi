@@ -83,13 +83,38 @@ public class ArenaController : MonoBehaviour
         Object.Destroy(floor, duration);
     }
 
-    // BURST スキル: 一定時間 LaunchAimer を連射モードにする（DESIGN.md 5.6）
-    public void BeginBurst(int shots, float duration, float ballLifetime)
+    private Coroutine burstRoutine;
+
+    // BURST スキル（DESIGN.md 5.6）: shots 発のプレーンボールを interval 秒間隔で自動連射する。
+    // プレイヤーの発射操作（S/K キー）には一切干渉しない（LaunchAimer は使わない）。
+    public void BeginBurst(int shots, float interval, float angle, float ballLifetime)
     {
-        launchAimer?.BeginBurst(shots, duration, ballLifetime);
+        if (burstRoutine != null) StopCoroutine(burstRoutine);
+        burstRoutine = StartCoroutine(BurstFireRoutine(shots, interval, angle, ballLifetime));
     }
 
-    // BURST の 1 発: ボール生成位置（パドル上）から指定方向へ追加ボールを発射する
+    // 鉛直上(0°)を基準に +angle と -angle を交互に 1 発ずつ自動発射する。
+    // 例: 10 発 / 45° → +45, -45, +45, -45, ...（偶数発目=右、奇数発目=左）。
+    private System.Collections.IEnumerator BurstFireRoutine(int shots, float interval, float angle, float ballLifetime)
+    {
+        for (int i = 0; i < shots; i++)
+        {
+            // Playing 以外（ラウンド間など）になったら中断（後始末は ResetForNewRound が行う）
+            if (GameManager.Instance?.GetCurrentState() != GameManager.GameState.Playing) break;
+
+            float deg = (i % 2 == 0) ? angle : -angle; // 偶数発目 +angle / 奇数発目 -angle で交互
+            float rad = deg * Mathf.Deg2Rad;
+            Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
+
+            SpawnBurstBall(localDir, ballLifetime);
+            AudioManager.Instance?.PlayBallLaunch(playerIndex);
+
+            if (i < shots - 1) yield return new WaitForSeconds(interval);
+        }
+        burstRoutine = null;
+    }
+
+    // BURST の 1 発: ボール生成位置（パドル上）から指定方向へプレーンな追加ボールを発射する。
     public void SpawnBurstBall(Vector3 localDir, float lifetime)
     {
         if (ball == null) return;
@@ -97,6 +122,9 @@ public class ArenaController : MonoBehaviour
         extra.name = "Ball_Burst";
         BallScript bs = extra.GetComponent<BallScript>();
         bs.isExtraBall = true; // 時間加速なし・ラウンドリセットで破棄される
+        // 素のサイズで生成する（GIANT 等で拡大中のメインボールを複製しても等倍に）。
+        // BallScript.Start() が baseScale をこの値でキャプチャするよう、生成直後に設定しておく。
+        extra.transform.localScale = ball.BaseScale;
         hitStop?.RegisterFreezable(bs);
         StartCoroutine(LaunchBurstRoutine(bs, localDir, lifetime));
     }
@@ -105,7 +133,9 @@ public class ArenaController : MonoBehaviour
     {
         yield return null; // BallScript.Start() を待つ
         if (bs == null) yield break;
-        bs.transform.localPosition = GetBallSpawnLocalPos(); // パドル上から発射
+        // アイテム/スキル効果（属性・速度倍率・GIANT 拡大・ZoneSlow）を一切持たないプレーン状態に
+        // してから発射する。PrepareRespawn が複製元から引き継いだ効果値とコルーチンを全リセットする。
+        bs.PrepareRespawn(GetBallSpawnLocalPos());
         bs.LaunchInDirection(localDir);
         yield return new WaitForSeconds(lifetime);
         if (bs != null) Object.Destroy(bs.gameObject);
@@ -241,6 +271,9 @@ public class ArenaController : MonoBehaviour
 
         // 発射エイマーの位相を中央へリセット（ボールが待機中のままラウンドが終わった場合の引き継ぎ防止）
         launchAimer?.ResetAim();
+
+        // BURST 連射が進行中ならラウンド跨ぎで止める
+        if (burstRoutine != null) { StopCoroutine(burstRoutine); burstRoutine = null; }
 
         // BURST 等で生成された追加ボール（isExtraBall）を破棄（メインボールは残す）
         foreach (var b in ArenaRoot.GetComponentsInChildren<BallScript>())

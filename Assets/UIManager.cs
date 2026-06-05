@@ -52,6 +52,13 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI p1RoundWins;
     [SerializeField] private TextMeshProUGUI p2RoundWins;
 
+    [Header("[任意] スキルアイコン（可/不可でスプライト差替, DESIGN.md 5.6）")]
+    [SerializeField] private Image    p1SkillIcon;            // $P1SkillIcon
+    [SerializeField] private Image    p2SkillIcon;            // $P2SkillIcon
+    // 配列の index は (int)SkillId（0 Hyper / 1 Explosion / 2 Burst / 3 Giant）。SkillSelectUI.AllSkills と同順。
+    [SerializeField] private Sprite[] skillIconsReady;        // 発動可（チャージ満了）アイコン
+    [SerializeField] private Sprite[] skillIconsUnavailable;  // 発動不可（チャージ中）アイコン
+
     [Header("[任意] Combo Timer Arc（コンボ数字下の半円弧, DESIGN.md 6.2）")]
     [SerializeField] private Image p1ComboArc;   // Filled / Radial360 / 180° / Bottom / Clockwise
     [SerializeField] private Image p2ComboArc;
@@ -96,9 +103,6 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Color hpColorLow  = new Color(1.000f, 0.231f, 0.361f);
     [Range(0f, 1f)] [SerializeField] private float midThreshold = 0.7f;
     [Range(0f, 1f)] [SerializeField] private float lowThreshold = 0.3f;
-
-    [Header("スキル READY 表示")]
-    [SerializeField] private string skillReadySuffix = " · READY";
 
     [Header("演出時間（秒）")]
     [SerializeField] private float overlayFlashDuration   = 1.5f;  // 妨害受信フラッシュ
@@ -227,7 +231,51 @@ public class UIManager : MonoBehaviour
 
         UpdateComboArc(1, p1ComboArc);
         UpdateComboArc(2, p2ComboArc);
+
+        UpdateSkillIcon(1);
+        UpdateSkillIcon(2);
     }
+
+    // スキルアイコンの可/不可切替（DESIGN.md 5.6）。
+    // 装備スキル ID で配列を引き、READY 状態に応じて Ready / Unavailable スプライトへ差し替える。
+    // 未装備（SkillSelect 前）はアイコンを隠す。null セーフ（要素未バインドでも落ちない）。
+    private void UpdateSkillIcon(int playerIndex)
+    {
+        Image icon = playerIndex == 1 ? p1SkillIcon : p2SkillIcon;
+        if (icon == null) return;
+
+        var gm = GameManager.Instance;
+        SkillId? id = gm.GetEquippedSkillId(playerIndex);
+
+        // 未装備（まだスキルを選んでいない）ならアイコンを隠す
+        if (id == null)
+        {
+            if (icon.enabled) icon.enabled = false;
+            return;
+        }
+        if (!icon.enabled) icon.enabled = true;
+
+        bool ready = gm.IsSkillReady(playerIndex);
+
+        // TODO(human): id（どのスキルか）と ready（発動可能か）から表示する Sprite を選び icon.sprite に代入する。
+        //   - ready が true なら skillIconsReady、false なら skillIconsUnavailable を使う
+        //   - 配列の index は (int)id（SkillId enum の値 0..3）
+        //   - 範囲外/null で落ちないよう、下の SpriteAt(arr, index) ヘルパを使うと安全
+        //   - 選んだ Sprite が null（未割当）なら代入をスキップして直前の見た目を保つのが無難
+
+        if (ready)
+        {
+            icon.sprite = SpriteAt(skillIconsReady, (int)id);
+        }
+        else
+        {
+            icon.sprite = SpriteAt(skillIconsUnavailable, (int)id);
+        }
+    }
+
+    // 配列の範囲外・null を吸収して Sprite を返す（無ければ null）。UpdateSkillIcon から使う。
+    private static Sprite SpriteAt(Sprite[] arr, int index)
+        => (arr != null && index >= 0 && index < arr.Length) ? arr[index] : null;
 
     // コンボ数字下の半円弧（DESIGN.md 6.2/12.22）: 直近破壊で満杯→経過で 1→0 に縮小。
     // combo==0 で非表示。消滅間際は橙に。HitStop 中も timeScale=1 のまま comboTimer が進む。
@@ -290,12 +338,8 @@ public class UIManager : MonoBehaviour
 
         // 任意セクション
         if (energyFill != null) energyFill.fillAmount = gm.GetEnergyRatio(playerIndex);
-        if (skillName != null)
-        {
-            // ゲージが装備スキルの必要量に達したら READY を付与（DESIGN.md 5.6）
-            string name = gm.GetEquippedSkillName(playerIndex);
-            skillName.text = gm.IsSkillReady(playerIndex) ? name + skillReadySuffix : name;
-        }
+        // スキル名は常に名前のみ（READY 可否はアイコン側で表現するので suffix は付けない）
+        if (skillName != null) skillName.text = gm.GetEquippedSkillName(playerIndex);
         if (roundWins != null) roundWins.text = gm.GetRoundWins(playerIndex).ToString();
     }
 

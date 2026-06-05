@@ -6,7 +6,9 @@ using UnityEngine.InputSystem;
 public class SkillController : MonoBehaviour
 {
     [SerializeField] private float maxEnergy = 10f; // ゲージ満タンに必要なエナジー量
+    [SerializeField] private float chargeLockSeconds = 10f; // スキル発動後、ゲージが溜まらない時間（クールダウン）
 
+    private float           chargeLockUntil; // この時刻（Time.time）まではゲージ蓄積をロック
     private int             playerIndex;
     private ArenaController arena;
     private EnergySystem    energy;
@@ -16,6 +18,9 @@ public class SkillController : MonoBehaviour
     public float  EnergyRatio => (energy != null && equippedSkill != null && equippedSkill.EnergyCost > 0f)
                                  ? Mathf.Clamp01(energy.Energy / equippedSkill.EnergyCost) : 0f;
     public string SkillName   => equippedSkill?.DisplayName ?? "---";
+
+    // 装備中スキルの種別 ID（未装備なら null）。UIManager がアイコン選択に使う。
+    public SkillId? EquippedSkillId => equippedSkill?.Id;
 
     // 装備スキルが必要ゲージに達しているか（発動可能・READY 表示判定）
     public bool   IsReady     => energy != null && equippedSkill != null
@@ -31,12 +36,19 @@ public class SkillController : MonoBehaviour
     }
 
     public void SetSkill(SkillDefinition skill) => equippedSkill = skill;
-    public void AddEnergy(float amount)         => energy?.AddEnergy(amount);
+
+    // 発動直後のロックアウト中（chargeLockUntil まで）はゲージを溜めない（DESIGN: クールダウン）
+    public void AddEnergy(float amount)
+    {
+        if (Time.time < chargeLockUntil) return;
+        energy?.AddEnergy(amount);
+    }
 
     public void ResetEnergy()
     {
         energy?.SetMax(maxEnergy);
         energy?.Reset();
+        chargeLockUntil = 0f; // ラウンド跨ぎでロックを持ち越さない
         wasReady = false;
     }
 
@@ -58,6 +70,7 @@ public class SkillController : MonoBehaviour
 
         AudioManager.Instance?.PlaySkillActivate(playerIndex); // スキル発動 SE
         energy.Consume(equippedSkill.EnergyCost);
+        chargeLockUntil = Time.time + chargeLockSeconds; // 発動後 chargeLockSeconds 間はゲージ蓄積をロック
         equippedSkill.Activate(playerIndex, arena);
     }
 
