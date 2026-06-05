@@ -124,7 +124,6 @@ public class UIManager : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float lastStandThreshold = 0.10f;
     [SerializeField] private float lastStandBlinkPeriod = 0.55f; // 明滅周期（消えかけ電球風・ゆっくりめ）
     [Range(0f, 1f)] [SerializeField] private float lastStandDimFloor = 0.28f; // 明るさを落とす下限
-    [SerializeField] private string panicReadyLabel    = "PANIC READY";
 
     [Header("[演出] ラウンド/マッチ決着（勝者フラッシュ・敗者暗転）")]
     [SerializeField] private float roundResultWinIntensity = 4.0f;  // 勝者枠の発光ピーク倍率（HDR で Bloom）
@@ -293,17 +292,9 @@ public class UIManager : MonoBehaviour
         if (energyFill != null) energyFill.fillAmount = gm.GetEnergyRatio(playerIndex);
         if (skillName != null)
         {
-            // 緊急スキル（SkillPanic_BlockClear）が発動可能になったら PANIC READY で上書き（DESIGN.md 5.10）
-            if (gm.IsPanicReady(playerIndex))
-            {
-                skillName.text = panicReadyLabel;
-            }
-            else
-            {
-                string name = gm.GetEquippedSkillName(playerIndex);
-                bool ready = gm.GetEnergyRatio(playerIndex) >= 1f;
-                skillName.text = ready ? name + skillReadySuffix : name;
-            }
+            // ゲージが装備スキルの必要量に達したら READY を付与（DESIGN.md 5.6）
+            string name = gm.GetEquippedSkillName(playerIndex);
+            skillName.text = gm.IsSkillReady(playerIndex) ? name + skillReadySuffix : name;
         }
         if (roundWins != null) roundWins.text = gm.GetRoundWins(playerIndex).ToString();
     }

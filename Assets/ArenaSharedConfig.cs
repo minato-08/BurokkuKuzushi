@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // Arena1 / Arena2 で共通であるべきチューニング値を 1 箇所に集約する共有設定。
@@ -122,13 +123,18 @@ public class ArenaSharedConfig : MonoBehaviour
     public float impactThreshold   = 1.4f; // これ未満は手応えを出さない（0フレーム）
     public int   impactMaxFrames   = 10;   // 一撃の停止フレーム上限
     public int   explosiveHitFrames = 6;   // Explosive 破壊の最低保証フレーム（手応えがこれ未満でも下限）
+    // 実効速度が baseSpeed の何倍を超えたらブロック衝突を「フリーズせずシェイクのみ」にするか（HYPER 等の高速時）。
+    // フリーズで止まらない＝爽快さ維持＋トレイルが途切れない。0 以下なら無効（常にフリーズ）, DESIGN.md 5.2/5.6。
+    public float freezeSkipSpeedFactor = 2.5f;
 
     [Header("カメラシェイク強度")]
     public float shakeIntensityNormal = 0.08f; // 通常シェイク振幅（ワールド単位）
     public float shakeIntensityStrong = 0.20f; // 強シェイク振幅（ラウンド/マッチ決着）
 
     [Header("スキル ヒットストップ")]
-    public int   skillPanicHitStopFrames = 15; // SkillPanic_BlockClear 発動時（シェイクのみ）
+    // スキル発動時のシェイク演出フレーム数（現状 EXPLOSION の発動シェイクで使用, DESIGN.md 5.6）。
+    // ※ serialize 名は旧 SkillPanic から踏襲（シーンの調整値を保つため改名しない）。
+    public int   skillPanicHitStopFrames = 15;
 
     [Header("ボール 色 / Ball Heat / トレイル")]
     public Color ballNormalColor  = Color.white;
@@ -163,4 +169,37 @@ public class ArenaSharedConfig : MonoBehaviour
     public float arenaHalfWidth   = 5f;
     public float arenaHalfHeight  = 4.5f;
     public float ballSpawnOffsetY = 1f;   // ArenaController と DeadZone で同値であるべき
+
+    // ---------------- Item icons ----------------
+    // 落下中アイテム本体（ArenaController.SpawnItem）に表示するスプライト。
+    // ItemType ごとに Inspector で割り当てる（順不同・未割り当ては従来の色付き球にフォールバック）。
+    [System.Serializable]
+    public struct ItemIcon
+    {
+        public ItemType type;
+        public Sprite   sprite;
+    }
+
+    [Header("アイテムアイコン（落下アイテム本体）")]
+    public ItemIcon[] itemIcons;
+    public float      itemIconWorldSize = 0.9f;  // 表示するアイコンのワールド高さ（スプライト bounds 基準）
+    // Bloom 発光の強さ。Custom/HDRSprite のマテリアル _Color(HDR) RGB に載る → 1 超で Bloom Threshold(1.0) を越えて発光。
+    // （SpriteRenderer.color は Color32 にクランプされるため発光に使えない点に注意）
+    // 1 で発光なし（等倍）、1.5〜2.5 で明部がにじむ。0 でアイコン非表示になるので注意。
+    public float      itemIconGlow = 1.8f;
+
+    private Dictionary<ItemType, Sprite> _itemIconMap;
+
+    // ItemType → Sprite。未割り当て / 未配置なら null（呼び出し側が球にフォールバック）。
+    public Sprite GetItemIcon(ItemType type)
+    {
+        if (_itemIconMap == null)
+        {
+            _itemIconMap = new Dictionary<ItemType, Sprite>();
+            if (itemIcons != null)
+                foreach (var e in itemIcons)
+                    if (e.sprite != null) _itemIconMap[e.type] = e.sprite;
+        }
+        return _itemIconMap.TryGetValue(type, out var s) ? s : null;
+    }
 }

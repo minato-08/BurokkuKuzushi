@@ -20,6 +20,13 @@ public class ArenaController : MonoBehaviour
     [Header("メトロノーム発射")]
     [SerializeField] private LaunchAimer launchAimer;
 
+    // HYPER スキルの床。手動配置したオブジェクトをバインドすると、発動中だけ SetActive(true) にして使う
+    // （位置・サイズ・マテリアル・コライダーを Unity 上で調整可能）。**非アクティブで配置・コライダー(非トリガー)付き**を想定。
+    // 未バインドなら実行時に簡易キューブを生成（null セーフフォールバック）。
+    [Header("HYPER スキルの床（任意）")]
+    [SerializeField] private GameObject hyperFloor;
+    private Coroutine hyperFloorRoutine;
+
     // シェイク対象。ボール（非キネマティック Rigidbody）はこの配下に置かない＝シェイクに
     // 引きずられないようにするため、壁/パドル/ブロック等を収める ShakeRoot を揺らす。
     // 未設定なら名前で解決、それも無ければ ArenaRoot にフォールバック（後方互換）。
@@ -36,33 +43,144 @@ public class ArenaController : MonoBehaviour
     public BallScript    GetBall()             => ball;
     public SkillController GetSkillController() => skillController;
 
-    public void SpawnExtraBall(float duration)
+    // HYPER スキル: Dead Zone 付近に一時的な床を出してボールを落としにくくする（DESIGN.md 5.6）。
+    // バインド済みオブジェクトがあれば発動中だけ SetActive(true)（位置/サイズ/見た目は Unity 上で調整）、
+    // 未バインドなら ShakeRoot 配下に簡易キューブを実行時生成する（null セーフフォールバック）。
+    public void SpawnHyperFloor(float duration)
+    {
+        if (hyperFloor != null)
+        {
+            if (hyperFloorRoutine != null) StopCoroutine(hyperFloorRoutine);
+            hyperFloorRoutine = StartCoroutine(HyperFloorRoutine(duration));
+            return;
+        }
+        SpawnRuntimeHyperFloor(duration);
+    }
+
+    private System.Collections.IEnumerator HyperFloorRoutine(float duration)
+    {
+        hyperFloor.SetActive(true);
+        yield return new WaitForSeconds(duration);
+        if (hyperFloor != null) hyperFloor.SetActive(false);
+        hyperFloorRoutine = null;
+    }
+
+    // 未バインド時のフォールバック（手応えだけ確保。見た目調整するならオブジェクトをバインドする）
+    private void SpawnRuntimeHyperFloor(float duration)
+    {
+        Transform sr = ShakeRootResolved();
+        float paddleY = cachedPlayer != null ? cachedPlayer.transform.localPosition.y : -8f;
+
+        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube); // BoxCollider 付き＝ボールが跳ね返る
+        floor.name = "HyperFloor_Runtime";
+        floor.transform.SetParent(sr, worldPositionStays: false);
+        floor.transform.localPosition = new Vector3(0f, paddleY - 1.2f, 0f);
+        floor.transform.localScale    = new Vector3(arenaHalfWidth * 2f, 0.3f, 1f);
+
+        var r = floor.GetComponent<Renderer>();
+        if (r != null) r.material.color = new Color(1.0f, 0.5f, 0.1f, 1f); // ホットなオレンジ
+
+        Object.Destroy(floor, duration);
+    }
+
+    // BURST スキル: 一定時間 LaunchAimer を連射モードにする（DESIGN.md 5.6）
+    public void BeginBurst(int shots, float duration, float ballLifetime)
+    {
+        launchAimer?.BeginBurst(shots, duration, ballLifetime);
+    }
+
+    // BURST の 1 発: ボール生成位置（パドル上）から指定方向へ追加ボールを発射する
+    public void SpawnBurstBall(Vector3 localDir, float lifetime)
     {
         if (ball == null) return;
         GameObject extra = Object.Instantiate(ball.gameObject, ball.transform.parent);
-        extra.name = "Ball_Extra";
+        extra.name = "Ball_Burst";
         BallScript bs = extra.GetComponent<BallScript>();
-        bs.isExtraBall = true; // Start() の自動発射をスキップ → コルーチンで発射
+        bs.isExtraBall = true; // 時間加速なし・ラウンドリセットで破棄される
         hitStop?.RegisterFreezable(bs);
-        StartCoroutine(LaunchExtraBallRoutine(bs, duration));
+        StartCoroutine(LaunchBurstRoutine(bs, localDir, lifetime));
     }
 
-    private System.Collections.IEnumerator LaunchExtraBallRoutine(BallScript bs, float duration)
+    private System.Collections.IEnumerator LaunchBurstRoutine(BallScript bs, Vector3 localDir, float lifetime)
     {
-        yield return null; // BallScript.Start() が実行されるまで1フレーム待つ
+        yield return null; // BallScript.Start() を待つ
         if (bs == null) yield break;
-        bs.LaunchInDirection(new Vector3(Random.Range(-0.5f, 0.5f), 1f, 0f));
-        yield return new WaitForSeconds(duration);
+        bs.transform.localPosition = GetBallSpawnLocalPos(); // パドル上から発射
+        bs.LaunchInDirection(localDir);
+        yield return new WaitForSeconds(lifetime);
         if (bs != null) Object.Destroy(bs.gameObject);
+    }
+
+    // シェイク対象（ShakeRoot）を Awake と同じ規則で解決する（HyperFloor の親に使用）
+    private Transform ShakeRootResolved()
+    {
+        if (shakeRoot != null) return shakeRoot;
+        Transform found = ArenaRoot.Find("ShakeRoot");
+        return found != null ? found : ArenaRoot;
     }
 
     public void SpawnItem(Vector3 worldPos, ItemType type)
     {
         AudioManager.Instance?.PlayItemDrop(playerIndex); // アイテム出現 SE（DESIGN.md 10.4）
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.name = "Item_" + type;
+
+        Sprite icon = ArenaSharedConfig.Instance?.GetItemIcon(type);
+        GameObject go = icon != null ? CreateIconItem(type, icon) : CreateSphereItem(type);
+
         go.transform.SetParent(ArenaRoot, worldPositionStays: true);
         go.transform.position = worldPos;
+
+        go.AddComponent<ItemDrop>().Setup(type, playerIndex, this);
+    }
+
+    // Bloom 発光する透過スプライト用マテリアル（全アイテムで共有・遅延生成）。
+    private static Material _iconMaterial;
+    private static Material IconMaterial
+    {
+        get
+        {
+            if (_iconMaterial == null)
+            {
+                Shader sh = Shader.Find("Custom/HDRSprite");
+                if (sh != null) _iconMaterial = new Material(sh);
+            }
+            return _iconMaterial;
+        }
+    }
+
+    // アイコンスプライトを持つ落下アイテム本体（SpriteRenderer）。
+    // ピックアップ判定は ItemDrop 側がパドルを OverlapSphere で拾うため、本体にコライダーは不要。
+    private GameObject CreateIconItem(ItemType type, Sprite icon)
+    {
+        GameObject go = new GameObject("Item_" + type);
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = icon;
+
+        var cfg = ArenaSharedConfig.Instance;
+
+        // HDR スプライトマテリアルで Bloom 発光。
+        // ※ SpriteRenderer.color は Color32(0〜1) にパックされ 1 超がクランプされるため使えない。
+        //   発光量はクランプされないマテリアル _Color(HDR float4) に載せて閾値(1.0)を越えさせる。
+        // シェーダーが見つからなければデフォルトマテリアルのまま（発光なしでアイコンは表示される）。
+        if (IconMaterial != null)
+        {
+            float glow = cfg != null ? cfg.itemIconGlow : 1.8f;
+            IconMaterial.SetColor("_Color", new Color(glow, glow, glow, 1f));
+            sr.sharedMaterial = IconMaterial;
+        }
+
+        // スプライトの実寸（PPU 込み）を基準に、共有設定の目標ワールド高さへスケール。
+        float worldSize = cfg != null ? cfg.itemIconWorldSize : 0.9f;
+        float spriteH   = icon.bounds.size.y;
+        float scale     = spriteH > 0.0001f ? worldSize / spriteH : 1f;
+        go.transform.localScale = Vector3.one * scale;
+        return go;
+    }
+
+    // アイコン未割り当て時のフォールバック（従来の色付き球）。
+    private GameObject CreateSphereItem(ItemType type)
+    {
+        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = "Item_" + type;
         go.transform.localScale = Vector3.one * 0.4f;
 
         // アイテムはキネマティック運動なので Rigidbody は不要
@@ -72,8 +190,7 @@ public class ArenaController : MonoBehaviour
         go.GetComponent<Collider>().isTrigger = true;
 
         go.GetComponent<Renderer>().material.color = ItemDefinition.GetColor(type);
-
-        go.AddComponent<ItemDrop>().Setup(type, playerIndex, this);
+        return go;
     }
 
     // freeze=false でフリーズせずシェイクのみ（ボール衝突でない底到達・スライド着地用, DESIGN.md 5.x）
@@ -125,7 +242,7 @@ public class ArenaController : MonoBehaviour
         // 発射エイマーの位相を中央へリセット（ボールが待機中のままラウンドが終わった場合の引き継ぎ防止）
         launchAimer?.ResetAim();
 
-        // SkillBall_Multi で生成された追加ボールを破棄（メインボールは残す）
+        // BURST 等で生成された追加ボール（isExtraBall）を破棄（メインボールは残す）
         foreach (var b in ArenaRoot.GetComponentsInChildren<BallScript>())
             if (b.isExtraBall) Object.Destroy(b.gameObject);
 
@@ -140,6 +257,13 @@ public class ArenaController : MonoBehaviour
             Object.Destroy(zone.gameObject);
         foreach (var zone in ArenaRoot.GetComponentsInChildren<ZoneSlow>())
             Object.Destroy(zone.gameObject);
+
+        // HYPER スキルの床がラウンドを跨いで残らないようにする。
+        // バインド済みは破棄せず非アクティブへ、実行時生成のフォールバックは破棄。
+        if (hyperFloorRoutine != null) { StopCoroutine(hyperFloorRoutine); hyperFloorRoutine = null; }
+        if (hyperFloor != null) hyperFloor.SetActive(false);
+        foreach (var t in ShakeRootResolved().GetComponentsInChildren<Transform>())
+            if (t != null && t.name == "HyperFloor_Runtime") Object.Destroy(t.gameObject);
     }
 
     public Vector3 GetBallSpawnLocalPos()

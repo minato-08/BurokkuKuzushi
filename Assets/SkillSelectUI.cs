@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 // 試合開始前のスキル選択画面（4 枚カード, DESIGN.md 5.6）。
 // GameState.SkillSelect のあいだ panel を表示し、両者が確定すると BeginMatch する。
 // カードの並び順は AllSkills の index と一致させる（左→右で 0,1,2,3）:
-//   0 BigPaddle / 1 FireBall / 2 DoubleBall / 3 EmergencyClear
+//   0 HYPER / 1 EXPLOSION / 2 BURST / 3 GIANT
 //
 // 選択表現は GameObject の表示切替（SetActive）:
 //   選択中カード … cardP{N}Cursors[i] を表示（他は非表示）
@@ -35,10 +35,10 @@ public class SkillSelectUI : MonoBehaviour
     // 選択可能なスキル一覧（順序 = カードの並び順）
     private static readonly SkillDefinition[] AllSkills =
     {
-        new SkillPaddle_Enlarge(),       // 0 BigPaddle
-        new SkillBall_Attribute_Fire(),  // 1 FireBall
-        new SkillBall_Multi(),           // 2 DoubleBall
-        new SkillPanic_BlockClear()      // 3 EmergencyClear
+        new SkillHyper(),       // 0 HYPER
+        new SkillExplosion(),   // 1 EXPLOSION
+        new SkillBurst(),       // 2 BURST
+        new SkillGiant()        // 3 GIANT
     };
 
     void Update()
