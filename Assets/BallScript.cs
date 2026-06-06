@@ -121,6 +121,9 @@ public class BallScript : MonoBehaviour, IFreezable
     private Coroutine scaleRoutine;
     private Vector3   baseScale = Vector3.one; // Start で実スケールをキャプチャ（GIANT の復元用）
 
+    // メインボールの基準スケール（GIANT 拡大前）。BURST が追加ボールを素のサイズで生成するのに使う。
+    public Vector3 BaseScale => baseScale;
+
     // BURST 等で生成された追加ボール（時間加速なし、落下ペナルティなし）
     public bool isExtraBall = false;
 

@@ -398,16 +398,15 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         }
     }
 
-    // EXPLOSION スキル: 自陣のブロックをランダムに count 個 Explosive へ変換する（DESIGN.md 5.6）
-    public void ConvertRandomToExplosive(int count)
+    // EXPLOSION スキル: 盤面の現在ブロック数の fraction 割合をランダムに Explosive へ変換する（DESIGN.md 5.6）。
+    // 既に Explosive のブロックも母集団に含む（選ばれても同状態への再設定で無害）。
+    public void ConvertRandomToExplosive(float fraction)
     {
-        Block[] candidates = allBlocks
-            .Where(b => b != null && b.blockType != BlockType.Explosive)
-            .OrderBy(_ => Random.value)
-            .Take(count)
-            .ToArray();
+        Block[] living = allBlocks.Where(b => b != null).ToArray();
+        int count = Mathf.RoundToInt(living.Length * Mathf.Clamp01(fraction));
+        if (count <= 0) return;
 
-        foreach (Block b in candidates)
+        foreach (Block b in living.OrderBy(_ => Random.value).Take(count))
             b.ConvertToExplosive();
     }
 

@@ -83,23 +83,7 @@ SampleScene
 
 ### 現在の主要な Inspector 値
 
-> ⚠️ **この表はシーン（`Assets/SampleScene.unity`）のインスタンス値であり、コードの SerializeField デフォルトとは異なる。2026-06-02 の照合ではシーン YAML を直接読んでいないため、これらの値は未検証**。参考: コード側デフォルトは PlayerController `xLimit=5.5`/`paddleLocalY=-5`、DeadZone `ballSpawnOffsetY=1`、BlockSpawner `blockDeadZoneY=-4.5` 等で、下表のシーン値と一致しないものがある。正確な現在値は Unity Inspector で確認すること。
-
-| コンポーネント | パラメータ | 値（シーン値・未検証） |
-|---|---|---|
-| MainCamera | orthographic / size | true / 12.1 |
-| MainCamera | far clip | 100 |
-| PlayerController | speed | 16 |
-| PlayerController | xLimit | 4.7 |
-| PlayerController | paddleLocalY | -8 |
-| BlockSpawner | blocksPerRow | 6 |
-| BlockSpawner | blockWidth | 1.5667 |
-| BlockSpawner | spawnY / blockDeadZoneY | 4.5 / -4.5 |
-| BlockSpawner | descentSpeed | 0.1 |
-| ArenaController | ballSpawnOffsetY | 1.3 |
-| DeadZone | ballSpawnOffsetY | 1.3 |
-| Ball | localScale | (0.36, 0.36, 0.36) |
-| DeadZone | localPos | (0, -11, 0) |
+> ⚠️ **正確な現在値は Unity Inspector で確認すること**。シーン（`Assets/SampleScene.unity`）のインスタンス値はコードの SerializeField デフォルトと異なる場合がある（例: コード側 PlayerController `xLimit=5.5`/`paddleLocalY=-5`、DeadZone `ballSpawnOffsetY=1`、BlockSpawner `blockDeadZoneY=-4.5`）。主なシーン値（未検証）の目安: MainCamera ortho size 12.1 / far 100、PlayerController speed 16・xLimit 4.7・paddleLocalY -8、BlockSpawner blocksPerRow 6・blockWidth 1.5667・spawnY 4.5・blockDeadZoneY -4.5・descentSpeed 0.1、ArenaController/DeadZone ballSpawnOffsetY 1.3、Ball localScale 0.36、DeadZone localPos (0,-11,0)。
 
 ---
 
@@ -161,8 +145,8 @@ _UI                                    ← トップレベルフォルダ（Tran
 - `SkillSelectUI` は `panel` / `p1StatusText` / `p2StatusText` バインド済みで機能するが、**`cardP1Cursors[]` / `cardP2Cursors[]` / `cardP1Ready[]` / `cardP2Ready[]`（カード選択中カーソル/確定後 Ready の GameObject 配列, SetActive 方式）は未バインド**。カードは手動配置後にバインドする（※色ハイライト Image 方式ではない。`SkillSelectUI.cs` 節参照）
 - `UIManager` は新 UI 構造に合わせて refactor 済み。SerializeField を 3 区分に整理:
   - **[必須]** HP / Combo / Score / ActiveItem（新 UI に既存）→ Inspector でバインドが必要
-  - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ（まだ UI 要素が無い）→ 配置後にバインド
-  - **[演出]** 色閾値・スキル READY suffix 等
+  - **[任意]** Energy / Skill / Round / Status / 妨害オーバーレイ → 配置後にバインド。**スキル HUD（`p1/p2EnergyFill`=`PXSkillGauge`、`p1/p2SkillName`=`$PXSkillName`、`p1/p2SkillIcon`=`$PXSkillIcon`＋アイコン配列）はバインド済み（2026-06-06）**
+  - **[演出]** 色閾値 等
 - `GameManager` はアクティブ効果を **`ActiveEffect` のリスト**（スロット/名前/期限）で追跡（同 `ItemEffectSlot` は上書き、期限切れ自動除去）。`RegisterActiveItem(playerIndex, slot, name, duration)` を `ItemDrop` が効果適用時に呼ぶ。HUD は当面 `GetActiveItemName` / `GetActiveItemRemaining` が**末尾（最新）1 個**を返して既存 1 スロットに表示。複数同時表示 UI は残作業（`GetActiveEffects()` で全件取得可）。`IsEffectSlotActive()` はドロップ過多抑制（`Block` の同スロット再抽選・スキップ）に使用
 
 ### 残作業（UI 連携）
@@ -180,8 +164,9 @@ _UI                                    ← トップレベルフォルダ（Tran
 | P2 側 | 上記の P2 ミラー |
 
 [任意] セクションは UI 要素を作ってからバインドする（未バインドでも null セーフで動く）:
-- Energy ゲージ（Image, Vertical Fill）
-- Skill 名表示 TMP（READY 状態で suffix が付く）
+- ~~Energy ゲージ~~ → **バインド済み**（`PXSkillGauge`, Image Filled Horizontal）
+- ~~Skill 名表示 TMP~~ → **バインド済み**（`$PXSkillName`。名前のみ表示・READY suffix なし）
+- ~~スキルアイコン~~ → **バインド済み**（`$PXSkillIcon` Image＋`skillIconsReady[]`/`skillIconsUnavailable[]`。`SkillId` index で可/不可スプライト差替）
 - Round ドット/勝利数 TMP
 - 試合状態テキスト（Round Over バナー）
 - 妨害通知オーバーレイ（CanvasGroup + Label の P1/P2 ペア）
@@ -238,7 +223,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 ### `ArenaSharedConfig.cs`
 - Arena1/Arena2 で同値であるべき**共通チューニング値を集約**するシーン内 MonoBehaviour（1 個前提）。`Instance`（未解決なら `FindFirstObjectByType` で都度解決）
 - 保持: パドル（speed/xLimit/paddleLocalY 等・フラッシュ色）/ ブロックスポーン（行数・幅・spawnY・Escalation・各種確率・HP・妨害・スライド演出）/ ボール（速度・軌道・属性ダメージ・半径・ヒットストップ倍率・属性色・Ball Heat・トレイル）/ エイマー / `maxEnergy` / `arenaHalfWidth`/`arenaHalfHeight`/`ballSpawnOffsetY` / **アイテムアイコン**（`itemIcons[]`＝ItemType→Sprite マップ＋`GetItemIcon(type)`、`itemIconWorldSize`、`itemIconGlow`＝Bloom 発光量。落下アイテム本体の見た目に使用、`BurokkuKuzushi > Setup Item Icons` で自動結線）
-- **ヒットストップ/カメラシェイクの「手応え」を一元集約**（2026-06-03）: `impactBaseFrames`/`impactSpeedWeight`/`impactThreshold`/`impactMaxFrames`（ブロック衝突の手応え）/ `explosiveHitFrames`（Explosive 破壊の下限）/ `freezeSkipSpeedFactor`（この倍率超の高速時はブロック衝突をフリーズせずシェイクのみ）/ `shakeIntensityNormal`/`shakeIntensityStrong`（シェイク振幅）/ `skillPanicHitStopFrames`。これらは従来 HitStopController(×2)・Block プレハブ・SkillDefinition コードに散在していたものを集約。`HitStopController`/`Block`/`BallScript` が `ApplySharedConfig` で読む。**試合フロー系（`interferenceTriggerFrames`/`roundEndFrames`/`matchEndFrames`）は単一インスタンスの `GameManager` SerializeField のまま**（重複しないため集約対象外）
+- **ヒットストップ/カメラシェイクの「手応え」を一元集約**: `impactBaseFrames`/`impactSpeedWeight`/`impactThreshold`/`impactMaxFrames`（ブロック衝突）/ `explosiveHitFrames`（Explosive 破壊の下限）/ `freezeSkipSpeedFactor`（この倍率超の高速時はフリーズせずシェイクのみ）/ `shakeIntensityNormal`/`shakeIntensityStrong`（振幅）/ `skillPanicHitStopFrames`。`HitStopController`/`Block`/`BallScript` が `ApplySharedConfig` で読む。**試合フロー系（`interferenceTriggerFrames`/`roundEndFrames`/`matchEndFrames`）は単一インスタンスの `GameManager` SerializeField のまま**（集約対象外）
 - 各コンポーネントが Awake/Start/Initialize 冒頭で `ApplySharedConfig()`（自分の private フィールドへ上書き適用）。**未配置なら各自の SerializeField 値で動作（null セーフ）**
 - 共有しないのは `playerIndex` と各アリーナ子オブジェクト参照のみ。詳細は「設定方針」セクション
 
@@ -251,39 +236,15 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `GetCombo(playerIndex)` は現在のコンボ値（`p1Combo` / `p2Combo`）を返す。コンボは **ブロック破壊ごと**に `RegisterBlockDestroyed` で +1（2026-06-01 接触ベースから戻した、DESIGN.md 5.8）。Thunder/Fire 等で複数破壊すると破壊数ぶん一気に伸びる。同メソッドがコンボ++/タイマーリセット/マイルストーン/エナジー蓄積を担う（旧 `RegisterBallHitBlock` は撤去）
 - ラウンド/マッチ決着のカメラシェイクは勝者アリーナ `shake:false`、敗者アリーナ `shake:true` で区別
 
-> **Phase F-Polish メモ（2026-06-02 更新）**: 旧版は「Polish 群は未実装」と記していたが誤り。Ball Heat / Danger Proximity / Last Stand / HP pip / AttackAddRow 着弾 / スペシャル行 / §12.12 入力制御 / コンボマイルストーン発火 は**実装済み**（各スクリプト節参照）。**未実装の DESIGN 演出**は: ボール属性 VFX(5.2) / エイマーの振れ角幅・予想軌道・センター通過音/ビジュアル(5.3) / ブロック起源オーラ N/S/O(5.4) / Explosive・Fire の範囲 VFX / ラウンド決着のテキスト overlay。なお**パドル反射ゾーンは 2026-05-28 に廃止**（単純物理反射へ統一）＝未実装ではなく仕様削除。
-
-> **Phase F-Combat 実装状況（feature/phase-f-combat ブランチ）**
+> **Phase F 実装状況サマリー**（詳細は各スクリプト節）
 >
-> 実装済み:
-> - **攻撃アイテム経由モデル**: ItemType 拡張 + `EffectAttack` → `GameManager.SendInterference` 経路。コンボ自動妨害は撤廃済み。
-> - **コンボ再定義** (DESIGN.md 5.8): comboTimeout(6s)/落下リセット + scoreComboMul/gaugeComboMul/itemDropComboMul。**ブロック破壊ごとに +1**（2026-06-01 接触ベースから戻した、`RegisterBlockDestroyed`）。タイマー起点は「最後のブロック破壊後」。
-> - **罠アイテム** (Shrink/Hyper/Reversed): `Block.trapDisguiseChance` で強化枠に偽装。`PlayerController.inputReversed` 実装済み。
-> - **Dynamic Escalation**: `BlockSpawner` の base/decay/min・base/gain/max + `roundElapsedTime` 実装済み。
-> - **コンボマイルストーン / 攻撃側 SENT ラベル**: `UIManager.ShowComboMilestone` / `ShowSentLabel` とトリガー実装済み。**UI 要素は未バインド**（後述の任意セクションでバインド）。
-> - **アイテム取得パドルフラッシュ**: `PlayerController.OnItemPickup(ItemCategory)` 実装済み。`ItemDrop` が取得時に系統色（Buff=青/Attack=赤/Trap=紫）で 0.1s フラッシュ。パドルは MeshRenderer なので `Renderer.material.color` を使用（DESIGN.md は SpriteRenderer 記述だが実体に合わせた）。**バインド不要で即動作**。
-> - **Incoming インジケータ UI キュー** (`UIManager.PushIncoming`): FIFO 3 件 + `incomingDisplaySec`(3s) 自動失効 + Playing 以外で全消去。`GameManager.SendInterference` → `ArenaController.PushIncoming` → UIManager 経路。**UI 要素（`p1/p2IncomingSlots[]` TMP 配列）は未バインド**。シンボルは DESIGN.md 12.6 準拠（`⬛HARD`/`↓ROW`/`☣PSION`/`🐌SLOW`）だが絵文字グリフはバインドフォント依存。
-> - **Victory Bar** (`$VictoryBar` Image.fillAmount): `UpdateVictoryBar()` が P1HP/(P1HP+P2HP) を毎フレーム反映（両 0 のみ 0.5）。**UI 要素は未バインド**。
-> - **2026-05-28 廃止分の削除**: 反撃ウィンドウ / AttackSpike・BlockSpike / AttackHarden 降下停止 / CATCH & SHOOT (`SkillForceCatch`) — コード側も削除済み。
+> - **F-Polish**: Ball Heat / Danger Proximity / Last Stand / HP pip / AttackAddRow 着弾 / スペシャル行 / §12.12 入力制御 / コンボマイルストーン 実装済み。
+> - **F-Combat**: 攻撃アイテム経由モデル（`EffectAttack`→`SendInterference`、コンボ自動妨害は撤廃）/ コンボ再定義（comboTimeout 6s・落下リセット・各 Mul、**ブロック破壊ごとに +1** `RegisterBlockDestroyed`）/ 罠アイテム（`trapDisguiseChance` で強化枠偽装・入力反転）/ Dynamic Escalation / コンボマイルストーン・SENT ラベル（UI 未バインド）/ Incoming インジケータ（FIFO3・`incomingDisplaySec`3s、UI 未バインド、シンボルは DESIGN 12.6 準拠）/ Victory Bar P1HP/(P1+P2)HP（UI 未バインド）/ アイテム取得パドルフラッシュ（系統色 Buff青/Attack赤/Trap紫、`material.color`、即動作）。
+> - **F-Audio**: `AudioManager.cs`（シングルトン）。dB 変換（`20×log10(v/100)`）＋PlayerPrefs 音量、全 SE トリガー配線、**種別別 break/hit SE**（未割当は Normal フォールバック・Hard 衝突のみ -2 半音・とどめは破壊音のみ）、底到達 SE、衝突 SE 50ms クールダウン、BGM クロスフェード（HP 30% 帯・5% ヒステリシス）実装済み。**残**: 音源クリップ割り当てと `Assets/Audio/MasterMixer.mixer` 作成＋Expose Param（未割当でも無音で安全動作）。
+> - **F-Title**: `GameState` 7 状態（`Title` 起動時 timeScale=0 / `Settings` / `SkillSelect` / `Countdown` 3,2,1,GO! / `Playing` / `RoundOver` / `MatchOver`）。フロー: StartFromTitle→Settings→ConfirmSettings→SkillSelect→BeginCountdown→Countdown→Playing、ReturnToTitle。RoundIntermission は作らず `RoundOver`＋`RoundIntermissionRemaining`（unscaled）で代替。TitleUI/SettingsUI は `_Base` にアタッチ・バインド済み。
 >
-> 未実装（別フェーズ）:
-> - **アイテム寿命** (`itemLifetime=8s`): 実装しない方針（2026-05-29 判断）。
-
-> **Phase F-Audio 実装状況（2026-06-02 実コード照合で更新。旧「未実装」記述は誤りだった）**: `AudioManager.cs`（シングルトン・約16KB）が存在し、以下は**コード実装＋全発火点配線済み**:
-> - **dB 変換 + 音量適用**: `dB = 20 × log10(value/100)`、PlayerPrefs(vol.master/bgm/se)→`ApplyVolumes`。**実装済み**（Mixer asset 未作成のため Expose Param バインドは残）。
-> - **SE コードトリガーマッピング**: ボール反射 / ブロック衝突・破壊 / アイテム取得・出現 / スキル発動・チャージ完了 / 妨害受信 / コンボマイルストーン / ラウンド・マッチ勝利 を `BallScript`/`Block`/`PlayerController`/`SkillController`/`GameManager`/`UIManager` 等に**配線済み**。
-> - **ブロック衝突/破壊 SE は種別ごとに設定可能**（2026-06-04）: 衝突 `PlayBlockHit`・破壊 `PlayBlockBreak` ともに **BlockType（Normal/Hard/Absorb/Explosive/Item）ごとに AudioClip 割り当て可**（`seBlockHit*` / `seBlockBreak*` + 各 vol。未割り当ては Normal / `seBlockBreak` にフォールバック。Hard 衝突のみ -2 半音）。**とどめの一撃は衝突音を鳴らさず破壊音だけ**にして二重発音を回避（`Block.OnCollisionEnter` で `willBreak` 判定）。範囲/連鎖で倒れる周囲ブロックは元々破壊音のみ。
-> - **底到達 SE**（`PlayBlockBottom`, 2026-06-04）: 自ブロックが底到達（被ペナルティ）時に発火（`BlockSpawner.CheckBottomReached`）。妨害行着地の `se_addrow_land` とは別物。
-> - **ブロック衝突 SE 50ms クールダウン**: `AudioManager` 側でアリーナごとに実装済み。
-> - **BGM クロスフェード（HP 30% 帯・5% ヒステリシス）**: `PlayTitleBGM`/`PlayMatchBGM`/`PlayResultJingle`/`SetTenseLayer` 実装済み。`GameManager.Update` が HP 30% で `SetTenseLayer` 切替（`GameManager.cs:160` 付近）。
-> - **残（コード以外）**: ① 音源クリップの割り当て（BGM 4種・`se_block_bottom`・種別別 break/hit・`se_addrow_land`・`se_special_row` 等が未配置、未割当でも無音で安全動作）② `Assets/Audio/MasterMixer.mixer` の作成と Expose Param バインド。
-
-> **Phase F-Title 実装状況**:
-> - **`GameState` enum 実体（2026-06-02 照合）**: `Title`（旧 `WaitingToStart`, 起動時 `Time.timeScale=0`）/ `Settings` / `SkillSelect` / `Countdown`（3,2,1,GO!）/ `Playing` / `RoundOver` / `MatchOver` の 7 状態。フロー: `StartFromTitle()`→Settings、`ConfirmSettings()`→SkillSelect、スキル確定→`BeginCountdown()`→Countdown→Playing、`ReturnToTitle()`。`SetRoundsToWin` あり。
-> - **`Countdown` は実装済み**（`BeginCountdown`/`CountdownCoroutine`/`CountdownLabel`、`countdownStepSec`/`countdownGoSec`）。旧記述の「Countdown 未実装」は誤りだった。
-> - **`RoundIntermission` 状態は作らず `RoundOver` + `RoundIntermissionRemaining`（unscaled カウントダウン）で代替**（`NextRoundCoroutine`）。
-> - `TitleUI` / `SettingsUI`（先取数のみ）は `_Base` にアタッチ、パネルも構築・バインド済み（実機表示確認済み, commit 6d17d90）。
-> - **2026-05-28 廃止**: ポーズ機能 / チュートリアル / AI対戦 (`AIPlayerController`)。設定 UI は「先取数のみ」で最小復活（2026-05-30、音量/アクセシビリティは含めない）。
+> **未実装の DESIGN 演出**: ボール属性 VFX(5.2) / エイマー振れ角幅・予想軌道・センター通過音(5.3) / ブロック起源オーラ N/S/O(5.4) / Explosive・Fire 範囲 VFX / ラウンド決着テキスト overlay。
+> **廃止仕様**（未実装ではなく削除）: パドル反射ゾーン / 反撃ウィンドウ / AttackSpike・BlockSpike / AttackHarden 降下停止 / CATCH & SHOOT / ポーズ / チュートリアル / AI対戦。アイテム寿命(`itemLifetime`)は実装しない方針。
 
 ### `HPSystem.cs`
 - 純粋C# クラス（MonoBehaviour ではない）
@@ -301,11 +262,11 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `ArenaController` の子 GameObject にアタッチ（Setup HitStop で自動生成）
 - `RegisterFreezable(IFreezable)` で管理対象を登録（ArenaController.Awake で呼ばれる）
 - `TriggerHitStop(frames, strong, shake, freeze)`: 対象を freeze → **アリーナ Transform 自体をシェイク** → unfreeze の一連を `Time.unscaledDeltaTime` ベースのコルーチンで制御
-- **フリーズ/シェイク分離**（`freeze` 引数, 2026-06-03, DESIGN.md 5.x）: `freeze:false` で**フリーズせずシェイクのみ**。**ボール衝突以外のイベントは全て `freeze:false`**（飛行中ボールを空中で止めない）。該当: 底到達 / スライド着地 / **妨害受信**(`GameManager.SendInterference`) / **スキル発動**(`SkillExplosion` の発動シェイク等) / **高速ボールのブロック衝突**（後述）。フリーズするのは**通常速度のボール衝突**（ブロック衝突・壁バウンス・パドル反射・Explosive 破壊）。**ただし実効速度が `freezeSkipSpeedFactor`(=2.5) 倍を超える高速時（HYPER 等）はブロック衝突も `freeze:false`＝シェイクのみ**（止めると爽快さが削がれ、フリーズ中の実時間経過でトレイルが退色して消えるため。`BallScript.ShouldFreezeOnImpact()` が判定、Block の通常衝突・Explosive 破壊の両 `TriggerHitStop` に渡す, 2026-06-05）。※ラウンド/マッチ決着は意図的にフリーズ（勝者は `shake:false` でフリーズが唯一の演出、かつ既にラウンド確定で飛行中ボールは無いため例外）。割り込みガードは `activeFroze` フラグで「前ルーチンがフリーズ無し（shake-only）なら `UnfreezeAll` を呼ばない」＝未フリーズ対象を `Unfreeze`（速度復元）して壊さない
-- **多重発火ガード**（codex レビュー fix, 2026-06-02）: シェイク中に再度 `TriggerHitStop` が来たら、旧コルーチン停止時に `RestoreShakeTarget()` でアリーナ位置を基準へ戻してから再開（中断でアリーナがオフセットしたまま残るのを防止）。`RestoreShakeTarget()` は正常終了時も呼ぶ共通メソッド
+- **フリーズ/シェイク分離**（`freeze` 引数, DESIGN.md 5.x）: `freeze:false` で**フリーズせずシェイクのみ**。**ボール衝突以外のイベントは全て `freeze:false`**（飛行中ボールを空中で止めない）。該当: 底到達 / スライド着地 / 妨害受信(`SendInterference`) / スキル発動 / **高速ボールのブロック衝突**。フリーズするのは**通常速度のボール衝突**（ブロック衝突・壁バウンス・パドル反射・Explosive 破壊）。ただし実効速度が `freezeSkipSpeedFactor`(=2.5) 倍超の高速時（HYPER 等）はブロック衝突も `freeze:false`（止めると爽快さ低下＋トレイル退色。`BallScript.ShouldFreezeOnImpact()` が判定し両 `TriggerHitStop` に渡す）。※ラウンド/マッチ決着は意図的にフリーズ（飛行中ボールが無いため例外）。割り込みガードは `activeFroze` フラグで前ルーチンが shake-only なら `UnfreezeAll` を呼ばない（未フリーズ対象を壊さない）
+- **多重発火ガード**: シェイク中に再度 `TriggerHitStop` が来たら、旧コルーチン停止時に `RestoreShakeTarget()` でアリーナ位置を基準へ戻してから再開（オフセット残り防止）。`RestoreShakeTarget()` は正常終了時も呼ぶ共通メソッド
 - 単カメラ運用に合わせ、カメラではなく **`Arena{N}/ShakeRoot`**（壁/パドル/DeadZone/BlockSpawner を収める空オブジェクト, local 0,0,0）を揺らす方式。アリーナごとに独立してシェイク可能。**Ball は ShakeRoot の外（Arena 直下）**なのでシェイクに引きずられない
 - `SetShakeTarget(Transform)` でシェイク対象を受け取る（ArenaController.Awake で `ShakeRoot` を渡す。未解決なら `ArenaRoot.Find("ShakeRoot")`→ArenaRoot にフォールバック）
-- **アリーナ枠も同期シェイク**（`SetFrameShakeTarget(Transform)`, 2026-06-03）: `P{N}ArenaFrame`（UI キャンバス上の SpriteRenderer）を ShakeRoot と**同一のワールド変位**で揺らす。キャンバスのスケール(0.0224)に依存しないよう `localPosition` ではなく **world `position` をオフセット**。ArenaController.Awake が `UIManager.GetArenaFrameTransform(playerIndex)` で枠 Transform を取得して渡す（未バインドなら null セーフで枠は揺れない）。枠の色は UIManager の Last Stand が別途制御するため位置シェイクと競合しない
+- **アリーナ枠も同期シェイク**（`SetFrameShakeTarget(Transform)`）: `P{N}ArenaFrame`（UI キャンバス上の SpriteRenderer）を ShakeRoot と同一のワールド変位で揺らす。キャンバススケールに依存しないよう `localPosition` でなく world `position` をオフセット。ArenaController.Awake が `UIManager.GetArenaFrameTransform(playerIndex)` で取得して渡す（未バインドなら null セーフ）。枠の色は Last Stand が別途制御し競合しない
 - `strong=true` で強シェイク（ラウンド/マッチ決着時）。`shakeIntensityNormal`/`shakeIntensityStrong` は `Awake` の `ApplySharedConfig` で `ArenaSharedConfig` から読む（P1/P2 二重管理を解消, 2026-06-03）
 - Freeze 中はボール `linearVelocity=0`、Player は kinematic、Block は Rigidbody なし → 親 Transform 駆動の移動でも物理的攪乱なし
 
@@ -320,8 +281,9 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `GetBall()` / `GetSpawner()` / `GetSkillController()` で子コンポーネントを公開
 - `SpawnZonePoison(worldPos)` / `SpawnZoneSlow(worldPos)` — ゾーン生成。親は `ArenaRoot`
 - `SpawnItem(worldPos, type)` — 落下アイテム本体を生成。**`ArenaSharedConfig.GetItemIcon(type)` でアイコン Sprite が取れれば SpriteRenderer 製のアイコン本体**（`CreateIconItem`、`itemIconWorldSize` でワールド高さにスケール、`Custom/HDRSprite` 共有マテリアル＋`_Color`(HDR)=`itemIconGlow` で Bloom 発光、コライダー無し＝ピックアップは ItemDrop 側のパドル OverlapSphere）、**取れなければ従来の色付き球**（`CreateSphereItem`、null セーフフォールバック）。アイコンは `Assets/UI/item-icons/` 配下＋`BurokkuKuzushi > Setup Item Icons` で取り込み・結線
-- **スキル用メソッド（2026-06-05 刷新）**: `SpawnHyperFloor(duration)`（HYPER の床。**`[SerializeField] hyperFloor` をバインドしていれば発動中だけ `SetActive(true)`＝位置/サイズ/見た目/コライダーを Unity 上で調整可。非アクティブ・非トリガーコライダー付きで配置する**。未バインドなら `HyperFloor_Runtime` キューブを ShakeRoot 配下に実行時生成し duration 後 Destroy）/ `BeginBurst(shots, duration, ballLifetime)`（BURST → LaunchAimer 連射モード）/ `SpawnBurstBall(localDir, lifetime)`（BURST の 1 発。ボール生成位置から指定方向へ追加ボール発射、`isExtraBall`）。旧 `SpawnExtraBall`（DOUBLE BALL 用）は削除
-- 追加ボール生成（BURST）時に **`hitStop?.RegisterFreezable(bs)` を呼ぶ**（codex レビュー fix 2026-06-02。追加ボールが HitStopController に未登録でヒットストップ中も止まらなかった不具合を解消）
+- **スキル用メソッド**: `SpawnHyperFloor(duration)`（HYPER の床。`[SerializeField] hyperFloor` をバインドしていれば発動中だけ `SetActive(true)`＝Unity 上で位置/サイズ/見た目/コライダー調整可・非アクティブ非トリガーコライダー付きで配置。未バインドなら `HyperFloor_Runtime` キューブを ShakeRoot 配下に実行時生成し duration 後 Destroy）/ `BeginBurst(shots, interval, angle, ballLifetime)`（BURST → 自前コルーチン `BurstFireRoutine` で `shots` 発を `interval` 秒間隔で自動連射。`LaunchAimer` は使わない＝プレイヤーの発射操作に干渉しない。角度は鉛直上0°基準で +angle/-angle 交互, 2026-06-06）/ `SpawnBurstBall(localDir, lifetime)`（BURST の 1 発。複製直後に `ball.BaseScale` で素サイズ化＋発射前 `PrepareRespawn` で効果全リセット＝**プレーンな追加ボール**, `isExtraBall`）
+- `BurstFireRoutine`: `Playing` 中のみ進行（他状態で break）。各発 `deg = (i%2==0)?angle:-angle`。`burstRoutine` を保持し `ResetForNewRound` で `StopCoroutine`
+- 追加ボール生成（BURST）時に **`hitStop?.RegisterFreezable(bs)` を呼ぶ**（追加ボールを HitStopController に登録してヒットストップ中も止める）
 - `ResetForNewRound()` は次をクリア/解除: メインボール再配置 + スポーナー再生成 / **追加ボール（BURST 等 `isExtraBall`）破棄** / **HYPER の床（バインド済みは `SetActive(false)`、実行時 `HyperFloor_Runtime` は破棄）** / **未取得の落下アイテム破棄** / **パドル一時効果解除 (`PlayerController.ResetState()`)** / ZonePoison / ZoneSlow。加えて `GameManager` 側で `ClearActiveItems()` を BeginMatch/StartNextRound で呼ぶ
 
 ### `LaunchAimer.cs`
@@ -331,8 +293,8 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - sin 波で ±`metronomeAngleRange`° を `metronomePeriodSec` 周期で往復
 - 1P: S キー / 2P: K キーで確定発射 → `ball.LaunchInDirection(localDir)` を呼ぶ。**発射は `GameState.Playing` 限定**（カウントダウン中は無効, DESIGN.md 12.12）
 - LineRenderer でリアルタイムに発射角インジケーターを描画（ワールド座標）
-- `ResetAim()`: ラウンド遷移でメトロノーム位相を中央へリセット（待機中にラウンドが終わると角度が引き継がれるのを防止。`ArenaController.ResetForNewRound` から呼ぶ）。BURST 連射中なら併せて終了
-- **BURST 連射モード（2026-06-05, DESIGN.md 5.6）**: `BeginBurst(shots, duration, ballLifetime)` で起動。`burstActive` 中は通常照準（`ball.IsWaitingToLaunch` ゲート）より優先し、**メインボール飛行中でもメトロノームで照準**できる。発射キーで `arena.SpawnBurstBall(aimDir, ballLifetime)` を呼んで追加ボールを発射し `burstShotsLeft--`。撃ち切る or `burstTimer` 切れで `EndBurst`。時間・弾の消費は `Playing` 中のみ。インジケーター原点はボール生成位置（パドル上）
+- `ResetAim()`: ラウンド遷移でメトロノーム位相を中央へリセット（待機中にラウンドが終わると角度が引き継がれるのを防止。`ArenaController.ResetForNewRound` から呼ぶ）
+- **BURST 連射モードは撤去済み（2026-06-06）**: BURST は `ArenaController` 自前の自動連射（`BurstFireRoutine`）に移行。`LaunchAimer` は通常のメインボール発射照準のみを担い、BURST 関連メソッド/状態は持たない（発射キーがスキル弾で暴発しない）
 
 ### `BlockSpawner.cs`
 - タイマーで行を生成、毎フレーム降下、底判定
@@ -340,7 +302,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `blockDeadZoneY`（旧 `bottomY`）を超えたブロックを削除し `GameManager.OnBlocksReachedBottom(playerIndex, count)` を通知。同時に `TriggerHitStop(..., freeze:false)` で**シェイクのみ**（ボール衝突でないので飛行中ボールを止めない, 2026-06-03）。妨害行スライド着地も同様に `freeze:false`
 - `ReceiveSabotageRow()` — GameManager から呼ばれる（`ReceiveSpikeRow()` は AttackSpike 廃止で不要、コードに残っている場合は削除対象）
 - `HardenRandomBlocks()` — LINQ で Normal ブロックをランダムに `hardenCount` 個選び `HardenToHp(hardenTargetHp)` で Hard 化
-- `ConvertRandomToExplosive(count)` — EXPLOSION スキル。非 Explosive ブロックをランダムに count 個選び `Block.ConvertToExplosive()` で Explosive 化（2026-06-05）
+- `ConvertRandomToExplosive(float fraction)` — EXPLOSION スキル。盤面の現在ブロック数（非null全体）の `fraction` 割合（既定0.3）をランダムに選び `Block.ConvertToExplosive()` で Explosive 化。母集団に既 Explosive も含む（再設定で無害）。盤面密度に比例して個数がスケール（2026-06-06 固定数10〜20個から割合方式へ変更）
 - `GetLowestBlockY()` / `GetSpawnY()` / `GetBlockDeadZoneY()` を公開 — LaunchAimer が自動発射タイマー短縮に使用
 - 通常行は `explosiveBlockChance` / `hardBlockChance` / **`itemBlockChance`**(0.08, BlockItem) の確率で種別を割り当てる
 - **スペシャル行**（DESIGN.md 5.4, `specialRowChance`=0.125・妨害予約が無いとき抽選）: 全Item / 全Explosive / 歯抜け(2列スキップ) の 3 種を `PickSpecialKind`→`SpawnRow(special)` で構築。スポーン時 `AudioManager.PlaySpecialRow`（`se_special_row` クリップ未配置）
@@ -351,7 +313,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ### `BallScript.cs`
 - `BallAttribute` enum: `Normal / Fire`（範囲ダメージ）`/ Thunder`（同種ブロック連鎖）`/ Ice`（高ダメ）`/ Heavy`（高ダメ・速度0.7倍・**非貫通**=通常反射, DESIGN.md 5.2）`/ Pierce`（貫通+通常ダメ+ヒットストップなし）。`OnHitBlock` の貫通（`lastVelocity` 復元）case は **Pierce のみ**（2026-06-03 Heavy を非貫通に修正）
-- **Pierce 素通り（軌道カクつき対策, 2026-06-03）**: 旧実装は衝突後に `lastVelocity` を復元するだけで、物理の押し戻し（depenetration）でブロックごとに軌道が横に折れてトレイルがカクついた。現在は **Pierce 中 `FixedUpdate` で `OverlapSphereNonAlloc`** によりブロックを検出し、`Physics.IgnoreCollision(ball, block, true)` で**物理反発を無効化して直進**させ、ダメージは**衝突経由でなく overlap で1回だけ**与える（`pierceIgnored` HashSet で重複防止）。高速で検出より先に衝突した場合は従来の `OnHitBlock` 復元がフォールバックし、当該ブロックを `pierceIgnored` 登録して二重ダメージを防ぐ。Pierce 終了/`PrepareRespawn` で `RestorePierceCollisions()` が IgnoreCollision を解除
+- **Pierce 素通り（軌道カクつき対策）**: Pierce 中 `FixedUpdate` で `OverlapSphereNonAlloc` によりブロックを検出し、`Physics.IgnoreCollision(ball, block, true)` で物理反発を無効化して直進させ、ダメージは衝突経由でなく overlap で1回だけ与える（`pierceIgnored` HashSet で重複防止）。高速で検出より先に衝突したら従来の `OnHitBlock` 復元がフォールバックし、当該ブロックを `pierceIgnored` 登録して二重ダメージを防ぐ。Pierce 終了/`PrepareRespawn` で `RestorePierceCollisions()` が解除
 - 速度の4層管理: `naturalSpeed`（基本速度 + 時間加速）× `speedMultiplier`（アイテム効果）× `slowZoneMul`（ZoneSlow）× **属性速度係数**（Heavy=`heavySpeedFactor`(0.7)・他1.0, DESIGN 5.2「速度0.7倍」, 2026-06-03） = 実効速度。共通計算は `EffectiveSpeed()` / `AttributeSpeedFactor()` に集約（FixedUpdate 正規化・衝突角度補正・`GetImpactFrames` で共用）
 - `slowZoneMul`: ZoneSlow が毎フレーム書き込む public フィールド。ZoneSlow が OnDestroy / 検出失敗時に 1 に戻す。PrepareRespawn でもリセット
 - `FixedUpdate` で毎フレーム実効速度に正規化。時間加速はメインボールのみ（`isExtraBall=false`）。`arenaDwellTime` はリスポーンでリセット
@@ -363,9 +325,9 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `PrepareRespawn(localPos)`: コライダー無効化 + `IsWaitingToLaunch=true`。コルーチン停止・速度状態リセット + **角速度/回転(localRotation)もリセット**（ラウンド遷移で残らない）
 - **Ball Heat**（`Update()`, DESIGN.md 5.3）: 属性 Normal のときコンボ段階でボール色を 白→クリーム→橙→赤 に Lerp（`GetHeatColor`）。属性付与中は属性カラー優先。`unscaledDeltaTime` 駆動で HitStop 中も継続。**トレイルも追従**（`SetTrailColor` 共通化＋Gradient キャッシュ再利用で GC 回避）。Renderer は `cachedRenderer` にキャッシュ
 - **トレイル可視制御**: `SetTrailVisible(visible, clear)` ヘルパ（PrepareRespawn/LaunchInDirection で使用＝ボールがテレポートする場面では履歴 Clear して旧位置との線を消す）。`Start()` は `AddComponent` 前に `GetComponent<TrailRenderer>()` を試行（二重生成防止）
-  - **Freeze/Unfreeze は履歴を Clear しない**（2026-06-05 修正）: ボールは ShakeRoot の外（Arena 直下）でシェイクに動かされないため履歴は裂けない。フリーズ中は `trail.emitting=false`（新規頂点だけ止め描画は継続）、Unfreeze で `emitting=!IsWaitingToLaunch` に戻すだけ。**旧実装は毎フリーズで Clear+非表示にしていたため、HYPER 等で頻繁にヒットストップが起きるとトレイルが毎回消えて見えなくなっていた**。なお各フリーズ（実時間 frames/60 秒。timeScale は 0 にしない）ぶんは `trailTime`(0.18s) に従って履歴が経年退色するので、フリーズが長い/頻繁だとトレイルは短くはなる（消えはしない）
+  - **Freeze/Unfreeze は履歴を Clear しない**: ボールは ShakeRoot の外（Arena 直下）でシェイクに動かされないため履歴は裂けない。フリーズ中は `trail.emitting=false`（描画は継続）、Unfreeze で `emitting=!IsWaitingToLaunch` に戻すだけ（Clear すると HYPER 等の頻繁なヒットストップでトレイルが消える）。各フリーズ（実時間 frames/60 秒、timeScale は 0 にしない）ぶんは `trailTime`(0.18s) で経年退色するので頻繁だと短くはなる（消えはしない）
 - `LaunchInDirection(localDir)`: コライダー再有効化 + 発射。LaunchAimer から呼ばれる
-- **`GetImpactFrames()`（手応え, 2026-06-03, DESIGN.md 5.2）**: ブロック衝突の停止フレーム数を **速度×攻撃力** で算出。`impact = speedTerm × GetAttributeMultiplier()`、`speedTerm = 1 + impactSpeedWeight×(実効速度/baseSpeed − 1)`（実効速度 = naturalSpeed×speedMultiplier×slowZoneMul）。`impact < impactThreshold` は 0（軽い当たりは止めずテンポ維持）、以上は `clamp(round(impactBaseFrames×impact), 1, impactMaxFrames)`。Pierce は 0。**Block の通常衝突・Explosive 破壊はこれを使う**（旧 per-type frames は撤去）。「速い/強属性ほど手応え」を一本化
+- **`GetImpactFrames()`（手応え, DESIGN.md 5.2）**: ブロック衝突の停止フレーム数を **速度×攻撃力** で算出。`impact = speedTerm × GetAttributeMultiplier()`、`speedTerm = 1 + impactSpeedWeight×(実効速度/baseSpeed − 1)`（実効速度 = naturalSpeed×speedMultiplier×slowZoneMul）。`impact < impactThreshold` は 0（軽い当たりは止めずテンポ維持）、以上は `clamp(round(impactBaseFrames×impact), 1, impactMaxFrames)`。Pierce は 0。**Block の通常衝突・Explosive 破壊はこれを使う**（旧 per-type frames は撤去）。「速い/強属性ほど手応え」を一本化
 - `GetHitStopMultiplier()`: `naturalSpeed/baseSpeed` が `hitStopSpeedThreshold` 未満なら 0、以上なら 0→1 にスケール。**壁バウンス・パドル反射**（攻撃力概念が無い面）のフレーム数に乗算する
 - `GetAttributeMultiplier()`: 属性倍率＝**手応えの攻撃力重み**（Normal1.0 / Ice・Fire1.2 / Thunder1.1 / Heavy3.0 / Pierce0）。`GetImpactFrames` から使われる
 - **`ShouldFreezeOnImpact()`（2026-06-05, DESIGN.md 5.2/5.6）**: ブロック衝突でフリーズすべきか。実効速度/baseSpeed が `freezeSkipSpeedFactor`(=2.5) 倍以上なら false＝シェイクのみ（HYPER 等の高速時に止まらず爽快＋トレイル維持）。0 以下で機能無効（常にフリーズ）。Block の両ヒットストップ呼び出しが `freeze:` に渡す
@@ -403,7 +365,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 
 ### `Block.cs`
 - `BlockType` enum: `Normal`（1撃）/ `Hard`（複数撃）/ `Absorb`（当たると`absorbSpeedMultiplier`倍に減速）/ `Explosive`（破壊で `explosionRadius`(=2) 内の周囲ブロックに `explosionDamage`(=1) の**巻き込みダメージ**。同 Explosive を巻き込むと**連鎖爆発**, DESIGN.md 5.4）/ `Item`（HP1・破壊で**確定**1個ドロップ, DESIGN.md 12.17）。※ Spike は現状コードに無い（旧記述削除）
-- **Explosive 連鎖（遅延カスケード, 2026-06-05）**: `OnDestroyed` は巻き込みダメージを**即時適用せず `BlockSpawner.ScheduleExplosion(pos, radius, damage, ball, explosionChainDelay)` に委譲**＝`explosionChainDelay`(=0.07s) 後に `OverlapSphere(explosionRadius)` 内の各 Block へ `TakeDamage`。巻き込まれた Block が Explosive なら、その `OnDestroyed` が再び遅延スケジュール → **波が一拍ずつ外へ広がる**（同心円状に遅延が累積）。通常ブロックの巻き込み破壊も同じ遅延ぶん遅れて消える。`destroyed`/`IsDestroyed` で各ブロック一度だけ・爆発済みをスキップ（無限再帰なし）。コルーチンは**破壊される Block ではなく永続する `BlockSpawner`** で走る（`ClearAndRespawn` の `StopAllCoroutines` でラウンド遷移時に自動キャンセル）。各 Explosive のヒットストップ/シェイクは自身が pop する瞬間（＝その波の到達時刻）に出るので、カスケードに合わせて連続して揺れる。巻き込み破壊のスコア/コンボは各 `OnDestroyed` が個別加算。スポーナー未取得時は即時フォールバック。
+- **Explosive 連鎖（遅延カスケード）**: `OnDestroyed` は巻き込みを**即時適用せず `BlockSpawner.ScheduleExplosion(pos, radius, damage, ball, explosionChainDelay)` に委譲**＝`explosionChainDelay`(=0.07s) 後に `OverlapSphere(explosionRadius)` 内の各 Block へ `TakeDamage`。巻き込まれた Explosive はその `OnDestroyed` が再び遅延スケジュール → **波が一拍ずつ外へ広がる**。`destroyed`/`IsDestroyed` で各ブロック一度だけ・爆発済みをスキップ（無限再帰なし）。コルーチンは**破壊される Block ではなく永続する `BlockSpawner`** で走る（`ClearAndRespawn` の `StopAllCoroutines` で自動キャンセル）。各 Explosive のヒットストップ/シェイクは自身が pop する瞬間に出る。スコア/コンボは各 `OnDestroyed` が個別加算。スポーナー未取得時は即時フォールバック。
   - ⚠️ **範囲 VFX は未実装**（DESIGN 5.4 243「爆発のエフェクト」/ Fire の攻撃範囲表示も同様）。挙動のみ DESIGN 準拠。実機未確認
 - ブロック種別カラーを `Awake` でキャッシュした `Renderer` に `Start()` で適用（BlockSpawner が blockType を設定した後に実行される）
 - **HP pip（残耐久ドット, DESIGN.md 5.4）**: HP>1（Hard/Hardened）は `BuildHpPips()` で子キューブのドットを hp 個生成、`TakeDamage` で currentHp 本に減らす。親の非一様スケール(1.3,0.5,1)をワールド換算で打ち消す。Item/Normal(HP1) は非表示。位置/サイズ/色は SerializeField
@@ -412,7 +374,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - `HardenToHp(int targetHp)`: InterferenceHarden から呼ばれる。blockType を Hard に変換し hp/currentHp を直接設定。Renderer を金色（`hardenedColor`）に更新。HP pip も再生成
 - `ConvertToExplosive()`: EXPLOSION スキルから呼ばれる。blockType を Explosive に変換し hp/currentHp=1・色を `explosiveColor` に更新（HP1 なので pip 非表示）。爆発・連鎖は既存の Explosive 経路をそのまま使う（2026-06-05）
 - `OnCollisionEnter` で `ball.GetDamage()` + `ball.OnHitBlock(this)` 呼び出し — ボールに `"BallTag"` Unity タグが必須
-- Normal/Hard/Absorb 衝突時: `ball.GetImpactFrames()`（速度×攻撃力, BallScript 節参照）で停止。0 ならヒットストップ無し（軽い当たり）。**旧 per-type frames は撤去**（2026-06-03）。**`freeze:` に `ball.ShouldFreezeOnImpact()` を渡す**＝高速時はシェイクのみ（2026-06-05）
+- Normal/Hard/Absorb 衝突時: `ball.GetImpactFrames()`（速度×攻撃力, BallScript 節参照）で停止。0 ならヒットストップ無し（軽い当たり）。**`freeze:` に `ball.ShouldFreezeOnImpact()` を渡す**＝高速時はシェイクのみ
 - Explosive 破壊時: `Mathf.Max(ball.GetImpactFrames(), explosiveHitFrames)` で停止（手応えが下限未満でも `explosiveHitFrames`(=6) を保証）。`explosiveHitFrames` は `ArenaSharedConfig` で一元調整。こちらも高速時は `freeze:false`
 - `blockType` / `hp` はパブリックフィールド。`BlockSpawner` が `Instantiate` 後に直接代入して種類・HP を設定する
 - `GetArena()`: `transform.parent?.parent?.GetComponentInChildren<ArenaController>()` — Block → BlockSpawner → Arena root の順で辿る
@@ -436,19 +398,20 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - エナジーゲージを管理。スキルキー（1P: Q / 2P: U）でスキル発動
 - `maxEnergy` を SerializeField で保持（ゲージの蓄積上限。各スキルの必要量はこれ以下に配分）
 - **発動判定はスキルごとの必要ゲージ量基準**（2026-06-05 刷新）: `IsReady`＝`energy.Energy >= equippedSkill.EnergyCost`。発動で `energy.Consume(EnergyCost)`（旧 `ConsumeAll` は廃止）。`EnergyRatio`＝`Clamp01(energy / EnergyCost)`（＝装備スキルの必要量に対する充填率。安いスキルほど早く満タン表示）。旧 `PanicReady`（HP 帯限定スキル）は撤去
+- `EquippedSkillId`（`SkillId?`、未装備で null）を公開 — UIManager がアイコン選択に使う（`GameManager.GetEquippedSkillId` 経由）
+- **発動後ゲージ回復ロックアウト（2026-06-06）**: 発動時に `chargeLockUntil = Time.time + chargeLockSeconds`(既定10秒) をセット。`AddEnergy` はロック中（`Time.time < chargeLockUntil`）は加算を無視＝ブロックを壊してもゲージが溜まらない。`ResetEnergy`（ラウンド跨ぎ）でロック解除。`Playing` 中 timeScale=1 のため scaled `Time.time` で判定
 
 ### `SkillDefinition.cs`
-- スキル効果の抽象基底クラス（`SkillDefinition`）。`EnergyCost`（発動に必要なゲージ量）を持つ
-- **実装（2026-06-05 全面刷新, DESIGN.md 5.6）**: `SkillHyper` / `SkillExplosion` / `SkillBurst` / `SkillGiant`。すべて自己強化/盤面有利系（攻撃送付スキルは無い）
+- スキル効果の抽象基底クラス（`SkillDefinition`）。`EnergyCost`（発動に必要なゲージ量）と `Id`（`SkillId` enum: Hyper=0/Explosion=1/Burst=2/Giant=3。UI のアイコン配列引きに使う・`AllSkills` と同順）を持つ
+- **実装（DESIGN.md 5.6）**: `SkillHyper` / `SkillExplosion` / `SkillBurst` / `SkillGiant`。すべて自己強化/盤面有利系（攻撃送付スキルは無い）
   - `SkillHyper`（HYPER, cost6）: ボール高速化（`SetSpeedTemporary`）＋ `ArenaController.SpawnHyperFloor`（Dead Zone 付近に BoxCollider の床を生成し duration 後 Destroy）
-  - `SkillExplosion`（EXPLOSION, cost8）: `BlockSpawner.ConvertRandomToExplosive(10〜20)`＋発動シェイク（`skillPanicHitStopFrames` を流用, freeze:false）
-  - `SkillBurst`（BURST, cost10）: `ArenaController.BeginBurst(shots, duration, ballLifetime)` → `LaunchAimer` の連射モード。発動中メインボール飛行中でも照準でき、発射キーで `SpawnBurstBall` を最大 shots 発。追加ボールは `isExtraBall`（ラウンドリセットで破棄）
+  - `SkillExplosion`（EXPLOSION, cost8）: `BlockSpawner.ConvertRandomToExplosive(fraction=0.3)`＝盤面ブロックの3割を Explosive 化＋発動シェイク（`skillPanicHitStopFrames` を流用, freeze:false）
+  - `SkillBurst`（BURST, cost10）: `ArenaController.BeginBurst(shots, interval, angle, ballLifetime)` → 自前コルーチンで `shots`(=10) 発を `interval`(=0.2s) 間隔で**自動連射**（プレイヤー操作に干渉しない）。角度は鉛直上0°基準で `±angle`(=45°) 交互。各弾はアイテム/スキル効果を持たない**プレーンボール**（`isExtraBall`、ラウンドリセットで破棄）
   - `SkillGiant`（GIANT, cost5）: `SetAttributeTemporary(Pierce)`＋新規 `BallScript.SetScaleTemporary`。Pierce 検出半径は `bounds.extents` 由来なので巨大化で薙ぎ払い幅も自動拡大
 - すべて public フィールドでパラメータを保持（Profile 参照なし。`energyCost`/`duration` 等を直接編集して調整）
 - 旧 4 種（`SkillPaddle_Enlarge`/`SkillBall_Attribute_Fire`/`SkillBall_Multi`/`SkillPanic_BlockClear`）と `SkillForceCatch`（CATCH & SHOOT, 2026-05-28 廃止）はコードから削除済み
 
 ### `MatchResultUI.cs`
-> ⚠️ **2026-06-02 実コード照合で訂正**: 旧版 CLAUDE は「サマリー版（`matchWinnerText`/`scoreSummaryText`/`winsSummaryText`、メニュー→シーンリロード）」と記していたが**コードと不一致**（計画版を誤記）。実コードは下記の**フルスタッツ版**で、メニューは**シーンリロードではなく `ReturnToTitle()`**。
 - `_UI/_CameraSpace/_Base` にアタッチ。`GameState.MatchOver` を検出してパネル表示。`Start()` で `HidePanel()`（起動時に隠す、`panelShown` 初期 false 対策）
 - フィールド（全て GameObject SetActive / TMP, null セーフ）:
   - `matchResultPanel`、勝者バナー `p1WinsBanner`/`p2WinsBanner`
@@ -467,7 +430,6 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - フィールド: `countdownTexts[]`（複数の表示先＝各アリーナに同値を出せる TMP 配列）。`GameManager.CountdownLabel` が空でない間だけ各要素を表示し文字を流し込む
 
 ### `SkillSelectUI.cs`
-> ⚠️ **2026-06-02 実コード照合で訂正**: 旧版 CLAUDE は「カード色ハイライト(`cardP1Highlights[4]`)方式」と記していたが**それはコードに存在しない**（計画版を誤記）。実コードは下記の **GameObject SetActive 方式**。
 - 試合開始前のスキル選択画面。`GameState.SkillSelect` 中に panel を表示
 - **4 枚カード方式（GameObject の表示切替で選択表現）**（DESIGN.md 5.6）。1P: A/D でカード移動・S 確定 / 2P: J/L でカード移動・K 確定。
   - 選択中カード = `cardP{N}Cursors[i]` を表示（他は非表示）
@@ -477,7 +439,6 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - ⚠️ **要バインド**: `panel` / `cardP1Cursors[]` / `cardP2Cursors[]` / `cardP1Ready[]` / `cardP2Ready[]` / `p1StatusText` / `p2StatusText`
 
 ### `TitleUI.cs`
-> ⚠️ **2026-06-02 実コード照合で訂正**: 旧版 CLAUDE は「START/SETTINGS/QUIT の 3 項目メニュー(`startText`等)」と記していたが**コードに存在しない**（計画版を誤記）。実コードは下記の **最小「PRESS TO START」版**（DESIGN.md 11.2）。
 - 起動時のタイトル画面。`GameState.Title` の間 panel を表示。`_Base` にアタッチ済み
 - **メニューは持たない**。Space / Enter で `GameManager.StartFromTitle()`（→ Settings → SkillSelect の流れ）。SETTINGS/QUIT 項目は無い。
 - `pressToStartText` を `blinkPeriod`(1.0s) / `blinkMinAlpha`(0.15) で alpha 点滅（タイトルは timeScale=0 なので `unscaledTime` 駆動）。
@@ -496,7 +457,8 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 - HP バー色: 白（≥70%）→ 黄（≥30%）→ 赤（<30%）
 - アクティブアイテム表示: `GetActiveItemName / GetActiveItemRemaining` を毎フレーム参照し、残り時間 > 0 のとき `p1ItemInfoRoot` を SetActive(true)、`$P1ItemName` `$P1ItemDuration` を更新
 - HP バー本体: **Sliced のまま `RectTransform.sizeDelta.x` を HP 比率で縮める**（fillAmount ではない。pivot.x=0 で右から削れる。フル幅は Start でキャッシュ）。スコア表示は内部値の **×10**
-- スキル READY 表示: `GameManager.IsSkillReady`（＝ゲージが装備スキルの必要量に到達）のとき `p1SkillName` に suffix（既定 ` · READY`）。旧 `PANIC READY` 上書き（HP 帯限定スキル）は撤去
+- スキル名表示: `p1SkillName`/`p2SkillName` は装備スキル名のみを表示（READY 可否は**アイコン側**で表現するため suffix は付けない。旧 ` · READY`/`PANIC READY` は撤去, 2026-06-06）
+- **スキルアイコン可/不可切替**（`UpdateSkillIcon`, 2026-06-06, DESIGN.md 5.6）: `p1SkillIcon`/`p2SkillIcon`(Image) に、`GameManager.GetEquippedSkillId` で得た `SkillId` を index に `skillIconsReady[]`/`skillIconsUnavailable[]` を引いて `IsSkillReady` に応じスプライト差替。未装備（id=null）は `icon.enabled=false` で隠す。配列範囲外/null は `SpriteAt` ヘルパで吸収（null なら据え置き）
 - 任意セクションは未バインドでも null セーフで動作（コンパイル・実行ともに影響なし）
 - `ShowInterferenceOverlay(int playerIndex, string label)`: P1/P2 各画面半分を 1.5 秒赤フラッシュ（CanvasGroup alpha コルーチン、未バインドなら何もしない）
 - **Danger Proximity**（`UpdateDangerLine`, DESIGN.md 5.4）: 最下段ブロックが `blockDeadZoneY + dangerRange(1.5)` 以内で `P1/P2BlockDeadLine`(SpriteRenderer) を **alpha 点滅**（色相=赤の `SpriteRenderer.color`、接近で周期 `dangerBlinkSlow→Fast` を**位相累積**で速める＝接近時の位相飛び対策）。底到達ペナルティで `FlashDangerLine` が白フラッシュ（`_TintColor` を HDR 白×Intensity・太さ×3）。死線スプライトは**白**で、色相=`SpriteRenderer.color`/発光=material `UI/HDRTint` の `_TintColor`
@@ -523,7 +485,7 @@ ScriptableObject / Profile（アセット）は使用しない。各コンポー
 ### フォント (`Assets/`)
 - `BebasNeue-Regular.ttf` + `BebasNeue-Regular SDF.asset` — 数字表示用（HUD の HP/Score/Combo 等）
 - `JetBrainsMono-{Regular,Bold,ExtraBold}.ttf` + 各 SDF Asset — ラベル・固定文言用
-- `NotoSansJP-VariableFont_wght.ttf` + `NotoSansJP-VariableFont_wght SDF.asset` / `NotoSansJP-VariableFont_wght_fullJP SDF.asset` — **日本語主フォント**（パネル文言等）。アトラスは 4096 で再生成し約 37MB（2026-05-31, commit 676d31b。131MB 化の主因はアトラス解像度＋7200字 Custom Characters だった）。旧 RocknRollOne は削除しタイトルは「DUAL BREAK」に統一
+- `NotoSansJP-VariableFont_wght.ttf` + `NotoSansJP-VariableFont_wght SDF.asset` / `NotoSansJP-VariableFont_wght_fullJP SDF.asset` — **日本語主フォント**（パネル文言等）。アトラスは 4096 で再生成し約 37MB（アトラス解像度＋Custom Characters 数で肥大化するので注意）。旧 RocknRollOne は削除しタイトルは「DUAL BREAK」に統一
 - ⚠️ TMP 既定フォール bック `LiberationSans SDF` は Latin 描画に使用（NotoSansJP は Latin グリフ未生成の構成があるため、パネルの英字は LiberationSans を指定）
 - TMP Font Asset Creator で Custom Characters 指定で生成
 
