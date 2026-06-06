@@ -37,9 +37,10 @@ public class RoundResultUI : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
+        // 決着ビート（フラッシュ＋見出し）が見えるよう、ResultRevealReady が立つまでパネルを出さない
         bool isRoundOver = GameManager.Instance.GetCurrentState() == GameManager.GameState.RoundOver;
-        if (isRoundOver && !shown)      Show();
-        else if (!isRoundOver && shown) Hide();
+        if (isRoundOver && GameManager.Instance.ResultRevealReady && !shown) Show();
+        else if (!isRoundOver && shown)                                     Hide();
 
         // 表示中はカウントダウンを毎フレーム更新
         if (shown && nextRoundTimeText != null)

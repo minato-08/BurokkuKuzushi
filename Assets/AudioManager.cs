@@ -31,6 +31,7 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip seBallWall;        [SerializeField, Range(0f, 1.5f)] private float volBallWall = 1f;
     [SerializeField] private AudioClip seBallPaddle;      [SerializeField, Range(0f, 1.5f)] private float volBallPaddle = 1f;
     [SerializeField] private AudioClip seBallLaunch;      [SerializeField, Range(0f, 1.5f)] private float volBallLaunch = 1f;
+    [SerializeField] private AudioClip seCenterTick;      [SerializeField, Range(0f, 1.5f)] private float volCenterTick = 1f; // エイマーが真上を通過（DESIGN 5.3）
     // ブロック衝突音（種別ごと。未割り当ては Normal にフォールバック）
     [SerializeField] private AudioClip seBlockHitNormal;    [SerializeField, Range(0f, 1.5f)] private float volBlockHitNormal = 1f;
     [SerializeField] private AudioClip seBlockHitHard;      [SerializeField, Range(0f, 1.5f)] private float volBlockHitHard = 1f;
@@ -170,6 +171,9 @@ public class AudioManager : MonoBehaviour
 
     public void PlayBallPaddle(int playerIndex = 0) => PlaySE(seBallPaddle, 1f, volBallPaddle, PanFor(playerIndex));
     public void PlayBallLaunch(int playerIndex = 0) => PlaySE(seBallLaunch, 1f, volBallLaunch, PanFor(playerIndex));
+
+    // エイマーのインジケーターが真上（センター）を通過した瞬間の「ティック」（DESIGN 5.3）
+    public void PlayCenterTick(int playerIndex = 0) => PlaySE(seCenterTick, 1f, volCenterTick, PanFor(playerIndex));
 
     // ブロック衝突。アリーナごと 50ms クールダウン。Hard は -2 半音。
     public void PlayBlockHit(int blockType, int arenaIndex)

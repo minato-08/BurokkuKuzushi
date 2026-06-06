@@ -234,6 +234,18 @@ public class GameManager : MonoBehaviour
     // ラウンド開始前のカウントダウン（3,2,1,GO!）。終わると Playing へ
     public string CountdownLabel { get; private set; }
 
+    // ラウンド決着の瞬間に各アリーナへ出す大見出し（"ROUND WIN!" / "ROUND OVER"）。空文字で非表示。
+    // RoundDecisionUI が CountdownLabel と同じ片方向ポーリングで読む。
+    public string P1DecisionLabel { get; private set; } = "";
+    public string P2DecisionLabel { get; private set; } = "";
+    [SerializeField] private float decisionLabelSeconds = 2.5f; // 大見出しの表示秒数（unscaled）
+    private Coroutine decisionLabelRoutine;
+
+    // 決着の瞬間にリザルト画面が即被さって演出が見えない問題への対策。
+    // 決着ビート（ヒットストップ＋フラッシュ＋見出し）を見せてからこの秒数後にリザルト UI を解禁する。
+    [SerializeField] private float resultRevealDelay = 1.3f;
+    public bool ResultRevealReady { get; private set; }
+
     private void BeginCountdown()
     {
         currentState   = GameState.Countdown;
@@ -243,6 +255,9 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator CountdownCoroutine()
     {
+        if (decisionLabelRoutine != null) { StopCoroutine(decisionLabelRoutine); decisionLabelRoutine = null; }
+        ClearDecisionLabels(); // 前ラウンドの決着見出しが残らないように
+        ResultRevealReady = false;
         AudioManager.Instance?.PlayRoundStart(); // 3-2-1-GO! を 1 ファイルで再生（DESIGN.md 10.4）
         // 3 → 2 → 1（停止したまま）
         CountdownLabel = "3"; yield return new WaitForSecondsRealtime(countdownStepSec);
@@ -255,6 +270,29 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         yield return new WaitForSecondsRealtime(countdownGoSec);
         CountdownLabel = "";
+    }
+
+    // 決着の大見出しを勝者側アリーナへセットする（敗者側は空＝非表示）。
+    // winText はラウンド="ROUND WIN!"、マッチ="MATCH WIN!" を呼び出し側から渡す。
+    private void SetDecisionLabels(int winner, string winText)
+    {
+        P1DecisionLabel = winner == 1 ? winText : "";
+        P2DecisionLabel = winner == 2 ? winText : "";
+    }
+
+    private void ClearDecisionLabels()
+    {
+        P1DecisionLabel = "";
+        P2DecisionLabel = "";
+    }
+
+    // 決着ラベルを表示 → decisionLabelSeconds 後に消す（timeScale=0 でも進む unscaled）。
+    private IEnumerator DecisionLabelRoutine(int winner, string winText)
+    {
+        SetDecisionLabels(winner, winText);
+        yield return new WaitForSecondsRealtime(decisionLabelSeconds);
+        ClearDecisionLabels();
+        decisionLabelRoutine = null;
     }
 
     // =====================================================
@@ -440,6 +478,10 @@ public class GameManager : MonoBehaviour
 
         Debug.Log($"ラウンド終了！勝者: P{winner}（P1: {p1RoundWins} / P2: {p2RoundWins}）");
 
+        // 決着ビートを見せ終えるまでリザルト UI を出さない（後で各コルーチンが true にする）
+        ResultRevealReady = false;
+        if (decisionLabelRoutine != null) StopCoroutine(decisionLabelRoutine);
+
         if (p1RoundWins >= roundsToWin || p2RoundWins >= roundsToWin)
         {
             currentState = GameState.MatchOver;
@@ -452,6 +494,7 @@ public class GameManager : MonoBehaviour
             matchWinnerArena?.TriggerHitStop(matchEndFrames, strong: true, shake: false);
             matchWinnerArena?.FlashRoundResult(isWinner: true);
             matchLoserArena?.FlashRoundResult(isWinner: false);
+            decisionLabelRoutine = StartCoroutine(DecisionLabelRoutine(winner, "MATCH WIN!"));
             StartCoroutine(MatchOverCoroutine(matchEndFrames));
             Debug.Log($"試合終了！勝者: P{winner}");
         }
@@ -466,6 +509,7 @@ public class GameManager : MonoBehaviour
             winnerArena?.TriggerHitStop(roundEndFrames, strong: false, shake: false);
             winnerArena?.FlashRoundResult(isWinner: true);
             loserArena?.FlashRoundResult(isWinner: false);
+            decisionLabelRoutine = StartCoroutine(DecisionLabelRoutine(winner, "ROUND WIN!"));
             StartCoroutine(NextRoundCoroutine());
         }
     }
@@ -474,6 +518,17 @@ public class GameManager : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(hitStopFrames / 60f);
         Time.timeScale = 0f;
+        // ヒットストップ後も決着ビートを少し見せてからリザルトを解禁（resultRevealDelay は決着の瞬間からの総尺）
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, resultRevealDelay - hitStopFrames / 60f));
+        RevealResult();
+    }
+
+    // 決着ビート終了 → 見出しを消してリザルト UI を解禁する。
+    private void RevealResult()
+    {
+        if (decisionLabelRoutine != null) { StopCoroutine(decisionLabelRoutine); decisionLabelRoutine = null; }
+        ClearDecisionLabels();
+        ResultRevealReady = true;
     }
 
     private IEnumerator NextRoundCoroutine()
@@ -481,6 +536,9 @@ public class GameManager : MonoBehaviour
         // ヒットストップ演出を少し見せてから停止し、ラウンド結果を表示（RoundResultUI）
         yield return new WaitForSecondsRealtime(roundEndFrames / 60f);
         Time.timeScale = 0f;
+        // 決着ビート（フラッシュ＋見出し）を見せてからリザルトを解禁
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, resultRevealDelay - roundEndFrames / 60f));
+        RevealResult();
         // 残り秒数をカウントダウン（unscaled。RoundResultUI が $NextRoundTime に表示）
         RoundIntermissionRemaining = nextRoundDelay;
         while (RoundIntermissionRemaining > 0f)

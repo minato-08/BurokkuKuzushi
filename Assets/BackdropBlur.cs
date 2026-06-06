@@ -53,13 +53,17 @@ public class BackdropBlur : MonoBehaviour
             if (!prevState.HasValue || prevState.Value != s)
             {
                 prevState = s;
-                bool isMenu = IsMenu(s);
                 darken = DarkenFor(s); // 暗さは毎状態で更新（メニュー間でも色は変わる）
-
-                if (isMenu && !menuActive)       { menuActive = true;  targetAlpha = 1f; Capture(); } // 入場：撮影＋フェードイン
-                else if (!isMenu && menuActive)  { menuActive = false; targetAlpha = 0f; }            // 退場：フェードアウト
-                // メニュー間(isMenu && menuActive)は撮り直さない（暗さ色のみ上で更新済み）
             }
+
+            // 決着状態(RoundOver/MatchOver)では、リザルト解禁(ResultRevealReady)まで背景を出さない。
+            // → 決着ビート（フラッシュ＋見出し）が素のアリーナ上で見えるようにする。他メニューは即時。
+            bool isDecision = s == GameManager.GameState.RoundOver || s == GameManager.GameState.MatchOver;
+            bool wantMenu   = IsMenu(s) && (!isDecision || GameManager.Instance.ResultRevealReady);
+
+            if (wantMenu && !menuActive)      { menuActive = true;  targetAlpha = 1f; Capture(); } // 入場：撮影＋フェードイン
+            else if (!wantMenu && menuActive) { menuActive = false; targetAlpha = 0f; }            // 退場：フェードアウト
+            // メニュー間(wantMenu && menuActive)は撮り直さない（暗さ色のみ上で更新済み）
         }
 
         ApplyFade();

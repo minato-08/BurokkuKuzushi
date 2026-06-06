@@ -263,7 +263,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 ### 必須演出（デモで「地味」と思われないライン）
 
 - [x] ラウンド開始カウントダウン（3-2-1-GO!）シーケンス実装（GameManager `CountdownCoroutine`、GO! の瞬間に Playing 開始）
-- [ ] ラウンド決着演出（勝者アリーナ白フラッシュ / 敗者アリーナ暗転 + `ROUND WIN!` / `ROUND OVER` 表示）← 現状はヒットストップ + 敗者カメラシェイクのみ。アリーナのフラッシュ/暗転と大型オーバーレイは未実装
+- [x] ラウンド決着演出（勝者アリーナ白フラッシュ / 敗者アリーナ暗転 + `ROUND WIN!` / `ROUND OVER` 表示）← フラッシュ/暗転は `UIManager.RoundResultRoutine` で実装済み。大型見出しは `GameManager.P1/P2DecisionLabel`（2.5s 自動消去）＋ `RoundDecisionUI` で実装。**TMP 要素（p1/p2DecisionText）の配置・バインドが Unity 側に残**
 - [ ] Last Stand 演出（HP 10%: アリーナ枠BreathPulse高速化 + 赤化 + HP バー点滅 + `PANIC READY` 表示）
 - [ ] BlockHard / BlockHardened HP pip 表示（ブロック上部に ● ドット、命中で減少）
 - [ ] AttackAddRow 妨害行の着弾アニメーション（上端から滑り込み 0.3s + 2f HitStop + SE）
@@ -286,7 +286,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] ヒットストップ / カメラシェイクの拡張
 - [ ] スペシャル行の出現演出と SE（`se_special_row.wav`）
 - [ ] パドル反射ゾーン実装（`PlayerController.OnBallHit` 角度補正）
-- [ ] LaunchAimer センター通過音（真上 90° 通過時の「ティック」SE）
+- [x] LaunchAimer センター通過音（`CheckCenterPass` で 0°=真上 を符号反転検出し `PlayCenterTick`。`se_center_tick` クリップ割当待ち）
 - [ ] アイテムアイコンに形状識別（○ / ★ / △）を追加（アクセシビリティ対応）
 
 ---

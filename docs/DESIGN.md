@@ -1081,6 +1081,7 @@ UI 構造を整理し、コードから触る要素を一目で識別できる�
 | `se_combo_milestone` | `UIManager.ShowComboMilestone` 呼出と同フレーム（10/20/30）| マイルストーン番号でピッチ +N 半音 |
 | `se_addrow_land` | `BlockSpawner.SpawnSabotageRow` の着弾時 | AttackAddRow ドスッ |
 | `se_ball_launch` | `LaunchAimer.ConfirmLaunch` 確定発射時 | 短い「シュッ」 |
+| `se_center_tick` | `LaunchAimer.CheckCenterPass`（インジケーターが 0°=真上 を符号反転で横切った瞬間, 半周期に 1 回）| 短い「ティック」。発射タイミングの耳コピ用（5.3）|
 | `se_ui_move` / `se_ui_confirm` | `SkillSelectUI` / `MatchResultUI` のカーソル移動・確定 | UI 共通 |
 
 ### 10.5 BGM クロスフェード規則
