@@ -234,6 +234,13 @@ public class GameManager : MonoBehaviour
     // ラウンド開始前のカウントダウン（3,2,1,GO!）。終わると Playing へ
     public string CountdownLabel { get; private set; }
 
+    // ラウンド決着の瞬間に各アリーナへ出す大見出し（"ROUND WIN!" / "ROUND OVER"）。空文字で非表示。
+    // RoundDecisionUI が CountdownLabel と同じ片方向ポーリングで読む。
+    public string P1DecisionLabel { get; private set; } = "";
+    public string P2DecisionLabel { get; private set; } = "";
+    [SerializeField] private float decisionLabelSeconds = 2.5f; // 大見出しの表示秒数（unscaled）
+    private Coroutine decisionLabelRoutine;
+
     private void BeginCountdown()
     {
         currentState   = GameState.Countdown;
@@ -243,6 +250,8 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator CountdownCoroutine()
     {
+        if (decisionLabelRoutine != null) { StopCoroutine(decisionLabelRoutine); decisionLabelRoutine = null; }
+        ClearDecisionLabels(); // 前ラウンドの決着見出しが残らないように
         AudioManager.Instance?.PlayRoundStart(); // 3-2-1-GO! を 1 ファイルで再生（DESIGN.md 10.4）
         // 3 → 2 → 1（停止したまま）
         CountdownLabel = "3"; yield return new WaitForSecondsRealtime(countdownStepSec);
@@ -255,6 +264,28 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         yield return new WaitForSecondsRealtime(countdownGoSec);
         CountdownLabel = "";
+    }
+
+    // ラウンド決着の大見出しを勝者/敗者の各アリーナへセットする。
+    private void SetDecisionLabels(int winner)
+    {
+        P1DecisionLabel = winner == 1 ? "ROUND WIN!" : "ROUND OVER";
+        P2DecisionLabel = winner == 2 ? "ROUND WIN!" : "ROUND OVER";
+    }
+
+    private void ClearDecisionLabels()
+    {
+        P1DecisionLabel = "";
+        P2DecisionLabel = "";
+    }
+
+    // 決着ラベルを表示 → decisionLabelSeconds 後に消す（timeScale=0 でも進む unscaled）。
+    private IEnumerator DecisionLabelRoutine(int winner)
+    {
+        SetDecisionLabels(winner);
+        yield return new WaitForSecondsRealtime(decisionLabelSeconds);
+        ClearDecisionLabels();
+        decisionLabelRoutine = null;
     }
 
     // =====================================================
@@ -466,6 +497,8 @@ public class GameManager : MonoBehaviour
             winnerArena?.TriggerHitStop(roundEndFrames, strong: false, shake: false);
             winnerArena?.FlashRoundResult(isWinner: true);
             loserArena?.FlashRoundResult(isWinner: false);
+            if (decisionLabelRoutine != null) StopCoroutine(decisionLabelRoutine);
+            decisionLabelRoutine = StartCoroutine(DecisionLabelRoutine(winner));
             StartCoroutine(NextRoundCoroutine());
         }
     }
