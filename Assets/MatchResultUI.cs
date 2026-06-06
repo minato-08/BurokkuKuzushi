@@ -56,9 +56,10 @@ public class MatchResultUI : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
+        // 決着ビート（フラッシュ＋見出し）が見えるよう、ResultRevealReady が立つまでパネルを出さない
         bool isMatchOver = GameManager.Instance.GetCurrentState() == GameManager.GameState.MatchOver;
-        if (isMatchOver && !panelShown)      ShowPanel();
-        else if (!isMatchOver && panelShown) HidePanel();
+        if (isMatchOver && GameManager.Instance.ResultRevealReady && !panelShown) ShowPanel();
+        else if (!isMatchOver && panelShown)                                      HidePanel();
 
         if (isMatchOver && panelShown) HandleInput();
     }
