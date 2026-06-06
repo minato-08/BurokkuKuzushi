@@ -5,8 +5,9 @@ using UnityEngine.InputSystem;
 // ArenaController.Awake() で自動生成・初期化される
 public class SkillController : MonoBehaviour
 {
-    [SerializeField] private float maxEnergy = 10f; // ゲージ満タンに必要なエナジー量
-    [SerializeField] private float chargeLockSeconds = 10f; // スキル発動後、ゲージが溜まらない時間（クールダウン）
+    // バランス値は ArenaSharedConfig で一元管理。未配置時はここの既定値にフォールバック。
+    private float maxEnergy = 10f; // ゲージ満タンに必要なエナジー量
+    private float chargeLockSeconds = 10f; // スキル発動後、ゲージが溜まらない時間（クールダウン）
 
     private float           chargeLockUntil; // この時刻（Time.time）まではゲージ蓄積をロック
     private int             playerIndex;
@@ -30,8 +31,8 @@ public class SkillController : MonoBehaviour
     {
         playerIndex = pIndex;
         arena       = a;
-        var c = ArenaSharedConfig.Instance; // 共有設定があれば maxEnergy を共通化（null セーフ）
-        if (c != null) maxEnergy = c.maxEnergy;
+        var c = ArenaSharedConfig.Instance; // 共有設定があればバランス値を共通化（null セーフ）
+        if (c != null) { maxEnergy = c.maxEnergy; chargeLockSeconds = c.skillChargeLockSeconds; }
         energy      = new EnergySystem(maxEnergy);
     }
 

@@ -29,19 +29,19 @@ public abstract class SkillDefinition
 // =====================================================
 
 // HYPER: ボールを高速化し、Dead Zone 付近に一時的な床を出して暴れさせる
+// パラメータは ArenaSharedConfig で一元調整（未配置時はコード既定値にフォールバック）。
 public sealed class SkillHyper : SkillDefinition
 {
-    public float energyCost      = 6f;
-    public float duration        = 6f;
-    public float speedMultiplier = 5f;
-
     public override string  DisplayName => "HYPER";
     public override SkillId  Id          => SkillId.Hyper;
-    public override float    EnergyCost  => energyCost;
+    public override float    EnergyCost  => ArenaSharedConfig.Instance?.hyperEnergyCost ?? 6f;
 
     public override void Activate(int playerIndex, ArenaController arena)
     {
-        arena.GetBall()?.SetSpeedTemporary(speedMultiplier, duration);
+        var c = ArenaSharedConfig.Instance;
+        float duration = c != null ? c.hyperDuration : 6f;
+        float speedMul = c != null ? c.hyperSpeedMul : 5f;
+        arena.GetBall()?.SetSpeedTemporary(speedMul, duration);
         arena.SpawnHyperFloor(duration);
     }
 }
@@ -49,20 +49,18 @@ public sealed class SkillHyper : SkillDefinition
 // EXPLOSION: 盤面ブロックの一定割合をランダムに Explosive 化する
 public sealed class SkillExplosion : SkillDefinition
 {
-    public float energyCost = 8f;
-    public float fraction   = 0.3f; // 盤面ブロックのこの割合を Explosive 化（0〜1）
-
     public override string  DisplayName => "EXPLOSION";
     public override SkillId  Id          => SkillId.Explosion;
-    public override float    EnergyCost  => energyCost;
+    public override float    EnergyCost  => ArenaSharedConfig.Instance?.explosionEnergyCost ?? 8f;
 
     public override void Activate(int playerIndex, ArenaController arena)
     {
+        var c = ArenaSharedConfig.Instance;
+        float fraction = c != null ? c.explosionFraction : 0.3f;
         arena.GetSpawner()?.ConvertRandomToExplosive(fraction);
 
         // 発動の手応え＝シェイクのみ（ボール衝突ではないのでフリーズしない, DESIGN.md 5.x）
-        int frames = ArenaSharedConfig.Instance != null
-            ? ArenaSharedConfig.Instance.skillPanicHitStopFrames : 15;
+        int frames = c != null ? c.skillPanicHitStopFrames : 15;
         arena.TriggerHitStop(frames, strong: true, shake: true, freeze: false);
     }
 }
@@ -71,38 +69,36 @@ public sealed class SkillExplosion : SkillDefinition
 // 角度は鉛直上を 0° として +angle と -angle を交互に飛ばす（DESIGN.md 5.6）。
 public sealed class SkillBurst : SkillDefinition
 {
-    public float energyCost   = 10f;
-    public int   shots        = 10;     // 発射数
-    public float interval     = 0.2f;   // 発射間隔（秒）
-    public float angle        = 45f;    // 鉛直上(0°)からの発射角。+angle / -angle を交互に使う
-    public float ballLifetime = 8f;     // 撃ったボールの寿命
-
     public override string  DisplayName => "BURST";
     public override SkillId  Id          => SkillId.Burst;
-    public override float    EnergyCost  => energyCost;
+    public override float    EnergyCost  => ArenaSharedConfig.Instance?.burstEnergyCost ?? 10f;
 
     public override void Activate(int playerIndex, ArenaController arena)
     {
-        arena.BeginBurst(shots, interval, angle, ballLifetime);
+        var c = ArenaSharedConfig.Instance;
+        int   shots    = c != null ? c.burstShots        : 10;
+        float interval = c != null ? c.burstInterval     : 0.2f;
+        float angle    = c != null ? c.burstAngle        : 45f;
+        float lifetime = c != null ? c.burstBallLifetime : 8f;
+        arena.BeginBurst(shots, interval, angle, lifetime);
     }
 }
 
 // GIANT: ボールを巨大化し Pierce 化する（巨大貫通弾）
 public sealed class SkillGiant : SkillDefinition
 {
-    public float energyCost      = 5f;
-    public float duration        = 6f;
-    public float scaleMultiplier = 3f;
-
     public override string  DisplayName => "GIANT";
     public override SkillId  Id          => SkillId.Giant;
-    public override float    EnergyCost  => energyCost;
+    public override float    EnergyCost  => ArenaSharedConfig.Instance?.giantEnergyCost ?? 5f;
 
     public override void Activate(int playerIndex, ArenaController arena)
     {
         BallScript ball = arena.GetBall();
         if (ball == null) return;
+        var c = ArenaSharedConfig.Instance;
+        float duration = c != null ? c.giantDuration   : 6f;
+        float scaleMul = c != null ? c.giantScaleMul   : 3f;
         ball.SetAttributeTemporary(BallAttribute.Pierce, duration);
-        ball.SetScaleTemporary(scaleMultiplier, duration);
+        ball.SetScaleTemporary(scaleMul, duration);
     }
 }

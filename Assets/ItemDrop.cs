@@ -91,27 +91,27 @@ public static class ItemDefinition
 public class ItemDrop : MonoBehaviour
 {
     // ── 落下・消滅 ──────────────────────────────────────
-    public float dropSpeed       = 2.5f;  // 落下速度
-    public float detectionRadius = 0.5f;  // パドルとの接触判定半径
-    public float bottomYOffset   = -20f;   // アリーナ下端からさらに何ユニット下で自然消滅するか
+    // バランス値は ArenaSharedConfig で一元管理し Setup() で流し込む（未配置時は既定値フォールバック）。
+    private float dropSpeed       = 2.5f;  // 落下速度
+    private float detectionRadius = 0.5f;  // パドルとの接触判定半径
+    private float bottomYOffset   = -20f;   // アリーナ下端からさらに何ユニット下で自然消滅するか
 
     // ── アイテム効果パラメータ（DESIGN.md 5.5）───────────
-    // ※ アイテムは AddComponent 生成のため、ここの初期値がそのまま使われる
     // 属性付与の持続時間（属性ごとに異なる, DESIGN.md 5.5 効果持続表）
-    public float fireDuration    = 5f;   // Fire
-    public float thunderDuration = 3f;   // Thunder
-    public float iceDuration     = 8f;   // Ice
-    public float heavyDuration   = 8f;   // Heavy
-    public float pierceDuration  = 3f;   // Pierce
-    public float paddleDuration     = 10f;  // パドル変化 (Enlarge/Shrink) 持続時間
-    public float speedDuration      = 10f;  // 速度変化 (SpeedUp) 持続時間
-    public float hyperDuration      = 3f;   // TrapBall_Hyperspeed 持続時間
-    public float reversedDuration   = 5f;   // TrapBall_Reversed 持続時間
-    public float enlargeMultiplier  = 1.5f; // パドル拡大倍率
-    public float shrinkMultiplier   = 0.7f; // パドル縮小倍率 (Trap)
-    public float speedUpMultiplier  = 1.3f; // パドル移動速度 +30%（DESIGN.md 5.5 BuffPaddle_SpeedUp）
-    public float hyperMultiplier    = 4f;   // ハイパー速度倍率 (Trap, 制御困難化)
-    public int   healAmount         = 50;   // 回復量
+    private float fireDuration    = 5f;   // Fire
+    private float thunderDuration = 3f;   // Thunder
+    private float iceDuration     = 8f;   // Ice
+    private float heavyDuration   = 8f;   // Heavy
+    private float pierceDuration  = 3f;   // Pierce
+    private float paddleDuration     = 10f;  // パドル変化 (Enlarge/Shrink) 持続時間
+    private float speedDuration      = 10f;  // 速度変化 (SpeedUp) 持続時間
+    private float hyperDuration      = 3f;   // TrapBall_Hyperspeed 持続時間
+    private float reversedDuration   = 5f;   // TrapBall_Reversed 持続時間
+    private float enlargeMultiplier  = 1.5f; // パドル拡大倍率
+    private float shrinkMultiplier   = 0.7f; // パドル縮小倍率 (Trap)
+    private float speedUpMultiplier  = 1.3f; // パドル移動速度 +30%（DESIGN.md 5.5 BuffPaddle_SpeedUp）
+    private float hyperMultiplier    = 4f;   // ハイパー速度倍率 (Trap, 制御困難化)
+    private int   healAmount         = 50;   // 回復量
 
     private ItemType        itemType;
     private int             playerIndex;
@@ -127,8 +127,32 @@ public class ItemDrop : MonoBehaviour
         playerIndex = pIndex;
         arena       = a;
 
+        ApplySharedConfig();
+
         Transform arenaRoot = a.transform.parent ?? a.transform;
         bottomWorldY = arenaRoot.position.y - a.arenaHalfHeight + bottomYOffset;
+    }
+
+    // アイテム効果パラメータを ArenaSharedConfig から取得（一元調整。未配置なら既定値のまま）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        dropSpeed        = c.itemDropSpeed;
+        fireDuration     = c.fireDuration;
+        thunderDuration  = c.thunderDuration;
+        iceDuration      = c.iceDuration;
+        heavyDuration    = c.heavyDuration;
+        pierceDuration   = c.pierceDuration;
+        paddleDuration   = c.paddleDuration;
+        speedDuration    = c.speedDuration;
+        hyperDuration    = c.itemHyperDuration;
+        reversedDuration = c.reversedDuration;
+        enlargeMultiplier = c.enlargeMultiplier;
+        shrinkMultiplier  = c.shrinkMultiplier;
+        speedUpMultiplier = c.speedUpMultiplier;
+        hyperMultiplier   = c.itemHyperMultiplier;
+        healAmount        = c.healAmount;
     }
 
     void Update()
