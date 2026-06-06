@@ -4,9 +4,10 @@ using UnityEngine;
 // アリーナ上から落下し、パドル付近で停止。接触中のパドルに毎秒 HP ダメージを与える。
 public class ZonePoison : MonoBehaviour
 {
-    [SerializeField] private float fallSpeed       = 10f;
-    [SerializeField] private float duration        = 5f;
-    [SerializeField] private float detectionRadius = 1.0f;
+    // duration / detectionRadius は ArenaSharedConfig で一元管理（Setup で取得）。fallSpeed は落下演出速度（固定）。
+    private float fallSpeed       = 10f;
+    private float duration        = 5f;
+    private float detectionRadius = 1.0f;
 
     private int   playerIndex;
     private float targetWorldY;
@@ -19,6 +20,9 @@ public class ZonePoison : MonoBehaviour
     {
         this.playerIndex  = playerIndex;
         this.targetWorldY = targetWorldY;
+
+        var c = ArenaSharedConfig.Instance;
+        if (c != null) { duration = c.poisonZoneDuration; detectionRadius = c.poisonZoneRadius; }
     }
 
     void Update()

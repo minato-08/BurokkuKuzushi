@@ -12,84 +12,64 @@ public enum BallAttribute
 
 public class BallScript : MonoBehaviour, IFreezable
 {
-    [Header("ボール設定")]
-    [SerializeField] public float speed = 7f;
+    [Header("Attribute (per-instance)")]
+    [SerializeField] public BallAttribute attribute = BallAttribute.Normal; // 初期属性は per-instance
 
-    [Header("発射設定")]
-    [SerializeField] private Vector3 initialLocalDirection = new Vector3(1f, 1f, 0f);
-    [SerializeField] private float relaunchAngleSpread = 3f;
+    [Header("Player")]
+    [SerializeField] public int playerIndex = 1; // per-arena 固有
 
-    [Header("軌道補正（最小軸成分比率）")]
-    [SerializeField] private float minAxisRatio = 0.2f;
-
-    [Header("時間加速（メインボールのみ）")]
-    [SerializeField] private float timeAccelRate = 0.05f;  // 1秒あたりの速度増加（baseSpeed単位）
-    [SerializeField] private float timeAccelMax  = 2.0f;   // 上限: baseSpeed × この倍率
-
-    [Header("コリジョン抜け対策（アリーナローカル座標）")]
-    [SerializeField] private float boundX       = 7f;
-    [SerializeField] private float boundYTop    = 11f;
-    [SerializeField] private float boundYBottom = -13f;
-
-    [Header("属性設定")]
-    [SerializeField] public BallAttribute attribute = BallAttribute.Normal;
-
-    [Header("属性パラメータ")]
-    [SerializeField] private int normalDamage = 1;
-    [SerializeField] private int iceDamage    = 2;
-    [SerializeField] private int heavyDamage  = 3;
-    [SerializeField] private int pierceDamage = 1;
-    [SerializeField] private float fireRadius    = 1.5f;
-    [SerializeField] private float thunderRadius = 2.5f;
-    [SerializeField] private float heavySpeedFactor = 0.7f; // Heavy 属性中の速度倍率（DESIGN 5.2）
-
-    [Header("ヒットストップ係数")]
-    [SerializeField] private float hitStopSpeedThreshold = 1.5f; // baseSpeed の何倍超えで発動
-    [SerializeField] private float hitStopHeavyMul   = 1.5f;
-    [SerializeField] private float hitStopFireMul    = 1.2f;
-    [SerializeField] private float hitStopThunderMul = 1.1f;
-    [SerializeField] private float hitStopIceMul     = 1.2f;
-
-    [Header("壁バウンスヒットストップ（フレーム数・0=なし）")]
-    [SerializeField] private int wallBounceFrames = 0;
-
-    [Header("手応え（ブロック衝突インパクト）— ArenaSharedConfig で一元調整")]
-    [SerializeField] private int   impactBaseFrames  = 2;    // 標準的な一撃の基準フレーム
-    [SerializeField] private float impactSpeedWeight = 0.6f; // 速度寄与の強さ
-    [SerializeField] private float impactThreshold   = 1.4f; // これ未満は手応えを出さない
-    [SerializeField] private int   impactMaxFrames   = 10;   // 停止フレーム上限
-    [SerializeField] private float freezeSkipSpeedFactor = 2.5f; // 実効速度がこの倍率超でブロック衝突はフリーズせずシェイクのみ（HYPER 等）
-
-    [Header("属性別カラー")]
-    [SerializeField] private Color normalColor  = Color.white;
-    [SerializeField] private Color fireColor    = new Color(1.0f, 0.478f, 0.239f); // #ff7a3d
-    [SerializeField] private Color thunderColor = new Color(1.0f, 0.847f, 0.290f); // #ffd84a
-    [SerializeField] private Color iceColor     = new Color(0.306f, 0.765f, 1.0f); // #4ec3ff
-    [SerializeField] private Color heavyColor   = new Color(0.706f, 0.643f, 1.0f); // #b4a4ff lavender
-    [SerializeField] private Color pierceColor  = new Color(0.635f, 1.0f, 0.878f); // #a2ffdf
-
-    [Header("コンボ熱表示 (Ball Heat, DESIGN.md 5.3)")]
-    // 属性が Normal のとき、コンボ段階でボール色を 白→クリーム→橙→赤 に Lerp（純演出）
-    [SerializeField] private int   heatStage1 = 10;  // この値以上でクリーム
-    [SerializeField] private int   heatStage2 = 20;  // この値以上で温かいオレンジ
-    [SerializeField] private int   heatStage3 = 30;  // この値以上で深い赤
-    [SerializeField] private Color heatColorLow  = new Color(1.0f, 0.949f, 0.690f); // #fff2b0 クリーム
-    [SerializeField] private Color heatColorMid  = new Color(1.0f, 0.690f, 0.290f); // #ffb04a オレンジ
-    [SerializeField] private Color heatColorHigh = new Color(1.0f, 0.290f, 0.200f); // #ff4a33 赤
-    [SerializeField] private float heatLerpSpeed = 6f; // 色追従の速さ（unscaled）
-
-    [Header("軌跡設定")]
-    [SerializeField] private float trailTime       = 0.18f;
-    [SerializeField] private float trailStartWidth = 0.22f;
-
-    [Header("プレイヤー紐付け")]
-    [SerializeField] public int playerIndex = 1;
+    // 以下のバランス値は ArenaSharedConfig で一元管理（ApplySharedConfig で取得）。未配置時は既定値。
+    [HideInInspector] public float speed = 7f; // 他コードからも参照されるため public（Inspector には出さない）
+    private Vector3 initialLocalDirection = new Vector3(1f, 1f, 0f);
+    private float relaunchAngleSpread = 3f;
+    private float minAxisRatio = 0.2f;
+    private float timeAccelRate = 0.05f;  // 1秒あたりの速度増加（baseSpeed単位）
+    private float timeAccelMax  = 2.0f;   // 上限: baseSpeed × この倍率
+    private float boundX       = 7f;
+    private float boundYTop    = 11f;
+    private float boundYBottom = -13f;
+    private int   normalDamage = 1;
+    private int   iceDamage    = 2;
+    private int   heavyDamage  = 3;
+    private int   pierceDamage = 1;
+    private float fireRadius    = 1.5f;
+    private float thunderRadius = 2.5f;
+    private float heavySpeedFactor = 0.7f; // Heavy 属性中の速度倍率（DESIGN 5.2）
+    private float hitStopSpeedThreshold = 1.5f; // baseSpeed の何倍超えで発動
+    private float hitStopHeavyMul   = 1.5f;
+    private float hitStopFireMul    = 1.2f;
+    private float hitStopThunderMul = 1.1f;
+    private float hitStopIceMul     = 1.2f;
+    private int   wallBounceFrames = 0;
+    private int   impactBaseFrames  = 2;    // 標準的な一撃の基準フレーム
+    private float impactSpeedWeight = 0.6f; // 速度寄与の強さ
+    private float impactThreshold   = 1.4f; // これ未満は手応えを出さない
+    private int   impactMaxFrames   = 10;   // 停止フレーム上限
+    private float freezeSkipSpeedFactor = 2.5f; // 実効速度がこの倍率超でブロック衝突はフリーズせずシェイクのみ（HYPER 等）
+    private Color normalColor  = Color.white;
+    private Color fireColor    = new Color(1.0f, 0.478f, 0.239f); // #ff7a3d
+    private Color thunderColor = new Color(1.0f, 0.847f, 0.290f); // #ffd84a
+    private Color iceColor     = new Color(0.306f, 0.765f, 1.0f); // #4ec3ff
+    private Color heavyColor   = new Color(0.706f, 0.643f, 1.0f); // #b4a4ff lavender
+    private Color pierceColor  = new Color(0.635f, 1.0f, 0.878f); // #a2ffdf
+    // Ball Heat: 属性 Normal のときコンボ段階で 白→クリーム→橙→赤 に Lerp（純演出, DESIGN.md 5.3）
+    private int   heatStage1 = 10;  // この値以上でクリーム
+    private int   heatStage2 = 20;  // この値以上で温かいオレンジ
+    private int   heatStage3 = 30;  // この値以上で深い赤
+    private Color heatColorLow  = new Color(1.0f, 0.949f, 0.690f); // #fff2b0 クリーム
+    private Color heatColorMid  = new Color(1.0f, 0.690f, 0.290f); // #ffb04a オレンジ
+    private Color heatColorHigh = new Color(1.0f, 0.290f, 0.200f); // #ff4a33 赤
+    private float heatLerpSpeed = 6f; // 色追従の速さ（unscaled）
+    private float trailTime       = 0.18f;
+    private float trailStartWidth = 0.22f;
 
     private Rigidbody rb;
     private Vector3 lastVelocity;
     private TrailRenderer trail;
     private Renderer cachedRenderer;
     private Collider cachedCollider;
+    private bool heatSuppressed;                 // HYPER 中など Ball Heat を一時停止するフラグ
+    private Coroutine heatSuppressRoutine;
 
     // Pierce（貫通）中に物理反発を無効化したブロック群。反発で軌道が折れて
     // トレイルがカクつくのを防ぐため、検出したブロックは IgnoreCollision で素通りさせ、
@@ -294,6 +274,8 @@ public class BallScript : MonoBehaviour, IFreezable
     void Update()
     {
         if (cachedRenderer == null) return;
+        if (isExtraBall) return;                        // BURST 等の追加ボールは Ball Heat 対象外
+        if (heatSuppressed) return;                     // HYPER 中はヒート色を載せない
         if (attribute != BallAttribute.Normal) return; // 属性カラーが Ball Heat に優先
 
         int combo = GameManager.Instance != null ? GameManager.Instance.GetCombo(playerIndex) : 0;
@@ -369,7 +351,10 @@ public class BallScript : MonoBehaviour, IFreezable
         if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
         if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
         if (scaleRoutine     != null) { StopCoroutine(scaleRoutine);     scaleRoutine = null; }
+        if (heatSuppressRoutine != null) { StopCoroutine(heatSuppressRoutine); heatSuppressRoutine = null; }
+        heatSuppressed = false;
         transform.localScale = baseScale; // GIANT の一時拡大を次ラウンドへ持ち越さない
+        if (trail != null) trail.widthMultiplier = 1f; // GIANT のトレイル拡大も持ち越さない
         CancelInvoke();
 
         // 貫通中に無効化したブロック衝突を元に戻す（次ラウンドへ持ち越さない）
@@ -407,6 +392,32 @@ public class BallScript : MonoBehaviour, IFreezable
     {
         float randomX = Random.Range(-relaunchAngleSpread, relaunchAngleSpread);
         LaunchInDirection(new Vector3(randomX, 1f, 0f));
+    }
+
+    // スキル発動時に呼ぶ: ボールに乗っているアイテム由来の一時効果（属性・速度）を解除し素の状態へ戻す。
+    // HYPER/GIANT を「アイテム効果が混ざらない純粋なスキル弾」にするため（スケールは GIANT 自身が管理）。
+    public void ClearItemEffects()
+    {
+        if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
+        if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
+        attribute       = BallAttribute.Normal;
+        speedMultiplier = 1f;
+        ApplyAttributeColor();
+    }
+
+    // HYPER 中など、一定時間 Ball Heat の色付けを止める。発動時に ClearItemEffects で素の色へ戻した後に呼ぶ。
+    public void SuppressHeatTemporary(float duration)
+    {
+        if (heatSuppressRoutine != null) StopCoroutine(heatSuppressRoutine);
+        heatSuppressRoutine = StartCoroutine(HeatSuppressRoutine(duration));
+    }
+
+    private System.Collections.IEnumerator HeatSuppressRoutine(float duration)
+    {
+        heatSuppressed = true;
+        yield return new WaitForSeconds(duration);
+        heatSuppressed = false;
+        heatSuppressRoutine = null;
     }
 
     public void SetAttributeTemporary(BallAttribute attr, float duration)
@@ -450,8 +461,10 @@ public class BallScript : MonoBehaviour, IFreezable
     private System.Collections.IEnumerator ScaleRoutine(float multiplier, float duration)
     {
         transform.localScale = baseScale * multiplier;
+        if (trail != null) trail.widthMultiplier = multiplier; // トレイルもボール拡大率に合わせて太くする
         yield return new WaitForSeconds(duration);
         transform.localScale = baseScale;
+        if (trail != null) trail.widthMultiplier = 1f;
         scaleRoutine = null;
     }
 

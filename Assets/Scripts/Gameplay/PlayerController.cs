@@ -3,23 +3,19 @@ using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour, IFreezable
 {
-    [Header("プレイヤー設定")]
-    [SerializeField] private int playerIndex = 1;
-    [SerializeField] public float speed = 10f;
+    [Header("Player")]
+    [SerializeField] private int playerIndex = 1; // per-arena 固有（共有しない）
 
-    [Header("移動制限（ローカル座標）")]
-    [SerializeField] private float xLimit = 5.5f;
-    [SerializeField] private float paddleLocalY = -5f;
-    [SerializeField] private float paddleLocalZ = 0f;
-
-    [Header("パドル衝突ヒットストップ（フレーム数・0=なし）")]
-    [SerializeField] private int paddleBounceFrames = 0;
-
-    [Header("アイテム取得フラッシュ（DESIGN.md 12.17）")]
-    [SerializeField] private Color buffFlashColor   = new Color(0.306f, 0.765f, 1.000f); // Cyan
-    [SerializeField] private Color attackFlashColor = new Color(1.000f, 0.298f, 0.235f); // Red
-    [SerializeField] private Color trapFlashColor   = new Color(0.792f, 0.286f, 0.851f); // Purple
-    [SerializeField] private float pickupFlashDuration = 0.1f;
+    // 以下のバランス値は ArenaSharedConfig で一元管理（ApplySharedConfig で取得）。未配置時は既定値。
+    [HideInInspector] public float speed = 10f; // 他コードからも参照されるため public（Inspector には出さない）
+    private float xLimit = 5.5f;
+    private float paddleLocalY = -5f;
+    private float paddleLocalZ = 0f;
+    private int   paddleBounceFrames = 0;
+    private Color buffFlashColor   = new Color(0.306f, 0.765f, 1.000f); // Cyan
+    private Color attackFlashColor = new Color(1.000f, 0.298f, 0.235f); // Red
+    private Color trapFlashColor   = new Color(0.792f, 0.286f, 0.851f); // Purple
+    private float pickupFlashDuration = 0.1f;
 
     private Rigidbody rb;
     private bool frozen = false;
@@ -59,6 +55,9 @@ public class PlayerController : MonoBehaviour, IFreezable
 
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = true;
+        // キネマティック体を ContinuousSpeculative にすると、高速ボール（HYPER 等）の
+        // ContinuousDynamic スイープ判定がパドルを検出できる＝貫通（トンネリング）防止。
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
         originalScale = transform.localScale;
         baseMoveSpeed = speed;   // ApplySharedConfig 後の値を基準として保持（SpeedUp 解除時に復元）
 

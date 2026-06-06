@@ -3,22 +3,18 @@ using UnityEngine;
 // 1つのアリーナをまとめて管理するコントローラ
 public class ArenaController : MonoBehaviour
 {
-    [Header("プレイヤー紐付け")]
-    [SerializeField] public int playerIndex = 1;
+    [Header("Player")]
+    [SerializeField] public int playerIndex = 1; // per-arena 固有
 
-    [Header("アリーナサイズ（SpawnItem の底面計算に使用）")]
-    [SerializeField] public float arenaHalfWidth  = 5f;
-    [SerializeField] public float arenaHalfHeight = 4.5f;
-
-    [Header("アリーナ内の主要オブジェクト")]
+    [Header("Arena Objects (per-arena refs)")]
     [SerializeField] private BallScript ball;
     [SerializeField] private BlockSpawner spawner;
-
-    [Header("ボール初期位置オフセット（パドル上端からの距離）")]
-    [SerializeField] private float ballSpawnOffsetY = 1f;
-
-    [Header("メトロノーム発射")]
     [SerializeField] private LaunchAimer launchAimer;
+
+    // 以下のバランス値は ArenaSharedConfig で一元管理（ApplySharedConfig で取得）。未配置時は既定値。
+    [HideInInspector] public float arenaHalfWidth  = 5f;   // SpawnItem の底面計算・ItemDrop から参照されるため public
+    [HideInInspector] public float arenaHalfHeight = 4.5f;
+    private float ballSpawnOffsetY = 1f;  // ボール初期位置オフセット（パドル上端からの距離）
 
     // HYPER スキルの床。手動配置したオブジェクトをバインドすると、発動中だけ SetActive(true) にして使う
     // （位置・サイズ・マテリアル・コライダーを Unity 上で調整可能）。**非アクティブで配置・コライダー(非トリガー)付き**を想定。

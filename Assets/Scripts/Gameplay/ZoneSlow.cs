@@ -5,10 +5,11 @@ using System.Collections.Generic;
 // アリーナ上から落下し、アリーナ中央付近で停止。内部のボールを slowFactor 倍に減速する。
 public class ZoneSlow : MonoBehaviour
 {
-    [SerializeField] private float fallSpeed   = 8f;
-    [SerializeField] private float duration    = 8f;
-    [SerializeField] private float zoneRadius  = 1.5f;
-    [SerializeField] private float slowFactor  = 0.5f;  // 内部のボール速度倍率
+    // バランス値は ArenaSharedConfig で一元管理（Setup で取得。未配置時は既定値）。
+    private float fallSpeed   = 8f;
+    private float duration    = 8f;
+    private float zoneRadius  = 1.5f;
+    private float slowFactor  = 0.5f;  // 内部のボール速度倍率
 
     private float targetWorldY;
     private bool  landed;
@@ -19,6 +20,15 @@ public class ZoneSlow : MonoBehaviour
     public void Setup(float targetWorldY)
     {
         this.targetWorldY = targetWorldY;
+
+        var c = ArenaSharedConfig.Instance;
+        if (c != null)
+        {
+            fallSpeed  = c.slowZoneFallSpeed;
+            duration   = c.slowZoneDuration;
+            zoneRadius = c.slowZoneRadius;
+            slowFactor = c.slowZoneFactor;
+        }
     }
 
     void Update()

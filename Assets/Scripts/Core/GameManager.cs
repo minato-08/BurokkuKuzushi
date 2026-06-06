@@ -20,41 +20,35 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    [Header("試合設定")]
-    [SerializeField] private int   roundsToWin    = 1;
+    // 試合進行/演出尺（フロー）。バランス値ではないので GameManager に残す。
+    [Header("Match Flow")]
+    [SerializeField] private int   roundsToWin    = 1;       // Settings/PlayerPrefs で上書きされる
     [SerializeField] private float nextRoundDelay = 2f;
     [SerializeField] private float countdownStepSec = 1.0f;  // 3/2/1 各数字の表示秒
     [SerializeField] private float countdownGoSec   = 0.6f;  // GO! の表示秒
 
-    [Header("HP設定")]
-    [SerializeField] private int maxHP                  = 500;
-    [SerializeField] private int damageBallDrop         = 5;
-    [SerializeField] private int damageBlockReachBottom = 10;
-    [SerializeField] private int damagePoisonPerSec     = 5;
-
-    [Header("スキル・エナジー設定")]
-    [SerializeField] private float energyPerBlock = 1f;
-
-    [Header("コンボ設定（DESIGN.md 5.8）")]
-    [SerializeField] private float comboTimeout   = 6.0f;  // 最後の破壊からこの秒数でリセット
-    [SerializeField] private int   comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
-    [SerializeField] private int   comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
-    [SerializeField] private int   comboItemStep  = 10;    // 何コンボ毎にドロップ +10% するか
-    [SerializeField] private int[] comboMilestones = { 10, 20, 30 };  // 演出を出すコンボ数
-
-    [Header("強制リスポーン設定")]
-
-    [Header("ヒットストップ設定（フレーム数）")]
+    [Header("HitStop Frames")]
     [SerializeField] private int interferenceTriggerFrames = 10;
     [SerializeField] private int roundEndFrames            = 30;
     [SerializeField] private int matchEndFrames            = 60;
 
-    [Header("HP帯別パラメータ（thresholdPercent 降順で設定）")]
-    [SerializeField] private HPStateBand[] hpStateBands;
-
-    [Header("アリーナ参照")]
+    [Header("Arena References")]
     [SerializeField] private ArenaController arena1;
     [SerializeField] private ArenaController arena2;
+
+    // ── 試合バランス（ArenaSharedConfig で一元管理。Awake の ApplySharedConfig で取得）──
+    //    未配置時はここの既定値にフォールバック。Inspector には出さない（調整は ArenaSharedConfig）。
+    private int maxHP                  = 500;
+    private int damageBallDrop         = 5;
+    private int damageBlockReachBottom = 10;
+    private int damagePoisonPerSec     = 5;
+    private float energyPerBlock = 1f;
+    private float comboTimeout   = 6.0f;  // 最後の破壊からこの秒数でリセット
+    private int   comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
+    private int   comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
+    private int   comboItemStep  = 10;    // 何コンボ毎にドロップ +10% するか
+    private int[] comboMilestones = { 10, 20, 30 };  // 演出を出すコンボ数
+    private HPStateBand[] hpStateBands;   // 空なら全倍率 1.0（逆転ボーナス無し）
 
     private HPSystem p1HP;
     private HPSystem p2HP;
@@ -109,8 +103,27 @@ public class GameManager : MonoBehaviour
         }
         Instance = this;
 
+        ApplySharedConfig(); // バランス値を取得してから HP を構築（maxHP を使うため順序重要）
         p1HP = new HPSystem(maxHP);
         p2HP = new HPSystem(maxHP);
+    }
+
+    // 試合バランスを ArenaSharedConfig から取得（一元調整。未配置なら既定値のまま）。
+    private void ApplySharedConfig()
+    {
+        var c = ArenaSharedConfig.Instance;
+        if (c == null) return;
+        maxHP                  = c.maxHP;
+        damageBallDrop         = c.damageBallDrop;
+        damageBlockReachBottom = c.damageBlockReachBottom;
+        damagePoisonPerSec     = c.damagePoisonPerSec;
+        energyPerBlock = c.energyPerBlock;
+        comboTimeout   = c.comboTimeout;
+        comboScoreStep = c.comboScoreStep;
+        comboGaugeStep = c.comboGaugeStep;
+        comboItemStep  = c.comboItemStep;
+        if (c.comboMilestones != null) comboMilestones = c.comboMilestones;
+        hpStateBands   = c.hpStateBands;
     }
 
     void Start()
@@ -203,7 +216,7 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.SkillSelect) return;
 
-        AudioManager.Instance?.PlayMatchBGM(); // マッチ中 BGM 開始（ラウンド遷移では止めない, DESIGN.md 10.5）
+        startMatchBgmOnGo = true; // マッチ中 BGM はカウントダウンの "GO!" 瞬間に開始（ラウンド遷移では止めない, DESIGN.md 10.5）
         ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
@@ -241,6 +254,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float decisionLabelSeconds = 2.5f; // 大見出しの表示秒数（unscaled）
     private Coroutine decisionLabelRoutine;
 
+    // マッチ開始のカウントダウンでのみ true。GO! の瞬間にマッチ BGM を鳴らす（ラウンド間は継続）。
+    private bool startMatchBgmOnGo;
+
     // 決着の瞬間にリザルト画面が即被さって演出が見えない問題への対策。
     // 決着ビート（ヒットストップ＋フラッシュ＋見出し）を見せてからこの秒数後にリザルト UI を解禁する。
     [SerializeField] private float resultRevealDelay = 1.3f;
@@ -268,6 +284,11 @@ public class GameManager : MonoBehaviour
         CountdownLabel = "GO!";
         currentState   = GameState.Playing;
         Time.timeScale = 1f;
+        if (startMatchBgmOnGo)
+        {
+            startMatchBgmOnGo = false;
+            AudioManager.Instance?.PlayMatchBGM(); // GO! の瞬間にマッチ BGM 開始
+        }
         yield return new WaitForSecondsRealtime(countdownGoSec);
         CountdownLabel = "";
     }

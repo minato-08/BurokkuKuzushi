@@ -5,13 +5,11 @@ using UnityEngine.InputSystem;
 // ArenaController から Initialize() を呼ばれてセットアップされる
 public class LaunchAimer : MonoBehaviour
 {
-    [Header("インジケーター設定")]
-    [SerializeField] private float indicatorLength = 2.5f;
-    [SerializeField] private Color indicatorColor  = Color.yellow;
-
-    [Header("メトロノーム発射")]
-    [SerializeField] private float metronomeAngleRange = 60f;
-    [SerializeField] private float metronomePeriodSec  = 1.0f;
+    // バランス値は ArenaSharedConfig で一元管理（ApplySharedConfig で取得）。未配置時は既定値。
+    private float indicatorLength = 2.5f;
+    private Color indicatorColor  = Color.yellow;
+    private float metronomeAngleRange = 60f;
+    private float metronomePeriodSec  = 1.0f;
 
     private BallScript       ball;
     private int              playerIndex;

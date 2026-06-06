@@ -5,57 +5,43 @@ using System.Linq;
 
 public class BlockSpawner : MonoBehaviour, IFreezable
 {
-    [Header("プレイヤー紐付け")]
-    [SerializeField] public int playerIndex = 1;
+    [Header("Player / Prefab")]
+    [SerializeField] public int playerIndex = 1;          // per-arena 固有
+    [SerializeField] private GameObject blockPrefab;       // per-arena 参照
 
-    [Header("ブロック設定")]
-    [SerializeField] private GameObject blockPrefab;
-    [SerializeField] private int   blocksPerRow = 7;
-    [SerializeField] private float blockWidth   = 1.5f;
-    [SerializeField] private float blockGap     = 0.1f;
-    [SerializeField] private float blockHeight  = 0.7f;
-
-    [Header("スポーン・降下設定（ローカル座標）")]
-    [SerializeField] private float spawnY         = 4.5f;
-    [SerializeField] private float blockDeadZoneY = -4.5f; // ブロックがここを下回ったら破棄してダメージ
-
-    [Header("Dynamic Escalation（DESIGN.md 5.4.1・ラウンド経過で増圧）")]
-    [SerializeField] private float spawnIntervalBase         = 5.0f;  // ラウンド開始時のスポーン間隔
-    [SerializeField] private float spawnIntervalDecayPerMin  = 0.2f;  // 1分ごとに縮む量
-    [SerializeField] private float spawnIntervalMin          = 3.0f;  // 間隔の下限
-    [SerializeField] private float descentSpeedBase          = 0.3f;  // ラウンド開始時の降下速度
-    [SerializeField] private float descentSpeedGainPerMin    = 0.03f; // 1分ごとに増える量
-    [SerializeField] private float descentSpeedMax           = 0.45f; // 降下速度の上限
-
-    [Header("通常行のブロック種出現率")]
-    [Range(0f, 1f)] [SerializeField] private float explosiveBlockChance = 0.1f;
-    [Range(0f, 1f)] [SerializeField] private float hardBlockChance      = 0.2f;
-    [Range(0f, 1f)] [SerializeField] private float itemBlockChance      = 0.08f; // 確定ドロップブロック（DESIGN.md 5.4/12.17）
-    [Range(0f, 1f)] [SerializeField] private float specialRowChance     = 0.125f;// スペシャル行（全Item/全Explosive/歯抜け, DESIGN.md 5.4）
-    [SerializeField] private int hardBlockHp = 2;
-
-    [Header("妨害行設定（Hard/Absorb）")]
-    [Range(0f, 1f)] [SerializeField] private float sabotageHardRatio = 0.5f;
-    [SerializeField] private int sabotageBlockHp = 2;
-
-    [Header("妨害 Harden 設定")]
-    [SerializeField] private int hardenCount    = 3;
-    [SerializeField] private int hardenTargetHp = 3;
-
-    [Header("ブロックDeadZone到達時ヒットストップ")]
-    [SerializeField] private int  blockDeadZoneHitFrames = 5;
-    [SerializeField] private bool blockDeadZoneHitShake  = true;
-
-    [Header("通常行 スライドイン（湧き感の軽減・控えめ）")]
-    [SerializeField] private float normalSlideDistance = 1.5f;  // 上からの滑り込み距離（小さめ）
-    [SerializeField] private float normalSlideDuration = 0.2f;  // 滑り込み秒
-
-    [Header("妨害行 着弾演出（AttackAddRow, DESIGN.md 6.3。派手版で差別化）")]
-    [SerializeField] private float addRowSlideDistance  = 6f;    // 上空からの落下投下距離（大きめ）
-    [SerializeField] private float addRowSlideDuration  = 0.3f;  // 滑り込み秒
-    [SerializeField] private int   addRowImpactFrames   = 2;     // 着弾ヒットストップ（フレーム）
-    [SerializeField] private Color addRowImpactFlash    = Color.white; // 着弾点フラッシュ色
-    [SerializeField] private float addRowImpactFlashSec = 0.1f;
+    // 以下のバランス値は ArenaSharedConfig で一元管理（ApplySharedConfig で取得）。未配置時は既定値。
+    private int   blocksPerRow = 7;
+    private float blockWidth   = 1.5f;
+    private float blockGap     = 0.1f;
+    private float blockHeight  = 0.7f;
+    private float spawnY         = 4.5f;
+    private float blockDeadZoneY = -4.5f; // ブロックがここを下回ったら破棄してダメージ
+    private float spawnIntervalBase         = 5.0f;  // ラウンド開始時のスポーン間隔
+    private float spawnIntervalDecayPerMin  = 0.2f;  // 1分ごとに縮む量
+    private float spawnIntervalMin          = 3.0f;  // 間隔の下限
+    private float descentSpeedBase          = 0.3f;  // ラウンド開始時の降下速度
+    private float descentSpeedGainPerMin    = 0.03f; // 1分ごとに増える量
+    private float descentSpeedMax           = 0.45f; // 降下速度の上限
+    private float explosiveBlockChance = 0.1f;
+    private float hardBlockChance      = 0.2f;
+    private float itemBlockChance      = 0.08f; // 確定ドロップブロック（DESIGN.md 5.4/12.17）
+    private float specialRowChance     = 0.125f;// スペシャル行（全Item/全Explosive/歯抜け, DESIGN.md 5.4）
+    private int   hardBlockHp = 2;
+    private int sabotageWeightNormal  = 2;
+    private int sabotageWeightHardHp2 = 3;
+    private int sabotageWeightHardHp3 = 4;
+    private int sabotageWeightAbsorb  = 1;
+    private int   hardenCount    = 3;
+    private int   hardenTargetHp = 3;
+    private int   blockDeadZoneHitFrames = 5;
+    private bool  blockDeadZoneHitShake  = true;
+    private float normalSlideDistance = 1.5f;  // 通常行 上からの滑り込み距離（小さめ）
+    private float normalSlideDuration = 0.2f;  // 滑り込み秒
+    private float addRowSlideDistance  = 6f;    // 妨害行 上空からの落下投下距離（大きめ）
+    private float addRowSlideDuration  = 0.3f;  // 滑り込み秒
+    private int   addRowImpactFrames   = 2;     // 着弾ヒットストップ（フレーム）
+    private Color addRowImpactFlash    = Color.white; // 着弾点フラッシュ色
+    private float addRowImpactFlashSec = 0.1f;
 
     // スライドイン中のブロックは通常降下から除外する
     private readonly HashSet<Block> slidingBlocks = new HashSet<Block>();
@@ -122,8 +108,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         itemBlockChance      = c.itemBlockChance;
         specialRowChance     = c.specialRowChance;
         hardBlockHp          = c.hardBlockHp;
-        sabotageHardRatio    = c.sabotageHardRatio;
-        sabotageBlockHp      = c.sabotageBlockHp;
+        sabotageWeightNormal  = c.sabotageWeightNormal;
+        sabotageWeightHardHp2 = c.sabotageWeightHardHp2;
+        sabotageWeightHardHp3 = c.sabotageWeightHardHp3;
+        sabotageWeightAbsorb  = c.sabotageWeightAbsorb;
         hardenCount          = c.hardenCount;
         hardenTargetHp       = c.hardenTargetHp;
         blockDeadZoneHitFrames = c.blockDeadZoneHitFrames;
@@ -309,12 +297,18 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         }
     }
 
+    // 妨害行の 1 ブロックを重み付き抽選で決める（Normal / Hard HP2 / Hard HP3 / Absorb）。
     private void ApplySabotageRowSettings(Block blockScript)
     {
-        blockScript.blockType = Random.value < sabotageHardRatio
-            ? BlockType.Hard
-            : BlockType.Absorb;
-        blockScript.hp = sabotageBlockHp;
+        int total = sabotageWeightNormal + sabotageWeightHardHp2
+                  + sabotageWeightHardHp3 + sabotageWeightAbsorb;
+        if (total <= 0) { blockScript.blockType = BlockType.Hard; blockScript.hp = 2; return; } // 安全フォールバック
+
+        int r = Random.Range(0, total); // 0..total-1
+        if      ((r -= sabotageWeightNormal)  < 0) { blockScript.blockType = BlockType.Normal; blockScript.hp = 1; }
+        else if ((r -= sabotageWeightHardHp2) < 0) { blockScript.blockType = BlockType.Hard;   blockScript.hp = 2; }
+        else if ((r -= sabotageWeightHardHp3) < 0) { blockScript.blockType = BlockType.Hard;   blockScript.hp = 3; }
+        else                                       { blockScript.blockType = BlockType.Absorb; blockScript.hp = 1; }
     }
 
     private void DescendBlocks()
