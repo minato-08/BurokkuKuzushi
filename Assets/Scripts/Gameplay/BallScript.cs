@@ -68,6 +68,8 @@ public class BallScript : MonoBehaviour, IFreezable
     private TrailRenderer trail;
     private Renderer cachedRenderer;
     private Collider cachedCollider;
+    private bool heatSuppressed;                 // HYPER 中など Ball Heat を一時停止するフラグ
+    private Coroutine heatSuppressRoutine;
 
     // Pierce（貫通）中に物理反発を無効化したブロック群。反発で軌道が折れて
     // トレイルがカクつくのを防ぐため、検出したブロックは IgnoreCollision で素通りさせ、
@@ -272,6 +274,8 @@ public class BallScript : MonoBehaviour, IFreezable
     void Update()
     {
         if (cachedRenderer == null) return;
+        if (isExtraBall) return;                        // BURST 等の追加ボールは Ball Heat 対象外
+        if (heatSuppressed) return;                     // HYPER 中はヒート色を載せない
         if (attribute != BallAttribute.Normal) return; // 属性カラーが Ball Heat に優先
 
         int combo = GameManager.Instance != null ? GameManager.Instance.GetCombo(playerIndex) : 0;
@@ -347,7 +351,10 @@ public class BallScript : MonoBehaviour, IFreezable
         if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
         if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
         if (scaleRoutine     != null) { StopCoroutine(scaleRoutine);     scaleRoutine = null; }
+        if (heatSuppressRoutine != null) { StopCoroutine(heatSuppressRoutine); heatSuppressRoutine = null; }
+        heatSuppressed = false;
         transform.localScale = baseScale; // GIANT の一時拡大を次ラウンドへ持ち越さない
+        if (trail != null) trail.widthMultiplier = 1f; // GIANT のトレイル拡大も持ち越さない
         CancelInvoke();
 
         // 貫通中に無効化したブロック衝突を元に戻す（次ラウンドへ持ち越さない）
@@ -385,6 +392,32 @@ public class BallScript : MonoBehaviour, IFreezable
     {
         float randomX = Random.Range(-relaunchAngleSpread, relaunchAngleSpread);
         LaunchInDirection(new Vector3(randomX, 1f, 0f));
+    }
+
+    // スキル発動時に呼ぶ: ボールに乗っているアイテム由来の一時効果（属性・速度）を解除し素の状態へ戻す。
+    // HYPER/GIANT を「アイテム効果が混ざらない純粋なスキル弾」にするため（スケールは GIANT 自身が管理）。
+    public void ClearItemEffects()
+    {
+        if (attributeRoutine != null) { StopCoroutine(attributeRoutine); attributeRoutine = null; }
+        if (speedRoutine     != null) { StopCoroutine(speedRoutine);     speedRoutine = null; }
+        attribute       = BallAttribute.Normal;
+        speedMultiplier = 1f;
+        ApplyAttributeColor();
+    }
+
+    // HYPER 中など、一定時間 Ball Heat の色付けを止める。発動時に ClearItemEffects で素の色へ戻した後に呼ぶ。
+    public void SuppressHeatTemporary(float duration)
+    {
+        if (heatSuppressRoutine != null) StopCoroutine(heatSuppressRoutine);
+        heatSuppressRoutine = StartCoroutine(HeatSuppressRoutine(duration));
+    }
+
+    private System.Collections.IEnumerator HeatSuppressRoutine(float duration)
+    {
+        heatSuppressed = true;
+        yield return new WaitForSeconds(duration);
+        heatSuppressed = false;
+        heatSuppressRoutine = null;
     }
 
     public void SetAttributeTemporary(BallAttribute attr, float duration)
@@ -428,8 +461,10 @@ public class BallScript : MonoBehaviour, IFreezable
     private System.Collections.IEnumerator ScaleRoutine(float multiplier, float duration)
     {
         transform.localScale = baseScale * multiplier;
+        if (trail != null) trail.widthMultiplier = multiplier; // トレイルもボール拡大率に合わせて太くする
         yield return new WaitForSeconds(duration);
         transform.localScale = baseScale;
+        if (trail != null) trail.widthMultiplier = 1f;
         scaleRoutine = null;
     }
 

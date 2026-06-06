@@ -55,6 +55,9 @@ public class PlayerController : MonoBehaviour, IFreezable
 
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = true;
+        // キネマティック体を ContinuousSpeculative にすると、高速ボール（HYPER 等）の
+        // ContinuousDynamic スイープ判定がパドルを検出できる＝貫通（トンネリング）防止。
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
         originalScale = transform.localScale;
         baseMoveSpeed = speed;   // ApplySharedConfig 後の値を基準として保持（SpeedUp 解除時に復元）
 

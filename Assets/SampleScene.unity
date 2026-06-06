@@ -799,27 +799,29 @@ MonoBehaviour:
   paddleBuffFlash: {r: 0.30588233, g: 0.61832523, b: 1, a: 1}
   paddleAttackFlash: {r: 1, g: 0.2976229, b: 0.2352941, a: 1}
   paddleTrapFlash: {r: 0.59693104, g: 0.2588236, b: 0.8784314, a: 1}
-  pickupFlashDuration: 0.1
+  pickupFlashDuration: 0.3
   blocksPerRow: 6
   blockWidth: 1.566667
   blockGap: 0.1
   blockHeight: 0.7
   spawnY: 7
   blockDeadZoneY: -6.85
-  spawnIntervalBase: 5
-  spawnIntervalDecayPerMin: 0.2
-  spawnIntervalMin: 3
-  descentSpeedBase: 0.3
-  descentSpeedGainPerMin: 0.03
-  descentSpeedMax: 0.45
+  spawnIntervalBase: 6
+  spawnIntervalDecayPerMin: 0.3
+  spawnIntervalMin: 5
+  descentSpeedBase: 0.25
+  descentSpeedGainPerMin: 0.01
+  descentSpeedMax: 0.3
   explosiveBlockChance: 0.03
-  hardBlockChance: 0.2
-  itemBlockChance: 0.03
+  hardBlockChance: 0.05
+  itemBlockChance: 0.15
   specialRowChance: 0.05
   hardBlockHp: 2
-  sabotageHardRatio: 0.5
-  sabotageBlockHp: 2
-  hardenCount: 3
+  sabotageWeightNormal: 2
+  sabotageWeightHardHp2: 3
+  sabotageWeightHardHp3: 4
+  sabotageWeightAbsorb: 1
+  hardenCount: 1
   hardenTargetHp: 3
   blockDeadZoneHitFrames: 5
   blockDeadZoneHitShake: 1
@@ -830,6 +832,12 @@ MonoBehaviour:
   addRowImpactFrames: 2
   addRowImpactFlash: {r: 1, g: 1, b: 1, a: 1}
   addRowImpactFlashSec: 0.1
+  baseDropChance: 0
+  buffCategoryWeight: 0.6
+  trapDisguiseChance: 0.1
+  explosionRadius: 2
+  explosionDamage: 1
+  explosionChainDelay: 0.1
   ballSpeed: 10
   ballInitialLocalDirection: {x: 1, y: 1, z: 0}
   relaunchAngleSpread: 3
@@ -842,9 +850,9 @@ MonoBehaviour:
   normalDamage: 1
   iceDamage: 2
   heavyDamage: 3
-  pierceDamage: 1
-  fireRadius: 1
-  thunderRadius: 2
+  pierceDamage: 2
+  fireRadius: 1.5
+  thunderRadius: 3
   heavySpeedFactor: 0.8
   hitStopSpeedThreshold: 1.5
   hitStopHeavyMul: 3
@@ -862,11 +870,11 @@ MonoBehaviour:
   shakeIntensityStrong: 0.3
   skillPanicHitStopFrames: 15
   ballNormalColor: {r: 1, g: 1, b: 1, a: 1}
-  ballFireColor: {r: 1, g: 0.478, b: 0.239, a: 1}
-  ballThunderColor: {r: 1, g: 0.847, b: 0.29, a: 1}
-  ballIceColor: {r: 0.306, g: 0.765, b: 1, a: 1}
-  ballHeavyColor: {r: 0.706, g: 0.643, b: 1, a: 1}
-  ballPierceColor: {r: 0.635, g: 1, b: 0.878, a: 1}
+  ballFireColor: {r: 1, g: 0.5183855, b: 0.23921567, a: 1}
+  ballThunderColor: {r: 1, g: 0.9642275, b: 0.29019606, a: 1}
+  ballIceColor: {r: 0.30588233, g: 0.916279, b: 1, a: 1}
+  ballHeavyColor: {r: 0.51154846, g: 0.2216981, b: 1, a: 1}
+  ballPierceColor: {r: 0.19339621, g: 1, b: 0.7311321, a: 1}
   heatStage1: 10
   heatStage2: 20
   heatStage3: 30
@@ -880,7 +888,53 @@ MonoBehaviour:
   indicatorColor: {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 1}
   metronomeAngleRange: 80
   metronomePeriodSec: 1
-  maxEnergy: 10
+  maxEnergy: 50
+  skillChargeLockSeconds: 10
+  hyperEnergyCost: 50
+  hyperDuration: 2.5
+  hyperSpeedMul: 5
+  explosionEnergyCost: 50
+  explosionFraction: 0.15
+  burstEnergyCost: 50
+  burstShots: 6
+  burstInterval: 0.3
+  burstAngle: 50
+  burstBallLifetime: 3
+  giantEnergyCost: 50
+  giantDuration: 4
+  giantScaleMul: 4
+  itemDropSpeed: 4
+  fireDuration: 8
+  thunderDuration: 5
+  iceDuration: 8
+  heavyDuration: 8
+  pierceDuration: 5
+  paddleDuration: 10
+  speedDuration: 10
+  itemHyperDuration: 3
+  reversedDuration: 3
+  enlargeMultiplier: 3
+  shrinkMultiplier: 0.4
+  speedUpMultiplier: 1.6
+  itemHyperMultiplier: 4
+  healAmount: 20
+  maxHP: 300
+  damageBallDrop: 0
+  damageBlockReachBottom: 10
+  damagePoisonPerSec: 5
+  energyPerBlock: 1
+  comboTimeout: 6
+  comboScoreStep: 5
+  comboGaugeStep: 5
+  comboItemStep: 20
+  comboMilestones: 0a000000140000001e000000
+  hpStateBands: []
+  poisonZoneDuration: 5
+  poisonZoneRadius: 1
+  slowZoneFallSpeed: 16
+  slowZoneDuration: 8
+  slowZoneRadius: 1.5
+  slowZoneFactor: 0.5
   arenaHalfWidth: 5
   arenaHalfHeight: 4.5
   ballSpawnOffsetY: 1
@@ -917,6 +971,37 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 815a8b3fd790b4cfd9c8296cdd2ff121, type: 3}
   itemIconWorldSize: 1.2
   itemIconGlow: 2.4
+  itemWeights:
+  - type: 0
+    weight: 1.2
+  - type: 1
+    weight: 1.5
+  - type: 2
+    weight: 0.7
+  - type: 3
+    weight: 1
+  - type: 4
+    weight: 1
+  - type: 5
+    weight: 1
+  - type: 6
+    weight: 1
+  - type: 7
+    weight: 1
+  - type: 8
+    weight: 2
+  - type: 9
+    weight: 3
+  - type: 10
+    weight: 0.5
+  - type: 11
+    weight: 1
+  - type: 12
+    weight: 1
+  - type: 13
+    weight: 1
+  - type: 14
+    weight: 1
 --- !u!4 &112514747
 Transform:
   m_ObjectHideFlags: 0
@@ -3269,36 +3354,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockSpawner
   playerIndex: 2
   blockPrefab: {fileID: 3264020023257166793, guid: e36d54db70193d84cbb86633bc7a0b25, type: 3}
-  blocksPerRow: 6
-  blockWidth: 1.5666666
-  blockGap: 0.1
-  blockHeight: 0.7
-  spawnY: 7
-  blockDeadZoneY: -6.85
-  spawnIntervalBase: 5
-  spawnIntervalDecayPerMin: 0.2
-  spawnIntervalMin: 3
-  descentSpeedBase: 0.3
-  descentSpeedGainPerMin: 0.03
-  descentSpeedMax: 0.45
-  explosiveBlockChance: 0.1
-  hardBlockChance: 0.2
-  itemBlockChance: 0.08
-  specialRowChance: 0.125
-  hardBlockHp: 2
-  sabotageHardRatio: 0.5
-  sabotageBlockHp: 2
-  hardenCount: 3
-  hardenTargetHp: 3
-  blockDeadZoneHitFrames: 5
-  blockDeadZoneHitShake: 1
-  normalSlideDistance: 1.5
-  normalSlideDuration: 0.2
-  addRowSlideDistance: 6
-  addRowSlideDuration: 0.3
-  addRowImpactFrames: 2
-  addRowImpactFlash: {r: 1, g: 1, b: 1, a: 1}
-  addRowImpactFlashSec: 0.1
 --- !u!1 &313229945
 GameObject:
   m_ObjectHideFlags: 0
@@ -8504,50 +8559,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f62e1d8cc3854444b9d1465872f97eb0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallScript
-  speed: 10
-  initialLocalDirection: {x: 0, y: -7, z: 0}
-  relaunchAngleSpread: 0.5
-  minAxisRatio: 0.2
-  timeAccelRate: 0.05
-  timeAccelMax: 2
-  boundX: 7
-  boundYTop: 11
-  boundYBottom: -13
   attribute: 0
-  normalDamage: 1
-  iceDamage: 2
-  heavyDamage: 3
-  pierceDamage: 1
-  fireRadius: 1.5
-  thunderRadius: 2.5
-  heavySpeedFactor: 0.7
-  hitStopSpeedThreshold: 1.5
-  hitStopHeavyMul: 1.5
-  hitStopFireMul: 1.2
-  hitStopThunderMul: 1.1
-  hitStopIceMul: 1.2
-  wallBounceFrames: 0
-  impactBaseFrames: 2
-  impactSpeedWeight: 0.6
-  impactThreshold: 1.4
-  impactMaxFrames: 10
-  freezeSkipSpeedFactor: 2.5
-  normalColor: {r: 1, g: 1, b: 1, a: 1}
-  fireColor: {r: 1, g: 0.3, b: 0.1, a: 1}
-  thunderColor: {r: 1, g: 0.9, b: 0.2, a: 1}
-  iceColor: {r: 0.4, g: 0.8, b: 1, a: 1}
-  heavyColor: {r: 0.6, g: 0.3, b: 0.8, a: 1}
-  pierceColor: {r: 0.6, g: 1, b: 1, a: 1}
-  heatStage1: 20
-  heatStage2: 40
-  heatStage3: 60
-  heatColorLow: {r: 1, g: 0.949, b: 0.69, a: 1}
-  heatColorMid: {r: 1, g: 0.69, b: 0.29, a: 1}
-  heatColorHigh: {r: 1, g: 0.29, b: 0.2, a: 1}
-  heatLerpSpeed: 6
-  trailTime: 0.18
-  trailStartWidth: 0.22
   playerIndex: 2
+  speed: 10
   pierceDetectMargin: 0.12
   slowZoneMul: 1
   isExtraBall: 0
@@ -9529,10 +9543,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ccc16b7318c742868a44d35fc7632b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LaunchAimer
-  indicatorLength: 2.5
-  indicatorColor: {r: 0.62352943, g: 0.62352943, b: 0.62352943, a: 1}
-  metronomeAngleRange: 75
-  metronomePeriodSec: 1
 --- !u!4 &1024040564
 Transform:
   m_ObjectHideFlags: 0
@@ -10343,12 +10353,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArenaController
   playerIndex: 2
-  arenaHalfWidth: 5
-  arenaHalfHeight: 4.5
   ball: {fileID: 897915112}
   spawner: {fileID: 308994974}
-  ballSpawnOffsetY: 1.3
   launchAimer: {fileID: 1429326906}
+  arenaHalfWidth: 5
+  arenaHalfHeight: 4.5
   hyperFloor: {fileID: 1891841403}
   shakeRoot: {fileID: 808030052}
 --- !u!1 &1094043316
@@ -11367,14 +11376,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   playerIndex: 1
   speed: 16
-  xLimit: 5.2
-  paddleLocalY: -10.5
-  paddleLocalZ: 0.5
-  paddleBounceFrames: 0
-  buffFlashColor: {r: 0.306, g: 0.765, b: 1, a: 1}
-  attackFlashColor: {r: 1, g: 0.298, b: 0.235, a: 1}
-  trapFlashColor: {r: 0.792, g: 0.286, b: 0.851, a: 1}
-  pickupFlashDuration: 0.1
 --- !u!54 &1185632019
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -12951,36 +12952,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockSpawner
   playerIndex: 1
   blockPrefab: {fileID: 3264020023257166793, guid: e36d54db70193d84cbb86633bc7a0b25, type: 3}
-  blocksPerRow: 6
-  blockWidth: 1.5666666
-  blockGap: 0.1
-  blockHeight: 0.7
-  spawnY: 7
-  blockDeadZoneY: -6.85
-  spawnIntervalBase: 5
-  spawnIntervalDecayPerMin: 0.2
-  spawnIntervalMin: 3
-  descentSpeedBase: 0.3
-  descentSpeedGainPerMin: 0.03
-  descentSpeedMax: 0.45
-  explosiveBlockChance: 0.1
-  hardBlockChance: 0.2
-  itemBlockChance: 0.08
-  specialRowChance: 0.125
-  hardBlockHp: 2
-  sabotageHardRatio: 0.5
-  sabotageBlockHp: 2
-  hardenCount: 3
-  hardenTargetHp: 3
-  blockDeadZoneHitFrames: 5
-  blockDeadZoneHitShake: 1
-  normalSlideDistance: 1.5
-  normalSlideDuration: 0.2
-  addRowSlideDistance: 6
-  addRowSlideDuration: 0.3
-  addRowImpactFrames: 2
-  addRowImpactFlash: {r: 1, g: 1, b: 1, a: 1}
-  addRowImpactFlashSec: 0.1
 --- !u!1 &1314645376
 GameObject:
   m_ObjectHideFlags: 0
@@ -13143,12 +13114,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArenaController
   playerIndex: 1
-  arenaHalfWidth: 5
-  arenaHalfHeight: 4.5
   ball: {fileID: 1624743854}
   spawner: {fileID: 1298050404}
-  ballSpawnOffsetY: 1.3
   launchAimer: {fileID: 1024040563}
+  arenaHalfWidth: 5
+  arenaHalfHeight: 4.5
   hyperFloor: {fileID: 2064527636}
   shakeRoot: {fileID: 130287018}
 --- !u!1 &1347641051
@@ -14177,10 +14147,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ccc16b7318c742868a44d35fc7632b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LaunchAimer
-  indicatorLength: 2.5
-  indicatorColor: {r: 0.6226415, g: 0.6226415, b: 0.6226415, a: 1}
-  metronomeAngleRange: 75
-  metronomePeriodSec: 1
 --- !u!4 &1429326907
 Transform:
   m_ObjectHideFlags: 0
@@ -15291,14 +15257,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   playerIndex: 2
   speed: 16
-  xLimit: 5.2
-  paddleLocalY: -10.5
-  paddleLocalZ: 0.5
-  paddleBounceFrames: 10
-  buffFlashColor: {r: 0.306, g: 0.765, b: 1, a: 1}
-  attackFlashColor: {r: 1, g: 0.298, b: 0.235, a: 1}
-  trapFlashColor: {r: 0.792, g: 0.286, b: 0.851, a: 1}
-  pickupFlashDuration: 0.1
 --- !u!54 &1592312631
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -16089,50 +16047,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f62e1d8cc3854444b9d1465872f97eb0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallScript
-  speed: 10
-  initialLocalDirection: {x: 0, y: -7, z: 0}
-  relaunchAngleSpread: 0.5
-  minAxisRatio: 0.2
-  timeAccelRate: 0.05
-  timeAccelMax: 2
-  boundX: 7
-  boundYTop: 11
-  boundYBottom: -13
   attribute: 0
-  normalDamage: 1
-  iceDamage: 2
-  heavyDamage: 3
-  pierceDamage: 1
-  fireRadius: 1.5
-  thunderRadius: 2.5
-  heavySpeedFactor: 0.7
-  hitStopSpeedThreshold: 1.5
-  hitStopHeavyMul: 1.5
-  hitStopFireMul: 1.2
-  hitStopThunderMul: 1.1
-  hitStopIceMul: 1.2
-  wallBounceFrames: 0
-  impactBaseFrames: 2
-  impactSpeedWeight: 0.6
-  impactThreshold: 1.4
-  impactMaxFrames: 10
-  freezeSkipSpeedFactor: 2.5
-  normalColor: {r: 1, g: 1, b: 1, a: 1}
-  fireColor: {r: 1, g: 0.3, b: 0.1, a: 1}
-  thunderColor: {r: 1, g: 0.9, b: 0.2, a: 1}
-  iceColor: {r: 0.4, g: 0.8, b: 1, a: 1}
-  heavyColor: {r: 0.6, g: 0.3, b: 0.8, a: 1}
-  pierceColor: {r: 0.6, g: 1, b: 1, a: 1}
-  heatStage1: 20
-  heatStage2: 40
-  heatStage3: 60
-  heatColorLow: {r: 1, g: 0.949, b: 0.69, a: 1}
-  heatColorMid: {r: 1, g: 0.69, b: 0.29, a: 1}
-  heatColorHigh: {r: 1, g: 0.29, b: 0.2, a: 1}
-  heatLerpSpeed: 6
-  trailTime: 0.18
-  trailStartWidth: 0.22
   playerIndex: 1
+  speed: 10
   pierceDetectMargin: 0.12
   slowZoneMul: 1
   isExtraBall: 0
@@ -19550,7 +19467,7 @@ MonoBehaviour:
   seUiConfirm: {fileID: 8300000, guid: c3298d9fba5b44ec9dab52372882bd7a, type: 3}
   volUiConfirm: 1
   bgmTitle: {fileID: 0}
-  bgmMatch: {fileID: 0}
+  bgmMatch: {fileID: 8300000, guid: 4cc98e3d2680842d4a42b4515d6f0722, type: 3}
   bgmMatchTense: {fileID: 0}
   bgmResultJingle: {fileID: 0}
   bgmVolume: 0.7
@@ -20079,20 +19996,9 @@ MonoBehaviour:
   nextRoundDelay: 5
   countdownStepSec: 1
   countdownGoSec: 1.5
-  maxHP: 500
-  damageBallDrop: 0
-  damageBlockReachBottom: 10
-  damagePoisonPerSec: 5
-  energyPerBlock: 1
-  comboTimeout: 6
-  comboScoreStep: 5
-  comboGaugeStep: 5
-  comboItemStep: 20
-  comboMilestones: 0a000000140000001e000000
   interferenceTriggerFrames: 10
   roundEndFrames: 30
   matchEndFrames: 120
-  hpStateBands: []
   arena1: {fileID: 1342564224}
   arena2: {fileID: 1085258024}
   decisionLabelSeconds: 2.5

@@ -36,6 +36,8 @@ public class Block : MonoBehaviour
     private float baseDropChance = 0.15f;
     // 強化枠が出る際、この確率で「強化に偽装した罠」に置き換える（DESIGN.md 5.5.3 の紛らわしさ）
     private float trapDisguiseChance = 0.1f;
+    // 強化枠が出る基本確率（残りが攻撃枠）。ArenaSharedConfig.buffCategoryWeight で一元管理。
+    private float buffCategoryWeight = 0.6f;
     // 抽選した持続効果が既に有効なスロットだった場合の再抽選上限。
     // 上限まで再抽選しても同スロットなら、そのドロップはスキップする（DESIGN.md 5.5 ドロップ過多抑制）
     [SerializeField] private int maxSlotRerolls = 2;
@@ -85,6 +87,7 @@ public class Block : MonoBehaviour
         explosionChainDelay = c.explosionChainDelay;
         baseDropChance      = c.baseDropChance;
         trapDisguiseChance  = c.trapDisguiseChance;
+        buffCategoryWeight  = c.buffCategoryWeight;
     }
 
     // HP>1 ブロックの残耐久ドット（●●●）を子に生成。親が非一様スケール(1.3,0.5,1)なので
@@ -332,10 +335,8 @@ public class Block : MonoBehaviour
         GetArena()?.SpawnItem(transform.position, type);
     }
 
-    // DESIGN.md 5.5.2: 強化 6 : 攻撃 4 が基本比率。HPStateBand.goodItemBias で
-    // 強化偏重を加算 (劣勢時に強化が出やすくなる)
-    private const float BASE_BUFF_WEIGHT = 0.6f;
-
+    // DESIGN.md 5.5.2: 強化 6 : 攻撃 4 が基本比率（buffCategoryWeight）。HPStateBand.goodItemBias で
+    // 強化偏重を加算 (劣勢時に強化が出やすくなる)。プール内の出やすさは ArenaSharedConfig.itemWeights で調整。
     private static readonly ItemType[] BuffPool = {
         ItemType.Fire, ItemType.Ice, ItemType.Thunder, ItemType.Heavy, ItemType.Pierce,
         ItemType.Enlarge, ItemType.SpeedUp, ItemType.Heal
@@ -348,16 +349,48 @@ public class Block : MonoBehaviour
         ItemType.Shrink, ItemType.Hyper, ItemType.Reversed
     };
 
-    private static ItemType SelectRandomItemType(float goodItemBias, float trapDisguiseChance)
+    private ItemType SelectRandomItemType(float goodItemBias, float trapDisguiseChance)
     {
-        float buffWeight = Mathf.Clamp01(BASE_BUFF_WEIGHT + goodItemBias);
+        // Step1/2: カテゴリ抽選（強化 / 攻撃、強化枠は一部 trap に偽装）
+        float buffWeight = Mathf.Clamp01(buffCategoryWeight + goodItemBias);
+        ItemType[] pool;
         if (Random.value < buffWeight)
-        {
-            // 強化枠だが、一部は「強化に偽装した罠」として出る（DESIGN.md 5.5.3）
-            ItemType[] pool = Random.value < trapDisguiseChance ? TrapPool : BuffPool;
+            pool = Random.value < trapDisguiseChance ? TrapPool : BuffPool; // DESIGN.md 5.5.3
+        else
+            pool = AttackPool;
+
+        // Step3: プール内を「重み付き抽選」で 1 種選ぶ
+        return WeightedPick(pool);
+    }
+
+    // プール内の ItemType を ArenaSharedConfig.GetItemWeight(type) を相対重みとして 1 つ抽選する。
+    // weight が大きいほど選ばれやすく、0 のものは選ばれない。
+    private ItemType WeightedPick(ItemType[] pool)
+    {
+        var config = ArenaSharedConfig.Instance;
+        // 共有設定が無い / 全重み 0 のときは均等抽選にフォールバック（null セーフ）
+        if (config == null)
             return pool[Random.Range(0, pool.Length)];
+
+        // 1パス目: プール内の重みを合計する
+        float total = 0f;
+        foreach (ItemType t in pool)
+            total += config.GetItemWeight(t);
+
+        // 全重み 0（または共有設定で全て 0 指定）なら均等抽選にフォールバック
+        if (total <= 0f)
+            return pool[Random.Range(0, pool.Length)];
+
+        // 2パス目: r を各重みで引いていき、0 未満になった要素を返す（ルーレット選択）
+        float r = Random.Range(0f, total);
+        foreach (ItemType t in pool)
+        {
+            r -= config.GetItemWeight(t);
+            if (r < 0f) return t;
         }
-        return AttackPool[Random.Range(0, AttackPool.Length)];
+
+        // 浮動小数の丸めで最後まで引き切れなかった場合の保険（理論上ほぼ通らない）
+        return pool[pool.Length - 1];
     }
 
     private ArenaController GetArena()

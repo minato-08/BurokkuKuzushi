@@ -70,8 +70,12 @@ public class ArenaSharedConfig : MonoBehaviour
     public int hardBlockHp = 2;
 
     [Header("Sabotage Row / Harden")]
-    [Range(0f, 1f)] public float sabotageHardRatio = 0.5f;
-    public int sabotageBlockHp = 2;
+    // 妨害行（AddRow）の各ブロックを、以下の相対重みで抽選する（独立抽選）。
+    // 既定 Normal 2 : Hard(HP2) 3 : Hard(HP3) 4 : Absorb 1。
+    public int sabotageWeightNormal  = 2;  // Normal（HP1）
+    public int sabotageWeightHardHp2 = 3;  // Hard（HP2）
+    public int sabotageWeightHardHp3 = 4;  // Hard（HP3）
+    public int sabotageWeightAbsorb  = 1;  // Absorb（HP1）
     public int hardenCount     = 3;
     public int hardenTargetHp  = 3;
 
@@ -89,6 +93,9 @@ public class ArenaSharedConfig : MonoBehaviour
     // ---------------- Block behavior (Block prefab) ----------------
     [Header("Block Behavior (drop / explosion)")]
     public float baseDropChance      = 0.15f; // 通常ブロックのアイテムドロップ確率
+    // 強化枠(Buff)が出る基本確率。残りが攻撃枠(Attack)。HPStateBand.goodItemBias が加算される（劣勢救済）。
+    // 旧 Block.BASE_BUFF_WEIGHT(0.6) を一元管理へ移動（DESIGN.md 5.5.2 強化6:攻撃4）
+    [Range(0f, 1f)] public float buffCategoryWeight = 0.6f;
     [Range(0f, 1f)] public float trapDisguiseChance = 0.1f;  // 罠アイテムが強化枠に偽装する確率
     public float explosionRadius     = 2f;    // Explosive 破壊の巻き込み半径
     public int   explosionDamage     = 1;     // 爆発の巻き込みダメージ
@@ -283,5 +290,34 @@ public class ArenaSharedConfig : MonoBehaviour
                     if (e.sprite != null) _itemIconMap[e.type] = e.sprite;
         }
         return _itemIconMap.TryGetValue(type, out var s) ? s : null;
+    }
+
+    // ---------------- Item drop weights ----------------
+    // カテゴリ(強化/攻撃/罠)が決まった後、プール内でどの種類を選ぶかの相対重み。
+    // weight が大きいほど出やすい。0 でそのアイテムは出ない。
+    // Inspector に登録しなかった ItemType は weight = 1（均等）として扱う。
+    [System.Serializable]
+    public struct ItemWeight
+    {
+        public ItemType type;
+        public float    weight;
+    }
+
+    [Header("Item Drop Weights (per-type, within category)")]
+    public ItemWeight[] itemWeights;
+
+    private Dictionary<ItemType, float> _itemWeightMap;
+
+    // ItemType → 相対重み。未登録は 1（均等）。負値は 0 に丸める。
+    public float GetItemWeight(ItemType type)
+    {
+        if (_itemWeightMap == null)
+        {
+            _itemWeightMap = new Dictionary<ItemType, float>();
+            if (itemWeights != null)
+                foreach (var e in itemWeights)
+                    _itemWeightMap[e.type] = Mathf.Max(0f, e.weight);
+        }
+        return _itemWeightMap.TryGetValue(type, out var w) ? w : 1f;
     }
 }

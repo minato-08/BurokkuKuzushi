@@ -41,7 +41,13 @@ public sealed class SkillHyper : SkillDefinition
         var c = ArenaSharedConfig.Instance;
         float duration = c != null ? c.hyperDuration : 6f;
         float speedMul = c != null ? c.hyperSpeedMul : 5f;
-        arena.GetBall()?.SetSpeedTemporary(speedMul, duration);
+        BallScript ball = arena.GetBall();
+        if (ball != null)
+        {
+            ball.ClearItemEffects();           // アイテム効果を乗せない純粋なスキル弾にする
+            ball.SuppressHeatTemporary(duration); // HYPER 中は Ball Heat を載せない
+            ball.SetSpeedTemporary(speedMul, duration);
+        }
         arena.SpawnHyperFloor(duration);
     }
 }
@@ -98,6 +104,7 @@ public sealed class SkillGiant : SkillDefinition
         var c = ArenaSharedConfig.Instance;
         float duration = c != null ? c.giantDuration   : 6f;
         float scaleMul = c != null ? c.giantScaleMul   : 3f;
+        ball.ClearItemEffects();           // アイテム効果を乗せない純粋なスキル弾にする
         ball.SetAttributeTemporary(BallAttribute.Pierce, duration);
         ball.SetScaleTemporary(scaleMul, duration);
     }

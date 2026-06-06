@@ -27,8 +27,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
     private float itemBlockChance      = 0.08f; // 確定ドロップブロック（DESIGN.md 5.4/12.17）
     private float specialRowChance     = 0.125f;// スペシャル行（全Item/全Explosive/歯抜け, DESIGN.md 5.4）
     private int   hardBlockHp = 2;
-    private float sabotageHardRatio = 0.5f;
-    private int   sabotageBlockHp = 2;
+    private int sabotageWeightNormal  = 2;
+    private int sabotageWeightHardHp2 = 3;
+    private int sabotageWeightHardHp3 = 4;
+    private int sabotageWeightAbsorb  = 1;
     private int   hardenCount    = 3;
     private int   hardenTargetHp = 3;
     private int   blockDeadZoneHitFrames = 5;
@@ -106,8 +108,10 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         itemBlockChance      = c.itemBlockChance;
         specialRowChance     = c.specialRowChance;
         hardBlockHp          = c.hardBlockHp;
-        sabotageHardRatio    = c.sabotageHardRatio;
-        sabotageBlockHp      = c.sabotageBlockHp;
+        sabotageWeightNormal  = c.sabotageWeightNormal;
+        sabotageWeightHardHp2 = c.sabotageWeightHardHp2;
+        sabotageWeightHardHp3 = c.sabotageWeightHardHp3;
+        sabotageWeightAbsorb  = c.sabotageWeightAbsorb;
         hardenCount          = c.hardenCount;
         hardenTargetHp       = c.hardenTargetHp;
         blockDeadZoneHitFrames = c.blockDeadZoneHitFrames;
@@ -293,12 +297,18 @@ public class BlockSpawner : MonoBehaviour, IFreezable
         }
     }
 
+    // 妨害行の 1 ブロックを重み付き抽選で決める（Normal / Hard HP2 / Hard HP3 / Absorb）。
     private void ApplySabotageRowSettings(Block blockScript)
     {
-        blockScript.blockType = Random.value < sabotageHardRatio
-            ? BlockType.Hard
-            : BlockType.Absorb;
-        blockScript.hp = sabotageBlockHp;
+        int total = sabotageWeightNormal + sabotageWeightHardHp2
+                  + sabotageWeightHardHp3 + sabotageWeightAbsorb;
+        if (total <= 0) { blockScript.blockType = BlockType.Hard; blockScript.hp = 2; return; } // 安全フォールバック
+
+        int r = Random.Range(0, total); // 0..total-1
+        if      ((r -= sabotageWeightNormal)  < 0) { blockScript.blockType = BlockType.Normal; blockScript.hp = 1; }
+        else if ((r -= sabotageWeightHardHp2) < 0) { blockScript.blockType = BlockType.Hard;   blockScript.hp = 2; }
+        else if ((r -= sabotageWeightHardHp3) < 0) { blockScript.blockType = BlockType.Hard;   blockScript.hp = 3; }
+        else                                       { blockScript.blockType = BlockType.Absorb; blockScript.hp = 1; }
     }
 
     private void DescendBlocks()

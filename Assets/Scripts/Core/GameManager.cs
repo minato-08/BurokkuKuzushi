@@ -216,7 +216,7 @@ public class GameManager : MonoBehaviour
     {
         if (currentState != GameState.SkillSelect) return;
 
-        AudioManager.Instance?.PlayMatchBGM(); // マッチ中 BGM 開始（ラウンド遷移では止めない, DESIGN.md 10.5）
+        startMatchBgmOnGo = true; // マッチ中 BGM はカウントダウンの "GO!" 瞬間に開始（ラウンド遷移では止めない, DESIGN.md 10.5）
         ClearActiveItems();
         if (arena1 != null) arena1.ResetForNewRound();
         if (arena2 != null) arena2.ResetForNewRound();
@@ -254,6 +254,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float decisionLabelSeconds = 2.5f; // 大見出しの表示秒数（unscaled）
     private Coroutine decisionLabelRoutine;
 
+    // マッチ開始のカウントダウンでのみ true。GO! の瞬間にマッチ BGM を鳴らす（ラウンド間は継続）。
+    private bool startMatchBgmOnGo;
+
     // 決着の瞬間にリザルト画面が即被さって演出が見えない問題への対策。
     // 決着ビート（ヒットストップ＋フラッシュ＋見出し）を見せてからこの秒数後にリザルト UI を解禁する。
     [SerializeField] private float resultRevealDelay = 1.3f;
@@ -281,6 +284,11 @@ public class GameManager : MonoBehaviour
         CountdownLabel = "GO!";
         currentState   = GameState.Playing;
         Time.timeScale = 1f;
+        if (startMatchBgmOnGo)
+        {
+            startMatchBgmOnGo = false;
+            AudioManager.Instance?.PlayMatchBGM(); // GO! の瞬間にマッチ BGM 開始
+        }
         yield return new WaitForSecondsRealtime(countdownGoSec);
         CountdownLabel = "";
     }
