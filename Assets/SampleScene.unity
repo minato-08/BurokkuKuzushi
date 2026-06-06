@@ -9217,8 +9217,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294473454
-  m_fontColor: {r: 0.9315528, g: 0.46293163, b: 0.9716981, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -17737,7 +17737,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1870739313
 RectTransform:
   m_ObjectHideFlags: 0
@@ -18854,8 +18854,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4284115199
-  m_fontColor: {r: 1, g: 0.40944025, b: 0.3537736, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -19493,6 +19493,8 @@ MonoBehaviour:
   volBallPaddle: 1
   seBallLaunch: {fileID: 8300000, guid: 2fb37f5e56ca84a4f9c42836eed45e96, type: 3}
   volBallLaunch: 1
+  seCenterTick: {fileID: 0}
+  volCenterTick: 1
   seBlockHitNormal: {fileID: 8300000, guid: 8e95750a3532d48829810fa1fc2952a3, type: 3}
   volBlockHitNormal: 0.7
   seBlockHitHard: {fileID: 8300000, guid: 61000f87f49164dbd8dc86edf2f96062, type: 3}
@@ -20093,6 +20095,8 @@ MonoBehaviour:
   hpStateBands: []
   arena1: {fileID: 1342564224}
   arena2: {fileID: 1085258024}
+  decisionLabelSeconds: 2.5
+  resultRevealDelay: 1.3
 --- !u!4 &2074190969
 Transform:
   m_ObjectHideFlags: 0

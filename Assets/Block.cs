@@ -24,18 +24,18 @@ public class Block : MonoBehaviour
     [Header("吸収設定")]
     [SerializeField] private float absorbSpeedMultiplier = 0.7f;
 
-    [Header("爆発設定")]
-    [SerializeField] private float explosionRadius    = 2f;
-    [SerializeField] private int   explosionDamage    = 1;   // 爆発の巻き込みダメージ。Explosive 含む周囲ブロックへ適用（同 Explosive は連鎖発火）
-    [SerializeField] private float explosionChainDelay = 0.07f; // 爆発が周囲へ伝播するまでの遅延（秒）。連鎖が一拍ずつ広がって見える（DESIGN.md 5.4）
-    [SerializeField] private int   explosiveHitFrames = 6;  // Explosive 破壊の最低保証フレーム（ArenaSharedConfig で一元調整）
+    // 爆発設定 — バランス値は ArenaSharedConfig で一元管理（Awake の ApplySharedConfig）。未配置時は既定値。
+    private float explosionRadius    = 2f;
+    private int   explosionDamage    = 1;   // 爆発の巻き込みダメージ。Explosive 含む周囲ブロックへ適用（同 Explosive は連鎖発火）
+    private float explosionChainDelay = 0.07f; // 爆発が周囲へ伝播するまでの遅延（秒）。連鎖が一拍ずつ広がって見える（DESIGN.md 5.4）
+    private int   explosiveHitFrames = 6;  // Explosive 破壊の最低保証フレーム（ArenaSharedConfig で一元調整）
     // 通常衝突（Normal/Hard/Absorb）のヒットストップは BallScript.GetImpactFrames()（速度×攻撃力）に一本化。
     // 以前の per-type フレーム（全て0で死にパラメータ）は撤去（2026-06-03）。
 
-    [Header("アイテムドロップ設定")]
-    [SerializeField] private float baseDropChance = 0.15f;
+    // アイテムドロップ設定 — baseDropChance / trapDisguiseChance は ArenaSharedConfig で一元管理。
+    private float baseDropChance = 0.15f;
     // 強化枠が出る際、この確率で「強化に偽装した罠」に置き換える（DESIGN.md 5.5.3 の紛らわしさ）
-    [Range(0f, 1f)] [SerializeField] private float trapDisguiseChance = 0.1f;
+    private float trapDisguiseChance = 0.1f;
     // 抽選した持続効果が既に有効なスロットだった場合の再抽選上限。
     // 上限まで再抽選しても同スロットなら、そのドロップはスキップする（DESIGN.md 5.5 ドロップ過多抑制）
     [SerializeField] private int maxSlotRerolls = 2;
@@ -79,7 +79,12 @@ public class Block : MonoBehaviour
     {
         var c = ArenaSharedConfig.Instance;
         if (c == null) return;
-        explosiveHitFrames = c.explosiveHitFrames;
+        explosiveHitFrames  = c.explosiveHitFrames;
+        explosionRadius     = c.explosionRadius;
+        explosionDamage     = c.explosionDamage;
+        explosionChainDelay = c.explosionChainDelay;
+        baseDropChance      = c.baseDropChance;
+        trapDisguiseChance  = c.trapDisguiseChance;
     }
 
     // HP>1 ブロックの残耐久ドット（●●●）を子に生成。親が非一様スケール(1.3,0.5,1)なので
