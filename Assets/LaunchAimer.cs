@@ -19,6 +19,7 @@ public class LaunchAimer : MonoBehaviour
     private bool             isAiming;
     private float            metronomeTime;
     private float            currentAngleDeg;
+    private float            prevAngleDeg;      // 前フレームのエイマー角度（センター通過検出用）
     private LineRenderer     line;
 
     public void Initialize(BallScript b, int pIndex, ArenaController a)
@@ -93,12 +94,14 @@ public class LaunchAimer : MonoBehaviour
         {
             metronomeTime = 0f;
             isAiming      = true;
+            prevAngleDeg  = 0f;
         }
 
         metronomeTime  += Time.deltaTime;
         currentAngleDeg = Mathf.Sin(metronomeTime * (2f * Mathf.PI / metronomePeriodSec))
                           * metronomeAngleRange;
 
+        CheckCenterPass();
         UpdateLineAt(ball.transform.position);
 
         // 発射は Playing 中のみ（カウントダウン中は S/K 無効, DESIGN.md 12.12）
@@ -113,7 +116,20 @@ public class LaunchAimer : MonoBehaviour
     {
         metronomeTime   = 0f;
         currentAngleDeg = 0f;
+        prevAngleDeg    = 0f;
         isAiming        = false;
+    }
+
+    // メトロノームのインジケーターが真上（0°）を横切った瞬間に「ティック」SE を 1 回鳴らす（DESIGN 5.3）。
+    // 発射タイミングの耳コピを可能にする。sin 波なので角度は半周期ごとに 0° を通過する。
+    private void CheckCenterPass()
+    {
+
+        if (prevAngleDeg*currentAngleDeg < 0) {
+            AudioManager.Instance?.PlayCenterTick(playerIndex);
+        }
+
+        prevAngleDeg = currentAngleDeg;
     }
 
     private void UpdateLineAt(Vector3 origin)

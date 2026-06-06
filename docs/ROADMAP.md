@@ -286,7 +286,7 @@ DESIGN.md 10. の音響設計を最低限実装。発表で「音が無くて寂
 - [ ] ヒットストップ / カメラシェイクの拡張
 - [ ] スペシャル行の出現演出と SE（`se_special_row.wav`）
 - [ ] パドル反射ゾーン実装（`PlayerController.OnBallHit` 角度補正）
-- [ ] LaunchAimer センター通過音（真上 90° 通過時の「ティック」SE）
+- [x] LaunchAimer センター通過音（`CheckCenterPass` で 0°=真上 を符号反転検出し `PlayCenterTick`。`se_center_tick` クリップ割当待ち）
 - [ ] アイテムアイコンに形状識別（○ / ★ / △）を追加（アクセシビリティ対応）
 
 ---
