@@ -2904,7 +2904,7 @@ GameObject:
   - component: {fileID: 250954836}
   - component: {fileID: 250954835}
   m_Layer: 0
-  m_Name: FireBall
+  m_Name: ExplosionCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2917,7 +2917,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 250954833}
-  m_LocalRotation: {x: -0, y: -0, z: 0.04797812, w: 0.99884844}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 1
@@ -2927,10 +2927,10 @@ RectTransform:
   - {fileID: 1045904719}
   - {fileID: 527091132}
   m_Father: {fileID: 1347902681}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 5.5}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -200, y: 38.500004}
+  m_AnchoredPosition: {x: -225, y: 0}
   m_SizeDelta: {x: 1673, y: 2551}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &250954835
@@ -2946,14 +2946,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.68235296}
+  m_Color: {r: 0.23921569, g: 0.13748734, b: 0.11764706, a: 0.68235296}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 73c4a11983be64b2eac06090236d9213, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2600e158b722a41bba31620e06d2dd9b, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3058,7 +3058,7 @@ GameObject:
   - component: {fileID: 257687882}
   - component: {fileID: 257687881}
   m_Layer: 0
-  m_Name: DoubleBallIcon
+  m_Name: BurstIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3073,14 +3073,14 @@ RectTransform:
   m_GameObject: {fileID: 257687879}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4.9001646, y: 4.9001646, z: 4.900165}
+  m_LocalScale: {x: 6.5000005, y: 6.5000005, z: 6.5000005}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1812757830}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 900}
+  m_AnchoredPosition: {x: 0, y: 430}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &257687881
@@ -3103,7 +3103,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 9a4acd888279a47b0b49ae934e4d27d9, type: 3}
+  m_Sprite: {fileID: 21300000, guid: ae881d3e58258463091d8331e7c1104d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3894,7 +3894,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 100.099915, y: 93.599945}
+  m_AnchoredPosition: {x: 112.6, y: 93.599945}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &365534533
@@ -3944,8 +3944,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 16
+  m_fontSizeBase: 16
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -4776,7 +4776,7 @@ GameObject:
   - component: {fileID: 420448592}
   - component: {fileID: 420448591}
   m_Layer: 0
-  m_Name: BigPaddleLabel
+  m_Name: HyperLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4798,7 +4798,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 435}
+  m_AnchoredPosition: {x: 0, y: -270.1}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &420448591
@@ -4821,9 +4821,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'big
-
-    paddle'
+  m_text: HYPER
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
   m_sharedMaterial: {fileID: 6957524790401185525, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
@@ -5561,7 +5559,7 @@ GameObject:
   - component: {fileID: 522375024}
   - component: {fileID: 522375023}
   m_Layer: 0
-  m_Name: EmergencyClear
+  m_Name: GiantCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5574,7 +5572,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 522375021}
-  m_LocalRotation: {x: -0, y: -0, z: -0.14608307, w: 0.98927236}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 1
@@ -5584,10 +5582,10 @@ RectTransform:
   - {fileID: 985420147}
   - {fileID: 1463094125}
   m_Father: {fileID: 1347902681}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -16.8}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 587, y: -38.500008}
+  m_AnchoredPosition: {x: 674.4, y: 0}
   m_SizeDelta: {x: 1673, y: 2551}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &522375023
@@ -5603,14 +5601,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.68235296}
+  m_Color: {r: 0.17694314, g: 0.11764706, b: 0.23921569, a: 0.68235296}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 73c4a11983be64b2eac06090236d9213, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2600e158b722a41bba31620e06d2dd9b, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -6779,7 +6777,7 @@ GameObject:
   - component: {fileID: 672980108}
   - component: {fileID: 672980107}
   m_Layer: 0
-  m_Name: FireBallDesc
+  m_Name: ExplosionDesc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6801,7 +6799,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -352}
+  m_AnchoredPosition: {x: 0, y: -750}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &672980107
@@ -6824,7 +6822,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u7740\u5F3E\u70B9\u3092\u7BC4\u56F2\u653B\u6483\n(10s)"
+  m_text: "\u7206\u5F3E\u30D6\u30ED\u30C3\u30AF\u3092\u751F\u6210"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
   m_sharedMaterial: {fileID: 4929398677040182365, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
@@ -8271,7 +8269,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 458.7}
+  m_AnchoredPosition: {x: 0, y: 413.4}
   m_SizeDelta: {x: 1000, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &867085782
@@ -9451,7 +9449,7 @@ GameObject:
   - component: {fileID: 985420149}
   - component: {fileID: 985420148}
   m_Layer: 0
-  m_Name: EmergencyIcon
+  m_Name: GiantIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9466,14 +9464,14 @@ RectTransform:
   m_GameObject: {fileID: 985420146}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 3.5, y: 3.5, z: 3.5}
+  m_LocalScale: {x: 6.5, y: 6.5, z: 6.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 522375022}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 900}
+  m_AnchoredPosition: {x: 0, y: 430}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &985420148
@@ -9496,7 +9494,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: ce1c09422a9704447a6a7119a7541707, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 608dd3ed118a94c1bb987602072d87cb, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -9607,7 +9605,7 @@ GameObject:
   - component: {fileID: 1035460863}
   - component: {fileID: 1035460862}
   m_Layer: 0
-  m_Name: BigPaddleIcon
+  m_Name: HyperIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9622,14 +9620,14 @@ RectTransform:
   m_GameObject: {fileID: 1035460860}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4.9, y: 4.9, z: 4.9}
+  m_LocalScale: {x: 6.5, y: 6.5, z: 6.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1390798457}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 894.64}
+  m_AnchoredPosition: {x: 0, y: 430}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1035460862
@@ -9652,7 +9650,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 5188bcac125fc45d582819667308aa5f, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 96cb86be85561476db16f96ae966d55e, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -9931,7 +9929,7 @@ GameObject:
   - component: {fileID: 1045904721}
   - component: {fileID: 1045904720}
   m_Layer: 0
-  m_Name: FireBallIcon
+  m_Name: ExplosionIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9946,14 +9944,14 @@ RectTransform:
   m_GameObject: {fileID: 1045904718}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4.9001646, y: 4.9001646, z: 4.900165}
+  m_LocalScale: {x: 6.5000005, y: 6.5000005, z: 6.5000005}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 250954834}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 900}
+  m_AnchoredPosition: {x: 0, y: 430}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1045904720
@@ -9976,7 +9974,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 79db47373facc40f89d3b08e7bc15b3a, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2ff146a029aa44717964e18bc3240203, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -11583,7 +11581,7 @@ GameObject:
   - component: {fileID: 1199244827}
   - component: {fileID: 1199244826}
   m_Layer: 0
-  m_Name: FireBallLabel
+  m_Name: ExplosionLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -11605,7 +11603,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 435}
+  m_AnchoredPosition: {x: 0, y: -304.2}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1199244826
@@ -11628,9 +11626,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'fire
-
-    ball'
+  m_text: explosion
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
   m_sharedMaterial: {fileID: 6957524790401185525, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
@@ -11657,8 +11653,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 310.29
-  m_fontSizeBase: 310.29
+  m_fontSize: 265.5
+  m_fontSizeBase: 265.5
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -13864,7 +13860,7 @@ GameObject:
   - component: {fileID: 1390798459}
   - component: {fileID: 1390798458}
   m_Layer: 0
-  m_Name: BigPaddle
+  m_Name: HyperCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -13877,7 +13873,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1390798456}
-  m_LocalRotation: {x: -0, y: -0, z: 0.14608298, w: 0.98927236}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 1
@@ -13887,10 +13883,10 @@ RectTransform:
   - {fileID: 1035460861}
   - {fileID: 865011162}
   m_Father: {fileID: 1347902681}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 16.8}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -587, y: -38.500008}
+  m_AnchoredPosition: {x: -674.4, y: 0}
   m_SizeDelta: {x: 1673, y: 2551}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1390798458
@@ -13906,14 +13902,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.68235296}
+  m_Color: {r: 0.11681204, g: 0.2171766, b: 0.23584908, a: 0.68235296}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 73c4a11983be64b2eac06090236d9213, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2600e158b722a41bba31620e06d2dd9b, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -15418,7 +15414,7 @@ GameObject:
   - component: {fileID: 1610979824}
   - component: {fileID: 1610979823}
   m_Layer: 0
-  m_Name: EmerdencyDesc
+  m_Name: GiantDesc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -15440,7 +15436,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -352}
+  m_AnchoredPosition: {x: 0, y: -750}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1610979823
@@ -15463,7 +15459,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4E0B\u534A\u5206\u3092\u5373\u6D88\u53BB\n(HP10%\u4EE5\u4E0B)"
+  m_text: "\u30DC\u30FC\u30EB\u3092\u8D85\u5DE8\u5927\u5316"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
   m_sharedMaterial: {fileID: 4929398677040182365, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
@@ -15555,7 +15551,7 @@ GameObject:
   - component: {fileID: 1614009967}
   - component: {fileID: 1614009966}
   m_Layer: 0
-  m_Name: EmergencyLabel
+  m_Name: GiantLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -15577,7 +15573,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 435}
+  m_AnchoredPosition: {x: 0, y: -270.1}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1614009966
@@ -15600,9 +15596,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'emergency
-
-    clear'
+  m_text: giant
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
   m_sharedMaterial: {fileID: 6957524790401185525, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
@@ -15694,7 +15688,7 @@ GameObject:
   - component: {fileID: 1616783930}
   - component: {fileID: 1616783929}
   m_Layer: 0
-  m_Name: DoubleBallDesc
+  m_Name: BurstDesc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -15716,7 +15710,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -352}
+  m_AnchoredPosition: {x: 0, y: -750}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1616783929
@@ -15739,7 +15733,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8FFD\u52A0\u306E\u30DC\u30FC\u30EB\u3092\u767A\u5C04\n(10s)"
+  m_text: "\u30DC\u30FC\u30EB\u309210\u9023\u5C04"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
   m_sharedMaterial: {fileID: 4929398677040182365, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
@@ -17124,7 +17118,7 @@ GameObject:
   - component: {fileID: 1805514656}
   - component: {fileID: 1805514655}
   m_Layer: 0
-  m_Name: DoubleBallLabel
+  m_Name: BurstLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -17146,7 +17140,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 435}
+  m_AnchoredPosition: {x: 0, y: -270.1}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1805514655
@@ -17169,9 +17163,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'double
-
-    ball'
+  m_text: burst
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
   m_sharedMaterial: {fileID: 6957524790401185525, guid: dfd7514a303e948908dd9298ad8d1351, type: 2}
@@ -17263,7 +17255,7 @@ GameObject:
   - component: {fileID: 1812757832}
   - component: {fileID: 1812757831}
   m_Layer: 0
-  m_Name: DoubleBall
+  m_Name: BurstCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -17276,7 +17268,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1812757829}
-  m_LocalRotation: {x: -0, y: -0, z: -0.04797821, w: 0.9988484}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 1
@@ -17286,10 +17278,10 @@ RectTransform:
   - {fileID: 257687880}
   - {fileID: 1562071467}
   m_Father: {fileID: 1347902681}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -5.5}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 200, y: 38.500004}
+  m_AnchoredPosition: {x: 225, y: 0}
   m_SizeDelta: {x: 1673, y: 2551}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1812757831
@@ -17305,14 +17297,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.68235296}
+  m_Color: {r: 0.11764706, g: 0.23921569, b: 0.15002006, a: 0.68235296}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 73c4a11983be64b2eac06090236d9213, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2600e158b722a41bba31620e06d2dd9b, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -19677,7 +19669,7 @@ GameObject:
   - component: {fileID: 2057266408}
   - component: {fileID: 2057266407}
   m_Layer: 0
-  m_Name: BigPaddleDesc
+  m_Name: HyperDesc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -19699,7 +19691,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -352.8}
+  m_AnchoredPosition: {x: 0, y: -750}
   m_SizeDelta: {x: 1368.6, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2057266407
@@ -19722,7 +19714,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u30D1\u30C9\u30EB\u3092\u62E1\u5927\n(10s)"
+  m_text: "\u30DC\u30FC\u30EB\u3092\u8D85\u52A0\u901F"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}
   m_sharedMaterial: {fileID: 4929398677040182365, guid: c897435a9ba5747598f1679e9cdd5c43, type: 2}

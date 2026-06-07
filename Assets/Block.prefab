@@ -129,22 +129,16 @@ MonoBehaviour:
   hp: 1
   normalScore: 10
   hardScore: 20
+  absorbScore: 25
+  explosiveScore: 30
   absorbSpeedMultiplier: 0.7
-  explosionRadius: 2
-  explosionHpBuff: 1
-  explosiveHitFrames: 6
-  normalHitFrames: 0
-  hardHitFrames: 0
-  absorbHitFrames: 0
-  baseDropChance: 0.15
-  trapDisguiseChance: 0.1
   maxSlotRerolls: 2
-  normalColor: {r: 0.754717, g: 0.754717, b: 0.754717, a: 1}
-  hardColor: {r: 0.26824492, g: 0.33459386, b: 0.41509432, a: 1}
-  absorbColor: {r: 0.5677686, g: 0.40557134, b: 0.9245283, a: 1}
-  explosiveColor: {r: 1, g: 0.39515385, b: 0.29019606, a: 1}
-  hardenedColor: {r: 0.478, g: 0.251, b: 0.251, a: 1}
-  itemColor: {r: 0.29, g: 1, b: 0.627, a: 1}
+  normalColor: {r: 0.9056604, g: 0.9056604, b: 0.9056604, a: 1}
+  hardColor: {r: 0.3019758, g: 0.41166785, b: 0.5471698, a: 1}
+  absorbColor: {r: 0.6682446, g: 0.49127805, b: 0.9056604, a: 1}
+  explosiveColor: {r: 0.9245283, g: 0.30427676, b: 0.2660199, a: 1}
+  hardenedColor: {r: 0.49056602, g: 0.26033476, b: 0.2244571, a: 1}
+  itemColor: {r: 0.25698647, g: 0.7264151, b: 0.4128636, a: 1}
   showHpPips: 1
   pipWorldSize: 0.12
   pipWorldSpacing: 0.18
