@@ -148,6 +148,8 @@ public class ArenaSharedConfig : MonoBehaviour
     [Header("Camera Shake Intensity")]
     public float shakeIntensityNormal = 0.08f; // 通常シェイク振幅（ワールド単位）
     public float shakeIntensityStrong = 0.20f; // 強シェイク振幅（ラウンド/マッチ決着）
+    public float shakeFrequency       = 25f;   // シェイクノイズの周波数（大きいほど細かく速い揺れ）
+    public float frameShakeMultiplier = 1f;    // アリーナ枠の揺れ倍率（1=中身と同期。眩しければ 0.5 等へ）
 
     [Header("Skill HitStop")]
     // スキル発動時のシェイク演出フレーム数（現状 EXPLOSION の発動シェイクで使用, DESIGN.md 5.6）。

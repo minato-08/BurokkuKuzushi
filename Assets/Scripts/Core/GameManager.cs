@@ -103,10 +103,10 @@ public class GameManager : MonoBehaviour
         }
         Instance = this;
 
-        // フレームレートを 60FPS 固定。VSync が有効だと targetFrameRate は無視されるため
-        // vSyncCount=0（VSync オフ）にしてから上限 60 を指定する。
-        QualitySettings.vSyncCount = 0;
-        Application.targetFrameRate = 60;
+        // ディスプレイのリフレッシュに同期（VSync）。ティアリング（横裂け）を解消する。
+        // 全ロジックは Time.deltaTime 基準なので、60/120/144Hz いずれでも挙動は不変。
+        QualitySettings.vSyncCount = 1;
+        Application.targetFrameRate = -1; // 上限は付けず VSync 任せ
 
         ApplySharedConfig(); // バランス値を取得してから HP を構築（maxHP を使うため順序重要）
         p1HP = new HPSystem(maxHP);

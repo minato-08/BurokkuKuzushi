@@ -10,6 +10,8 @@ public class HitStopController : MonoBehaviour
     [Header("シェイク強度")]
     [SerializeField] private float shakeIntensityNormal = 0.08f;
     [SerializeField] private float shakeIntensityStrong = 0.20f;
+    [SerializeField] private float shakeFrequency       = 25f; // 連続ノイズの周波数
+    [SerializeField] private float frameShakeMultiplier = 1f;  // アリーナ枠の揺れ倍率（中身に対する比）
 
     private readonly List<IFreezable> freezables = new List<IFreezable>();
     private Transform shakeTarget;
@@ -34,6 +36,8 @@ public class HitStopController : MonoBehaviour
         if (c == null) return;
         shakeIntensityNormal = c.shakeIntensityNormal;
         shakeIntensityStrong = c.shakeIntensityStrong;
+        shakeFrequency       = c.shakeFrequency;
+        frameShakeMultiplier = c.frameShakeMultiplier;
     }
 
     public void RegisterFreezable(IFreezable f)
@@ -64,20 +68,27 @@ public class HitStopController : MonoBehaviour
         if (shakeTarget != null) shakeBaseLocalPos = shakeTarget.localPosition;
         if (frameTarget != null) frameBasePos     = frameTarget.position;
 
+        // ノイズの開始位置を毎回ずらして、揺れのパターンを発火ごとに変える。
+        float seedX = Random.value * 100f;
+        float seedY = Random.value * 100f;
+
         float elapsed = 0f;
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             if (intensity > 0f)
             {
-                // 同一オフセットをアリーナ（local）とアリーナ枠（world）の両方へ適用＝同期して揺れる
-                Vector3 offset = new Vector3(
-                    Random.Range(-intensity, intensity),
-                    Random.Range(-intensity, intensity),
-                    0f
-                );
+                // 毎フレームのランダム瞬間ワープではなく、時間で連続サンプルする Perlin ノイズ＋
+                // 終端へ向けた減衰で滑らかに揺らす（細い Bloom 枠のストロボ状チラつき対策）。
+                float decay = 1f - Mathf.Clamp01(elapsed / duration);
+                float n  = elapsed * shakeFrequency;
+                float ox = Mathf.PerlinNoise(seedX, n) * 2f - 1f; // -1..1
+                float oy = Mathf.PerlinNoise(seedY, n) * 2f - 1f;
+                Vector3 offset = new Vector3(ox, oy, 0f) * (intensity * decay);
+
+                // アリーナ（local）と枠（world）へ同じ offset を適用＝同期。枠は倍率で個別に弱められる。
                 if (shakeTarget != null) shakeTarget.localPosition = shakeBaseLocalPos + offset;
-                if (frameTarget != null) frameTarget.position      = frameBasePos     + offset;
+                if (frameTarget != null) frameTarget.position      = frameBasePos     + offset * frameShakeMultiplier;
             }
             yield return null;
         }
