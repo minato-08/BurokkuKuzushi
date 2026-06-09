@@ -72,24 +72,29 @@ public class HitStopController : MonoBehaviour
         float seedX = Random.value * 100f;
         float seedY = Random.value * 100f;
 
+        // Perlin の実効レンジは ±0.5 程度しかないので、一様乱数 ±1 相当へ戻すゲイン。
+        const float noiseGain = 2f;
+        // 減衰は末尾の一部だけに効かせる（先頭はフル＝手応えを残す）。
+        const float tailFraction = 0.35f;
+
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
             if (intensity > 0f)
             {
-                // 毎フレームのランダム瞬間ワープではなく、時間で連続サンプルする Perlin ノイズ＋
-                // 終端へ向けた減衰で滑らかに揺らす（細い Bloom 枠のストロボ状チラつき対策）。
-                float decay = 1f - Mathf.Clamp01(elapsed / duration);
+                // 毎フレームのランダム瞬間ワープではなく、時間で連続サンプルする Perlin ノイズで
+                // 滑らかに揺らす（細い Bloom 枠のストロボ状チラつき対策）。終端だけ滑らかに収束させる。
+                float decay = Mathf.Clamp01((duration - elapsed) / (duration * tailFraction));
                 float n  = elapsed * shakeFrequency;
-                float ox = Mathf.PerlinNoise(seedX, n) * 2f - 1f; // -1..1
+                float ox = Mathf.PerlinNoise(seedX, n) * 2f - 1f; // -1..1（実効 ±0.5 程度）
                 float oy = Mathf.PerlinNoise(seedY, n) * 2f - 1f;
-                Vector3 offset = new Vector3(ox, oy, 0f) * (intensity * decay);
+                Vector3 offset = new Vector3(ox, oy, 0f) * (intensity * noiseGain * decay);
 
                 // アリーナ（local）と枠（world）へ同じ offset を適用＝同期。枠は倍率で個別に弱められる。
                 if (shakeTarget != null) shakeTarget.localPosition = shakeBaseLocalPos + offset;
                 if (frameTarget != null) frameTarget.position      = frameBasePos     + offset * frameShakeMultiplier;
             }
+            elapsed += Time.unscaledDeltaTime; // 末尾で加算＝先頭フレームは decay=1（フル強度）
             yield return null;
         }
 
