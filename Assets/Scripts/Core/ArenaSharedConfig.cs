@@ -184,7 +184,9 @@ public class ArenaSharedConfig : MonoBehaviour
     public Color centerColor          = Color.cyan;                   // 真上付近の色（発光なし）
     // 予想軌道
     public int   trajectoryMaxBounces = 3;                            // 壁での反射回数の上限
-    public float trajectoryMaxDist    = 30f;                          // 1 セグメントの最大長
+    public float trajectoryMaxDist    = 30f;                          // 1 セグメントの最大長（SphereCast 上限）
+    public float trajectoryTotalLength = 14f;                         // 軌道全体の打ち切り長（これを超えたら途中で止める）
+    public float trajectoryDashPeriod  = 0.5f;                        // 点線 1 周期（破線＋すき間）のワールド長
     public Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f); // 軌道線の色
 
     // ---------------- Skill ----------------

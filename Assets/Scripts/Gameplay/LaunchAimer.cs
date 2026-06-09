@@ -16,6 +16,8 @@ public class LaunchAimer : MonoBehaviour
     private Color centerColor          = Color.cyan;
     private int   trajectoryMaxBounces = 3;
     private float trajectoryMaxDist    = 30f;
+    private float trajectoryTotalLength = 14f;
+    private float trajectoryDashPeriod  = 0.5f;
     private Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f);
 
     private BallScript       ball;
@@ -31,6 +33,7 @@ public class LaunchAimer : MonoBehaviour
 
     private float            ballRadius = 0.18f;          // SphereCast 用のボール半径（Awake で算出）
     private readonly List<Vector3> trajPoints = new();    // 軌道の頂点（GC 回避で使い回す）
+    private Material         trajectoryMat;               // 点線マテリアル（mainTextureScale を毎フレ更新）
 
     public void Initialize(BallScript b, int pIndex, ArenaController a)
     {
@@ -53,6 +56,8 @@ public class LaunchAimer : MonoBehaviour
         centerColor          = c.centerColor;
         trajectoryMaxBounces = c.trajectoryMaxBounces;
         trajectoryMaxDist    = c.trajectoryMaxDist;
+        trajectoryTotalLength = c.trajectoryTotalLength;
+        trajectoryDashPeriod  = c.trajectoryDashPeriod;
         trajectoryColor      = c.trajectoryColor;
     }
 
@@ -65,6 +70,47 @@ public class LaunchAimer : MonoBehaviour
         line           = CreateLine(gameObject, 0.08f, Color.white);
         rangeLine      = CreateLine(NewChild("RangeArc"),   0.04f, rangeArcColor);
         trajectoryLine = CreateLine(NewChild("Trajectory"), 0.05f, trajectoryColor);
+        SetupDashedMaterial(trajectoryLine); // 軌道だけ点線マテリアルへ差し替え
+    }
+
+    // 軌道線を「点線」にする。線の長さ方向(U)に半分不透明・半分透明のテクスチャを Repeat で貼り、
+    // Stretch モードで U=0→1 を線全体に対応させ、毎フレーム mainTextureScale で繰り返し回数を決める。
+    private void SetupDashedMaterial(LineRenderer lr)
+    {
+        // 破線テクスチャ（横 8px: 前半不透明 / 後半透明 = デューティ 50%）。
+        const int w = 8;
+        var tex = new Texture2D(w, 1, TextureFormat.RGBA32, false)
+        {
+            wrapMode   = TextureWrapMode.Repeat,
+            filterMode = FilterMode.Point,
+        };
+        var px = new Color[w];
+        for (int i = 0; i < w; i++)
+            px[i] = i < w / 2 ? Color.white : new Color(1f, 1f, 1f, 0f);
+        tex.SetPixels(px);
+        tex.Apply();
+
+        Shader s = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        var mat = new Material(s);
+        // URP/Unlit を透過サーフェスに切り替える（テクスチャのアルファで点線のすき間を抜く）。
+        if (mat.HasProperty("_Surface"))
+        {
+            mat.SetFloat("_Surface", 1f); // 0=Opaque / 1=Transparent
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        }
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", trajectoryColor);
+        else if (mat.HasProperty("_Color")) mat.SetColor("_Color", trajectoryColor);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+        else mat.mainTexture = tex;
+
+        lr.material       = mat;
+        trajectoryMat     = mat;                   // 毎フレ mainTextureScale を更新するためキャッシュ
+        lr.textureMode    = LineTextureMode.Stretch; // U を線全体に張り、_ST(mainTextureScale) で繰り返す
+        lr.numCapVertices = 0;                      // 丸キャップだと破線端がにじむので無効
     }
 
     void Start()
@@ -239,14 +285,19 @@ public class LaunchAimer : MonoBehaviour
         // ボール自身のコライダーと重ならないよう、半径ぶん前進した位置から走査を始める。
         Vector3 pos = originWorld + dirWorld.normalized * (ballRadius + 0.01f);
         Vector3 dir = dirWorld.normalized;
+        float remaining = trajectoryTotalLength; // 全体の長さ予算（尽きたら途中でも打ち切る）
 
-        for (int bounce = 0; bounce <= trajectoryMaxBounces; bounce++)
+        for (int bounce = 0; bounce <= trajectoryMaxBounces && remaining > 0f; bounce++)
         {
+            // 残り予算と 1 セグメント上限の小さい方までしか探索しない。
+            float castDist = Mathf.Min(trajectoryMaxDist, remaining);
+
             // トリガー（DeadZone / ZonePoison / ZoneSlow）は無視し、実コライダーの壁・ブロックだけ拾う。
-            if (Physics.SphereCast(pos, ballRadius, dir, out RaycastHit hit, trajectoryMaxDist,
+            if (Physics.SphereCast(pos, ballRadius, dir, out RaycastHit hit, castDist,
                                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
             {
                 trajPoints.Add(hit.point); // 軌道の折れ目（壁でもブロックでもまず描点を打つ）
+                remaining -= hit.distance;
 
                 if (IsWall(hit.collider))
                 {
@@ -263,8 +314,8 @@ public class LaunchAimer : MonoBehaviour
             }
             else
             {
-                // 何にも当たらなければ、その方向へ最大距離だけ伸ばして終了。
-                trajPoints.Add(pos + dir * trajectoryMaxDist);
+                // 予算ぶん進んでも何にも当たらなければ、その地点で打ち切る。
+                trajPoints.Add(pos + dir * castDist);
                 break;
             }
         }
@@ -272,6 +323,16 @@ public class LaunchAimer : MonoBehaviour
         trajectoryLine.positionCount = trajPoints.Count;
         trajectoryLine.SetPositions(trajPoints.ToArray());
         trajectoryLine.enabled = trajPoints.Count >= 2;
+
+        // 点線の密度を実長に比例させる（mainTextureScale.x = 実長 / 1 周期）。
+        // これで反射で折れても破線の間隔が一定に見える。
+        if (trajectoryLine.enabled && trajectoryMat != null && trajectoryDashPeriod > 0f)
+        {
+            float len = 0f;
+            for (int i = 1; i < trajPoints.Count; i++)
+                len += Vector3.Distance(trajPoints[i - 1], trajPoints[i]);
+            trajectoryMat.mainTextureScale = new Vector2(len / trajectoryDashPeriod, 1f);
+        }
     }
 
     // 当たった相手が「壁」か（＝Block でも Player でもボールでもない静的コライダー）。
