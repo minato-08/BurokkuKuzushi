@@ -70,7 +70,7 @@ public class LaunchAimer : MonoBehaviour
 
         // 角度インジケーターは LaunchAimer 本体に、軌道は子オブジェクトに描く（1 GameObject に
         // LineRenderer は 1 個まで）。扇形 Fill はメッシュなのでルート直下に別途生成。
-        line           = CreateLine(gameObject, 0.08f, Color.white);
+        line           = CreateLine(gameObject, 0.05f, Color.white); // Trajectory と同じ太さに揃える
         trajectoryLine = CreateLine(NewChild("Trajectory"), 0.05f, trajectoryColor);
         SetupDashedMaterial(trajectoryLine); // 軌道だけ点線＋後方フェードのマテリアルへ
         BuildRangeFill();                     // 振れ幅の扇形 Fill メッシュ
