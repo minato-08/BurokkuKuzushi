@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -10,6 +11,12 @@ public class LaunchAimer : MonoBehaviour
     private Color indicatorColor  = Color.yellow;
     private float metronomeAngleRange = 60f;
     private float metronomePeriodSec  = 1.0f;
+    private Color rangeArcColor        = new Color(1f, 1f, 1f, 0.22f);
+    private float centerThresholdDeg   = 10f;
+    private Color centerColor          = Color.cyan;
+    private int   trajectoryMaxBounces = 3;
+    private float trajectoryMaxDist    = 30f;
+    private Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f);
 
     private BallScript       ball;
     private int              playerIndex;
@@ -18,7 +25,12 @@ public class LaunchAimer : MonoBehaviour
     private float            metronomeTime;
     private float            currentAngleDeg;
     private float            prevAngleDeg;      // 前フレームのエイマー角度（センター通過検出用）
-    private LineRenderer     line;
+    private LineRenderer     line;            // 現在角度のインジケーター
+    private LineRenderer     rangeLine;       // 振れ幅の扇形ガイド（輪郭線）
+    private LineRenderer     trajectoryLine;  // 予想軌道（壁反射を辿った折れ線）
+
+    private float            ballRadius = 0.18f;          // SphereCast 用のボール半径（Awake で算出）
+    private readonly List<Vector3> trajPoints = new();    // 軌道の頂点（GC 回避で使い回す）
 
     public void Initialize(BallScript b, int pIndex, ArenaController a)
     {
@@ -36,18 +48,50 @@ public class LaunchAimer : MonoBehaviour
         indicatorColor      = c.indicatorColor;
         metronomeAngleRange = c.metronomeAngleRange;
         metronomePeriodSec  = c.metronomePeriodSec;
+        rangeArcColor        = c.rangeArcColor;
+        centerThresholdDeg   = c.centerThresholdDeg;
+        centerColor          = c.centerColor;
+        trajectoryMaxBounces = c.trajectoryMaxBounces;
+        trajectoryMaxDist    = c.trajectoryMaxDist;
+        trajectoryColor      = c.trajectoryColor;
     }
 
     void Awake()
     {
         ApplySharedConfig();
 
-        line = gameObject.AddComponent<LineRenderer>();
-        line.positionCount = 2;
-        line.startWidth = line.endWidth = 0.08f;
-        line.useWorldSpace = true;
-        line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        line.receiveShadows = false;
+        // 角度インジケーターは LaunchAimer 本体に、扇形と軌道は子オブジェクトに描く
+        // （1 つの GameObject には LineRenderer は 1 個しか付けられないため）。
+        line           = CreateLine(gameObject, 0.08f, Color.white);
+        rangeLine      = CreateLine(NewChild("RangeArc"),   0.04f, rangeArcColor);
+        trajectoryLine = CreateLine(NewChild("Trajectory"), 0.05f, trajectoryColor);
+    }
+
+    void Start()
+    {
+        // SphereCast 用にボールの実半径（ワールド）を求めておく。
+        if (ball != null && ball.TryGetComponent<SphereCollider>(out var sc))
+            ballRadius = sc.radius * Mathf.Abs(ball.transform.lossyScale.x);
+    }
+
+    // 子の空 GameObject を作って返す（LineRenderer をぶら下げる入れ物）。
+    private GameObject NewChild(string childName)
+    {
+        var go = new GameObject(childName);
+        go.transform.SetParent(transform, false);
+        return go;
+    }
+
+    // 共通設定の LineRenderer を生成する。色は startColor/endColor で指定（マテリアルは白の Unlit を共有）。
+    private LineRenderer CreateLine(GameObject host, float width, Color color)
+    {
+        var lr = host.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.startWidth = lr.endWidth = width;
+        lr.numCapVertices = 2;
+        lr.useWorldSpace = true;
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.receiveShadows = false;
 
         Shader shader = Shader.Find("Universal Render Pipeline/Unlit")
                      ?? Shader.Find("Sprites/Default")
@@ -55,14 +99,13 @@ public class LaunchAimer : MonoBehaviour
         if (shader != null)
         {
             var mat = new Material(shader);
-            if (mat.HasProperty("_BaseColor"))
-                mat.SetColor("_BaseColor", indicatorColor);
-            else if (mat.HasProperty("_Color"))
-                mat.SetColor("_Color", indicatorColor);
-            line.material = mat;
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            else if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            lr.material = mat;
         }
-        line.startColor = line.endColor = Color.white;
-        line.enabled = false;
+        lr.startColor = lr.endColor = color;
+        lr.enabled = false;
+        return lr;
     }
 
     void Update()
@@ -100,7 +143,12 @@ public class LaunchAimer : MonoBehaviour
                           * metronomeAngleRange;
 
         CheckCenterPass();
-        UpdateLineAt(ball.transform.position);
+
+        Vector3 origin   = ball.transform.position;
+        Vector3 worldDir = LocalAngleToWorldDir(currentAngleDeg);
+        UpdateLineAt(origin, worldDir);
+        UpdateRangeArc(origin);
+        UpdateTrajectory(origin, worldDir);
 
         // 発射は Playing 中のみ（カウントダウン中は S/K 無効, DESIGN.md 12.12）
         if (IsLaunchKeyPressed() && state == GameManager.GameState.Playing)
@@ -130,25 +178,108 @@ public class LaunchAimer : MonoBehaviour
         prevAngleDeg = currentAngleDeg;
     }
 
-    private void UpdateLineAt(Vector3 origin)
+    // 角度（度・真上=0°）をアリーナのローカル→ワールド方向ベクトルに変換する。
+    private Vector3 LocalAngleToWorldDir(float angleDeg)
+    {
+        float rad        = angleDeg * Mathf.Deg2Rad;
+        Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
+        return ball != null && ball.transform.parent != null
+            ? ball.transform.parent.TransformDirection(localDir)
+            : localDir;
+    }
+
+    private void UpdateLineAt(Vector3 origin, Vector3 worldDir)
     {
         if (ball == null) return;
         line.enabled = true;
 
-        float rad        = currentAngleDeg * Mathf.Deg2Rad;
-        Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
-        Vector3 worldDir = ball.transform.parent != null
-            ? ball.transform.parent.TransformDirection(localDir)
-            : localDir;
+        // センター通過ビジュアル（DESIGN 5.3）: 真上 ±centerThresholdDeg に入ると色を切替。
+        Color c = Mathf.Abs(currentAngleDeg) <= centerThresholdDeg ? centerColor : Color.white;
+        line.startColor = line.endColor = c;
 
         line.SetPosition(0, origin);
         line.SetPosition(1, origin + worldDir * indicatorLength);
     }
 
+    // 振れ幅の扇形ガイド（DESIGN 5.3）: 原点→左端→円弧→右端→原点 を 1 本の折れ線で描く輪郭扇形。
+    private void UpdateRangeArc(Vector3 origin)
+    {
+        const int arcSegments = 16;
+        float r = indicatorLength;
+
+        // 頂点数 = 原点 + 円弧上の (arcSegments+1) 点 + 原点で閉じる 1 点
+        rangeLine.positionCount = arcSegments + 3;
+        rangeLine.SetPosition(0, origin);
+        for (int i = 0; i <= arcSegments; i++)
+        {
+            // -metronomeAngleRange から +metronomeAngleRange まで等間隔に走査
+            float t   = (float)i / arcSegments;
+            float deg = Mathf.Lerp(-metronomeAngleRange, metronomeAngleRange, t);
+            rangeLine.SetPosition(i + 1, origin + LocalAngleToWorldDir(deg) * r);
+        }
+        rangeLine.SetPosition(arcSegments + 2, origin); // 右端から原点へ戻して閉じる
+        rangeLine.enabled = true;
+    }
+
     private void StopAiming()
     {
-        isAiming     = false;
-        line.enabled = false;
+        isAiming = false;
+        line.enabled           = false;
+        rangeLine.enabled      = false;
+        trajectoryLine.enabled = false;
+    }
+
+    // 予想軌道（DESIGN 5.3）: SphereCast でボール半径ぶんの球を発射方向へ飛ばし、
+    // 壁に当たれば反射して継続、ブロック等に当たれば停止する折れ線を組み立てる。
+    private void UpdateTrajectory(Vector3 originWorld, Vector3 dirWorld)
+    {
+        trajPoints.Clear();
+        trajPoints.Add(originWorld);
+
+        // ボール自身のコライダーと重ならないよう、半径ぶん前進した位置から走査を始める。
+        Vector3 pos = originWorld + dirWorld.normalized * (ballRadius + 0.01f);
+        Vector3 dir = dirWorld.normalized;
+
+        for (int bounce = 0; bounce <= trajectoryMaxBounces; bounce++)
+        {
+            // トリガー（DeadZone / ZonePoison / ZoneSlow）は無視し、実コライダーの壁・ブロックだけ拾う。
+            if (Physics.SphereCast(pos, ballRadius, dir, out RaycastHit hit, trajectoryMaxDist,
+                                   Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                trajPoints.Add(hit.point); // 軌道の折れ目（壁でもブロックでもまず描点を打つ）
+
+                if (IsWall(hit.collider))
+                {
+                    // 壁 → 面の法線で鏡面反射して継続。
+                    dir = Vector3.Reflect(dir, hit.normal).normalized;
+                    // 反射後の方向へ少し進めておかないと、次の SphereCast が同じ壁を
+                    // 即再ヒットして同じ場所で跳ね続けてしまう。
+                    pos = hit.point + dir * (ballRadius + 0.01f);
+                }
+                else
+                {
+                    break; // ブロック等に当たって止まる → 軌道終了
+                }
+            }
+            else
+            {
+                // 何にも当たらなければ、その方向へ最大距離だけ伸ばして終了。
+                trajPoints.Add(pos + dir * trajectoryMaxDist);
+                break;
+            }
+        }
+
+        trajectoryLine.positionCount = trajPoints.Count;
+        trajectoryLine.SetPositions(trajPoints.ToArray());
+        trajectoryLine.enabled = trajPoints.Count >= 2;
+    }
+
+    // 当たった相手が「壁」か（＝Block でも Player でもボールでもない静的コライダー）。
+    private bool IsWall(Collider c)
+    {
+        return c.GetComponent<Block>() == null
+            && c.GetComponent<PlayerController>() == null
+            && c.GetComponent<BallScript>() == null;
     }
 
     private bool IsLaunchKeyPressed()

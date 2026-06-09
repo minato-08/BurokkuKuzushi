@@ -177,6 +177,15 @@ public class ArenaSharedConfig : MonoBehaviour
     public Color indicatorColor       = Color.yellow;
     public float metronomeAngleRange  = 60f;
     public float metronomePeriodSec   = 1.0f;
+    // 振れ幅の扇形ガイド（輪郭線）
+    public Color rangeArcColor        = new Color(1f, 1f, 1f, 0.22f); // 控えめな半透明白
+    // センター通過ビジュアル（真上 ±threshold° でインジケーターを切替）
+    public float centerThresholdDeg   = 10f;
+    public Color centerColor          = Color.cyan;                   // 真上付近の色（発光なし）
+    // 予想軌道
+    public int   trajectoryMaxBounces = 3;                            // 壁での反射回数の上限
+    public float trajectoryMaxDist    = 30f;                          // 1 セグメントの最大長
+    public Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f); // 軌道線の色
 
     // ---------------- Skill ----------------
     [Header("Skill (SkillController)")]
