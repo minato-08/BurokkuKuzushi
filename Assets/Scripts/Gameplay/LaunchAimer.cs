@@ -8,40 +8,40 @@ public class LaunchAimer : MonoBehaviour
 {
     // バランス値は ArenaSharedConfig で一元管理（ApplySharedConfig で取得）。未配置時は既定値。
     private float indicatorLength = 2.5f;
-    private Color indicatorColor  = Color.yellow;
+    private Color indicatorColor = Color.yellow;
     private float metronomeAngleRange = 60f;
-    private float metronomePeriodSec  = 1.0f;
-    private Color rangeFillColor       = new Color(1f, 1f, 1f, 0.12f);
-    private float centerThresholdDeg   = 10f;
-    private Color centerColor          = Color.cyan;
-    private int   trajectoryMaxBounces = 3;
-    private float trajectoryMaxDist    = 30f;
+    private float metronomePeriodSec = 1.0f;
+    private Color rangeFillColor = new Color(1f, 1f, 1f, 0.12f);
+    private float centerThresholdDeg = 10f;
+    private Color centerColor = Color.cyan;
+    private int trajectoryMaxBounces = 3;
+    private float trajectoryMaxDist = 30f;
     private float trajectoryTotalLength = 14f;
-    private float trajectoryDashPeriod  = 0.5f;
-    private Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f);
-    private float trajectoryTailAlpha   = 0f;
+    private float trajectoryDashPeriod = 0.5f;
+    private Color trajectoryColor = new Color(1f, 1f, 1f, 0.45f);
+    private float trajectoryTailAlpha = 0f;
 
-    private BallScript       ball;
-    private int              playerIndex;
-    private ArenaController  arena;
-    private bool             isAiming;
-    private float            metronomeTime;
-    private float            currentAngleDeg;
-    private float            prevAngleDeg;      // 前フレームのエイマー角度（センター通過検出用）
-    private LineRenderer     line;            // 現在角度のインジケーター
-    private LineRenderer     trajectoryLine;  // 予想軌道（壁反射を辿った折れ線・点線）
-    private Transform        rangeFillTf;     // 振れ幅の扇形 Fill（メッシュ）の Transform
-    private MeshRenderer     rangeFillRenderer;
+    private BallScript ball;
+    private int playerIndex;
+    private ArenaController arena;
+    private bool isAiming;
+    private float metronomeTime;
+    private float currentAngleDeg;
+    private float prevAngleDeg;      // 前フレームのエイマー角度（センター通過検出用）
+    private LineRenderer line;            // 現在角度のインジケーター
+    private LineRenderer trajectoryLine;  // 予想軌道（壁反射を辿った折れ線・点線）
+    private Transform rangeFillTf;     // 振れ幅の扇形 Fill（メッシュ）の Transform
+    private MeshRenderer rangeFillRenderer;
 
-    private float            ballRadius = 0.18f;          // SphereCast 用のボール半径（Awake で算出）
+    private float ballRadius = 0.18f;          // SphereCast 用のボール半径（Awake で算出）
     private readonly List<Vector3> trajPoints = new();    // 軌道の頂点（GC 回避で使い回す）
-    private Material         trajectoryMat;               // 点線マテリアル（mainTextureScale を毎フレ更新）
+    private Material trajectoryMat;               // 点線マテリアル（mainTextureScale を毎フレ更新）
 
     public void Initialize(BallScript b, int pIndex, ArenaController a)
     {
-        ball        = b;
+        ball = b;
         playerIndex = pIndex;
-        arena       = a;
+        arena = a;
     }
 
     // 共有設定（ArenaSharedConfig）があれば左右共通のパラメータを自分へ適用（null セーフ）。
@@ -49,19 +49,19 @@ public class LaunchAimer : MonoBehaviour
     {
         var c = ArenaSharedConfig.Instance;
         if (c == null) return;
-        indicatorLength     = c.indicatorLength;
-        indicatorColor      = c.indicatorColor;
+        indicatorLength = c.indicatorLength;
+        indicatorColor = c.indicatorColor;
         metronomeAngleRange = c.metronomeAngleRange;
-        metronomePeriodSec  = c.metronomePeriodSec;
-        rangeFillColor       = c.rangeFillColor;
-        centerThresholdDeg   = c.centerThresholdDeg;
-        centerColor          = c.centerColor;
+        metronomePeriodSec = c.metronomePeriodSec;
+        rangeFillColor = c.rangeFillColor;
+        centerThresholdDeg = c.centerThresholdDeg;
+        centerColor = c.centerColor;
         trajectoryMaxBounces = c.trajectoryMaxBounces;
-        trajectoryMaxDist    = c.trajectoryMaxDist;
+        trajectoryMaxDist = c.trajectoryMaxDist;
         trajectoryTotalLength = c.trajectoryTotalLength;
-        trajectoryDashPeriod  = c.trajectoryDashPeriod;
-        trajectoryColor      = c.trajectoryColor;
-        trajectoryTailAlpha   = c.trajectoryTailAlpha;
+        trajectoryDashPeriod = c.trajectoryDashPeriod;
+        trajectoryColor = c.trajectoryColor;
+        trajectoryTailAlpha = c.trajectoryTailAlpha;
     }
 
     void Awake()
@@ -70,7 +70,7 @@ public class LaunchAimer : MonoBehaviour
 
         // 角度インジケーターは LaunchAimer 本体に、軌道は子オブジェクトに描く（1 GameObject に
         // LineRenderer は 1 個まで）。扇形 Fill はメッシュなのでルート直下に別途生成。
-        line           = CreateLine(gameObject, 0.05f, Color.white); // Trajectory と同じ太さに揃える
+        line = CreateLine(gameObject, 0.05f, Color.white); // Trajectory と同じ太さに揃える
         trajectoryLine = CreateLine(NewChild("Trajectory"), 0.05f, trajectoryColor);
         SetupDashedMaterial(trajectoryLine); // 軌道だけ点線＋後方フェードのマテリアルへ
         BuildRangeFill();                     // 振れ幅の扇形 Fill メッシュ
@@ -85,7 +85,7 @@ public class LaunchAimer : MonoBehaviour
                 ?? Shader.Find("Sprites/Default");
         var mat = new Material(s);
         if (tex != null) mat.mainTexture = tex;
-        if (mat.HasProperty("_Color"))          mat.SetColor("_Color", color);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
         else if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
         // URP/Unlit へフォールバックした場合だけ透過設定が要る（HDRSprite はシェーダー側で透過済み）。
         if (s != null && s.name.Contains("Universal Render Pipeline/Unlit") && mat.HasProperty("_Surface"))
@@ -109,7 +109,7 @@ public class LaunchAimer : MonoBehaviour
         const int w = 8;
         var tex = new Texture2D(w, 1, TextureFormat.RGBA32, false)
         {
-            wrapMode   = TextureWrapMode.Repeat,
+            wrapMode = TextureWrapMode.Repeat,
             filterMode = FilterMode.Point,
         };
         var px = new Color[w];
@@ -120,9 +120,9 @@ public class LaunchAimer : MonoBehaviour
 
         // 色は colorGradient（頂点カラー）側で付けるので _Color は白。
         var mat = MakeSpriteMaterial(tex, Color.white);
-        lr.material       = mat;
-        trajectoryMat     = mat;                     // 毎フレ mainTextureScale を更新するためキャッシュ
-        lr.textureMode    = LineTextureMode.Stretch; // U を線全体に張り、mainTextureScale で繰り返す
+        lr.material = mat;
+        trajectoryMat = mat;                     // 毎フレ mainTextureScale を更新するためキャッシュ
+        lr.textureMode = LineTextureMode.Stretch; // U を線全体に張り、mainTextureScale で繰り返す
         lr.numCapVertices = 0;                       // 丸キャップだと破線端がにじむので無効
 
         // 後方フェード: 終点へ向けてアルファを trajectoryTailAlpha へ落とす。
@@ -146,16 +146,16 @@ public class LaunchAimer : MonoBehaviour
 
         const int seg = 24;
         var verts = new Vector3[seg + 2];
-        var cols  = new Color[seg + 2];
-        var tris  = new int[seg * 3];
+        var cols = new Color[seg + 2];
+        var tris = new int[seg * 3];
         verts[0] = Vector3.zero;        // 扇の要（ボール位置）
-        cols[0]  = Color.white;
+        cols[0] = Color.white;
         for (int i = 0; i <= seg; i++)
         {
             float deg = Mathf.Lerp(-metronomeAngleRange, metronomeAngleRange, (float)i / seg);
             float rad = deg * Mathf.Deg2Rad;
             verts[i + 1] = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f) * indicatorLength;
-            cols[i + 1]  = Color.white; // 頂点カラー白 → _Color(rangeFillColor) がそのまま出る
+            cols[i + 1] = Color.white; // 頂点カラー白 → _Color(rangeFillColor) がそのまま出る
         }
         for (int i = 0; i < seg; i++) { tris[i * 3] = 0; tris[i * 3 + 1] = i + 1; tris[i * 3 + 2] = i + 2; }
 
@@ -164,7 +164,7 @@ public class LaunchAimer : MonoBehaviour
         mf.mesh = mesh;
 
         rangeFillRenderer.material = MakeSpriteMaterial(null, rangeFillColor);
-        rangeFillRenderer.enabled  = false;
+        rangeFillRenderer.enabled = false;
         rangeFillTf = go.transform;
     }
 
@@ -235,17 +235,16 @@ public class LaunchAimer : MonoBehaviour
         if (!isAiming)
         {
             metronomeTime = 0f;
-            isAiming      = true;
-            prevAngleDeg  = 0f;
+            isAiming = true;
+            prevAngleDeg = 0f;
         }
 
-        metronomeTime  += Time.deltaTime;
-        currentAngleDeg = Mathf.Sin(metronomeTime * (2f * Mathf.PI / metronomePeriodSec))
-                          * metronomeAngleRange;
+        metronomeTime += Time.deltaTime;
+        currentAngleDeg = Mathf.Sin(metronomeTime * (2f * Mathf.PI / metronomePeriodSec)) * metronomeAngleRange;
 
         CheckCenterPass();
 
-        Vector3 origin   = ball.transform.position;
+        Vector3 origin = ball.transform.position;
         Vector3 worldDir = LocalAngleToWorldDir(currentAngleDeg);
         UpdateLineAt(origin, worldDir);
         UpdateRangeFill(origin);
@@ -261,10 +260,10 @@ public class LaunchAimer : MonoBehaviour
     // 中央に戻らない問題を防ぐ。
     public void ResetAim()
     {
-        metronomeTime   = 0f;
+        metronomeTime = 0f;
         currentAngleDeg = 0f;
-        prevAngleDeg    = 0f;
-        isAiming        = false;
+        prevAngleDeg = 0f;
+        isAiming = false;
     }
 
     // メトロノームのインジケーターが真上（0°）を横切った瞬間に「ティック」SE を 1 回鳴らす（DESIGN 5.3）。
@@ -272,7 +271,8 @@ public class LaunchAimer : MonoBehaviour
     private void CheckCenterPass()
     {
 
-        if (prevAngleDeg*currentAngleDeg < 0) {
+        if (prevAngleDeg * currentAngleDeg < 0)
+        {
             AudioManager.Instance?.PlayCenterTick(playerIndex);
         }
 
@@ -282,7 +282,7 @@ public class LaunchAimer : MonoBehaviour
     // 角度（度・真上=0°）をアリーナのローカル→ワールド方向ベクトルに変換する。
     private Vector3 LocalAngleToWorldDir(float angleDeg)
     {
-        float rad        = angleDeg * Mathf.Deg2Rad;
+        float rad = angleDeg * Mathf.Deg2Rad;
         Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
         return ball != null && ball.transform.parent != null
             ? ball.transform.parent.TransformDirection(localDir)
@@ -307,11 +307,11 @@ public class LaunchAimer : MonoBehaviour
     private void UpdateRangeFill(Vector3 origin)
     {
         if (rangeFillTf == null) return;
-        rangeFillTf.position   = origin;
+        rangeFillTf.position = origin;
         // インジケーター線（LocalAngleToWorldDir = parent.TransformDirection）と同じ向き・倍率に合わせる。
         if (ball != null && ball.transform.parent != null)
         {
-            rangeFillTf.rotation   = ball.transform.parent.rotation;
+            rangeFillTf.rotation = ball.transform.parent.rotation;
             rangeFillTf.localScale = ball.transform.parent.lossyScale;
         }
         rangeFillRenderer.enabled = true;
@@ -320,7 +320,7 @@ public class LaunchAimer : MonoBehaviour
     private void StopAiming()
     {
         isAiming = false;
-        line.enabled           = false;
+        line.enabled = false;
         trajectoryLine.enabled = false;
         if (rangeFillRenderer != null) rangeFillRenderer.enabled = false;
     }
@@ -404,7 +404,7 @@ public class LaunchAimer : MonoBehaviour
 
     private void Fire()
     {
-        float rad        = currentAngleDeg * Mathf.Deg2Rad;
+        float rad = currentAngleDeg * Mathf.Deg2Rad;
         Vector3 localDir = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f);
         ball.LaunchInDirection(localDir);
         AudioManager.Instance?.PlayBallLaunch(playerIndex); // 発射確定 SE（DESIGN.md 10.4）

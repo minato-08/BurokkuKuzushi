@@ -10,8 +10,8 @@ public class HPStateBand
     public float thresholdPercent = 1.0f;  // この値以上のHP割合で適用
 
     public float gaugeRateMul = 1.0f;      // スキルゲージ蓄積倍率
-    public float itemDropMul  = 1.0f;      // アイテムドロップ率倍率
-    public float scoreMul     = 1.0f;      // スコア倍率
+    public float itemDropMul = 1.0f;      // アイテムドロップ率倍率
+    public float scoreMul = 1.0f;      // スコア倍率
     [Range(0f, 1f)]
     public float goodItemBias = 0f;        // 有利アイテムへの偏重（0=均等、1=有利のみ）
 }
@@ -22,15 +22,15 @@ public class GameManager : MonoBehaviour
 
     // 試合進行/演出尺（フロー）。バランス値ではないので GameManager に残す。
     [Header("Match Flow")]
-    [SerializeField] private int   roundsToWin    = 1;       // Settings/PlayerPrefs で上書きされる
+    [SerializeField] private int roundsToWin = 1;       // Settings/PlayerPrefs で上書きされる
     [SerializeField] private float nextRoundDelay = 2f;
     [SerializeField] private float countdownStepSec = 1.0f;  // 3/2/1 各数字の表示秒
-    [SerializeField] private float countdownGoSec   = 0.6f;  // GO! の表示秒
+    [SerializeField] private float countdownGoSec = 0.6f;  // GO! の表示秒
 
     [Header("HitStop Frames")]
     [SerializeField] private int interferenceTriggerFrames = 10;
-    [SerializeField] private int roundEndFrames            = 30;
-    [SerializeField] private int matchEndFrames            = 60;
+    [SerializeField] private int roundEndFrames = 30;
+    [SerializeField] private int matchEndFrames = 60;
 
     [Header("Arena References")]
     [SerializeField] private ArenaController arena1;
@@ -38,15 +38,15 @@ public class GameManager : MonoBehaviour
 
     // ── 試合バランス（ArenaSharedConfig で一元管理。Awake の ApplySharedConfig で取得）──
     //    未配置時はここの既定値にフォールバック。Inspector には出さない（調整は ArenaSharedConfig）。
-    private int maxHP                  = 500;
-    private int damageBallDrop         = 5;
+    private int maxHP = 500;
+    private int damageBallDrop = 5;
     private int damageBlockReachBottom = 10;
-    private int damagePoisonPerSec     = 5;
+    private int damagePoisonPerSec = 5;
     private float energyPerBlock = 1f;
-    private float comboTimeout   = 6.0f;  // 最後の破壊からこの秒数でリセット
-    private int   comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
-    private int   comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
-    private int   comboItemStep  = 10;    // 何コンボ毎にドロップ +10% するか
+    private float comboTimeout = 6.0f;  // 最後の破壊からこの秒数でリセット
+    private int comboScoreStep = 5;     // 何コンボ毎にスコア +10% するか
+    private int comboGaugeStep = 5;     // 何コンボ毎にゲージ +5% するか
+    private int comboItemStep = 10;    // 何コンボ毎にドロップ +10% するか
     private int[] comboMilestones = { 10, 20, 30 };  // 演出を出すコンボ数
     private HPStateBand[] hpStateBands;   // 空なら全倍率 1.0（逆転ボーナス無し）
 
@@ -55,23 +55,23 @@ public class GameManager : MonoBehaviour
 
     private int p1Score, p2Score;
     private int p1RoundWins, p2RoundWins;
-    private int   p1Combo, p2Combo;
+    private int p1Combo, p2Combo;
     private float p1ComboTimer, p2ComboTimer;  // 最後のブロック破壊からの経過秒（combo>0 のとき加算）
     private float p1PoisonDamageRemainder, p2PoisonDamageRemainder;
 
     // マッチ統計（DESIGN.md 5.10）。Round=今ラウンド（リザルト用、ラウンド開始でリセット）、
     // Match=マッチ全体（最終リザルト用、新規マッチ/再戦でリセット）。
-    private int p1MaxComboRound,        p2MaxComboRound;
-    private int p1MaxComboMatch,        p2MaxComboMatch;
-    private int p1BlocksDestroyed,      p2BlocksDestroyed;      // マッチ全体の総破壊ブロック数
+    private int p1MaxComboRound, p2MaxComboRound;
+    private int p1MaxComboMatch, p2MaxComboMatch;
+    private int p1BlocksDestroyed, p2BlocksDestroyed;      // マッチ全体の総破壊ブロック数
     private int p1InterferenceReceived, p2InterferenceReceived; // マッチ全体の被妨害回数
 
     // アクティブ効果リスト（複数同時効果を追跡。HUD は当面 GetActiveItemName で最新1個のみ表示）
     public struct ActiveEffect
     {
         public ItemEffectSlot slot;
-        public string         name;
-        public float          endTime;
+        public string name;
+        public float endTime;
     }
     private readonly System.Collections.Generic.List<ActiveEffect> p1Active = new();
     private readonly System.Collections.Generic.List<ActiveEffect> p2Active = new();
@@ -118,23 +118,23 @@ public class GameManager : MonoBehaviour
     {
         var c = ArenaSharedConfig.Instance;
         if (c == null) return;
-        maxHP                  = c.maxHP;
-        damageBallDrop         = c.damageBallDrop;
+        maxHP = c.maxHP;
+        damageBallDrop = c.damageBallDrop;
         damageBlockReachBottom = c.damageBlockReachBottom;
-        damagePoisonPerSec     = c.damagePoisonPerSec;
+        damagePoisonPerSec = c.damagePoisonPerSec;
         energyPerBlock = c.energyPerBlock;
-        comboTimeout   = c.comboTimeout;
+        comboTimeout = c.comboTimeout;
         comboScoreStep = c.comboScoreStep;
         comboGaugeStep = c.comboGaugeStep;
-        comboItemStep  = c.comboItemStep;
+        comboItemStep = c.comboItemStep;
         if (c.comboMilestones != null) comboMilestones = c.comboMilestones;
-        hpStateBands   = c.hpStateBands;
+        hpStateBands = c.hpStateBands;
     }
 
     void Start()
     {
         // 起動時はタイトル画面で待機（TitleUI が START でゲーム開始する）
-        currentState   = GameState.Title;
+        currentState = GameState.Title;
         Time.timeScale = 0f;
         AudioManager.Instance?.PlayTitleBGM();
     }
@@ -143,7 +143,7 @@ public class GameManager : MonoBehaviour
     public void StartFromTitle()
     {
         if (currentState != GameState.Title) return;
-        currentState   = GameState.Settings;
+        currentState = GameState.Settings;
         Time.timeScale = 0f;
     }
 
@@ -157,14 +157,14 @@ public class GameManager : MonoBehaviour
     // 設定画面からタイトルへ戻る
     public void ReturnToTitle()
     {
-        currentState   = GameState.Title;
+        currentState = GameState.Title;
         Time.timeScale = 0f;
         AudioManager.Instance?.PlayTitleBGM();
     }
 
     // 設定画面から先取数を変更（1〜5 にクランプ）。試合中の変更は次マッチから有効
     public void SetRoundsToWin(int value) => roundsToWin = Mathf.Clamp(value, 1, 5);
-    public int  GetRoundsToWin()          => roundsToWin;
+    public int GetRoundsToWin() => roundsToWin;
 
     void Update()
     {
@@ -174,7 +174,7 @@ public class GameManager : MonoBehaviour
 
         // HP30% 帯で緊迫 BGM レイヤーを重ねる（5% ヒステリシス, DESIGN.md 10.5）
         float r1 = GetHPRatio(1), r2 = GetHPRatio(2);
-        if (r1 <= 0.30f || r2 <= 0.30f)      AudioManager.Instance?.SetTenseLayer(true);
+        if (r1 <= 0.30f || r2 <= 0.30f) AudioManager.Instance?.SetTenseLayer(true);
         else if (r1 >= 0.35f && r2 >= 0.35f) AudioManager.Instance?.SetTenseLayer(false);
     }
 
@@ -196,8 +196,8 @@ public class GameManager : MonoBehaviour
         {
             p1RoundWins = 0;
             p2RoundWins = 0;
-            p1Score     = 0;
-            p2Score     = 0;
+            p1Score = 0;
+            p2Score = 0;
             // マッチ統計をリセット
             p1MaxComboMatch = 0; p2MaxComboMatch = 0;
             p1BlocksDestroyed = 0; p2BlocksDestroyed = 0;
@@ -269,7 +269,7 @@ public class GameManager : MonoBehaviour
 
     private void BeginCountdown()
     {
-        currentState   = GameState.Countdown;
+        currentState = GameState.Countdown;
         Time.timeScale = 0f;
         StartCoroutine(CountdownCoroutine());
     }
@@ -287,7 +287,7 @@ public class GameManager : MonoBehaviour
 
         // GO! を出した瞬間にゲーム開始（GO! は表示したまま countdownGoSec 残す）
         CountdownLabel = "GO!";
-        currentState   = GameState.Playing;
+        currentState = GameState.Playing;
         Time.timeScale = 1f;
         if (startMatchBgmOnGo)
         {
@@ -330,7 +330,7 @@ public class GameManager : MonoBehaviour
         if (currentState != GameState.Playing) return;
         // ボール落下でコンボリセット（DESIGN.md 5.8 / 12.7）
         if (playerIndex == 1) { p1Combo = 0; p1ComboTimer = 0f; }
-        else                  { p2Combo = 0; p2ComboTimer = 0f; }
+        else { p2Combo = 0; p2ComboTimer = 0f; }
         ApplyDamage(playerIndex, damageBallDrop);
     }
 
@@ -348,7 +348,7 @@ public class GameManager : MonoBehaviour
         float accumulated = remainder + damagePoisonPerSec * deltaTime;
         int dmg = Mathf.FloorToInt(accumulated);
         if (playerIndex == 1) p1PoisonDamageRemainder = accumulated - dmg;
-        else                  p2PoisonDamageRemainder = accumulated - dmg;
+        else p2PoisonDamageRemainder = accumulated - dmg;
         if (dmg > 0) ApplyDamage(playerIndex, dmg);
     }
 
@@ -370,10 +370,10 @@ public class GameManager : MonoBehaviour
     // コンボは破壊時 (RegisterBlockDestroyed) に加算済みなので AddScore は更新後コンボで計算される
     public void AddScore(int playerIndex, int amount)
     {
-        float mul    = GetCurrentBand(playerIndex).scoreMul * ScoreComboMul(playerIndex);
-        int   gained = Mathf.RoundToInt(amount * mul);
+        float mul = GetCurrentBand(playerIndex).scoreMul * ScoreComboMul(playerIndex);
+        int gained = Mathf.RoundToInt(amount * mul);
         if (playerIndex == 1) p1Score += gained;
-        else                  p2Score += gained;
+        else p2Score += gained;
     }
 
     // ブロック破壊ごとに呼ばれる（DESIGN.md 5.8, 2026-06-01 接触ベース→破壊ベースに戻した）。
@@ -386,12 +386,12 @@ public class GameManager : MonoBehaviour
 
         // 総破壊ブロック数を集計（マッチ統計, DESIGN.md 5.10）
         if (playerIndex == 1) p1BlocksDestroyed++;
-        else                  p2BlocksDestroyed++;
+        else p2BlocksDestroyed++;
 
         // コンボ加算 + タイマーリセット（最後の破壊起点で計測）
         int combo;
         if (playerIndex == 1) { combo = ++p1Combo; p1ComboTimer = 0f; }
-        else                  { combo = ++p2Combo; p2ComboTimer = 0f; }
+        else { combo = ++p2Combo; p2ComboTimer = 0f; }
 
         // 最大コンボ統計を更新（ラウンド / マッチ）
         if (playerIndex == 1)
@@ -420,7 +420,7 @@ public class GameManager : MonoBehaviour
         => 1f + Mathf.Min(1.0f, 0.10f * (GetCombo(playerIndex) / Mathf.Max(1, comboScoreStep)));
     private float GaugeComboMul(int playerIndex)    // 5 毎 +5%、上限 +50%
         => 1f + Mathf.Min(0.5f, 0.05f * (GetCombo(playerIndex) / Mathf.Max(1, comboGaugeStep)));
-    public  float GetItemDropComboMul(int playerIndex) // 10 毎 +10%、上限 +50%
+    public float GetItemDropComboMul(int playerIndex) // 10 毎 +10%、上限 +50%
         => 1f + Mathf.Min(0.5f, 0.10f * (GetCombo(playerIndex) / Mathf.Max(1, comboItemStep)));
 
     // 攻撃アイテム取得時の妨害送付窓口 (DESIGN.md 5.5.2 / 7.4)
@@ -432,10 +432,10 @@ public class GameManager : MonoBehaviour
 
         // 被妨害回数を集計（マッチ統計, DESIGN.md 5.10）
         if (targetPlayerIndex == 1) p1InterferenceReceived++;
-        else                        p2InterferenceReceived++;
+        else p2InterferenceReceived++;
 
-        InterferenceType type  = AttackItemToInterference(attackItem);
-        string           label = GetInterferenceLabel(type);
+        InterferenceType type = AttackItemToInterference(attackItem);
+        string label = GetInterferenceLabel(type);
         AudioManager.Instance?.PlayInterferenceRecv(targetPlayerIndex); // 受信側にパン
         ApplyInterference(target, type);
         // 妨害受信はボール衝突でない＝飛行中ボールを空中で止めないようシェイクのみ（DESIGN.md 5.x）
@@ -455,8 +455,8 @@ public class GameManager : MonoBehaviour
         ItemType.AttackHarden => InterferenceType.Harden,
         ItemType.AttackAddRow => InterferenceType.AddRow,
         ItemType.AttackPoison => InterferenceType.Poison,
-        ItemType.AttackSlow   => InterferenceType.Slow,
-        _                     => InterferenceType.AddRow
+        ItemType.AttackSlow => InterferenceType.Slow,
+        _ => InterferenceType.AddRow
     };
 
     private void ApplyInterference(ArenaController target, InterferenceType type)
@@ -480,10 +480,10 @@ public class GameManager : MonoBehaviour
 
     private static string GetInterferenceLabel(InterferenceType type) => type switch
     {
-        InterferenceType.AddRow  => "妨害行",
-        InterferenceType.Harden  => "ブロック硬化",
-        InterferenceType.Poison  => "毒エリア",
-        InterferenceType.Slow    => "速度低下",
+        InterferenceType.AddRow => "妨害行",
+        InterferenceType.Harden => "ブロック硬化",
+        InterferenceType.Poison => "毒エリア",
+        InterferenceType.Slow => "速度低下",
         _ => type.ToString()
     };
 
@@ -500,7 +500,7 @@ public class GameManager : MonoBehaviour
     {
         LastRoundWinner = winner;
         if (winner == 1) p1RoundWins++;
-        else             p2RoundWins++;
+        else p2RoundWins++;
 
         Debug.Log($"ラウンド終了！勝者: P{winner}（P1: {p1RoundWins} / P2: {p2RoundWins}）");
 
@@ -515,8 +515,8 @@ public class GameManager : MonoBehaviour
             AudioManager.Instance?.PlayResultJingle(); // 試合 BGM フェードアウト + 結果ジングル
             // 勝者はフリーズのみ、敗者にのみカメラシェイクを適用する
             ArenaController matchWinnerArena = winner == 1 ? arena1 : arena2;
-            ArenaController matchLoserArena  = winner == 1 ? arena2 : arena1;
-            matchLoserArena?.TriggerHitStop(matchEndFrames,  strong: true, shake: true);
+            ArenaController matchLoserArena = winner == 1 ? arena2 : arena1;
+            matchLoserArena?.TriggerHitStop(matchEndFrames, strong: true, shake: true);
             matchWinnerArena?.TriggerHitStop(matchEndFrames, strong: true, shake: false);
             matchWinnerArena?.FlashRoundResult(isWinner: true);
             matchLoserArena?.FlashRoundResult(isWinner: false);
@@ -529,9 +529,9 @@ public class GameManager : MonoBehaviour
             currentState = GameState.RoundOver;
             AudioManager.Instance?.PlayRoundWin(winner);
             RoundIntermissionRemaining = nextRoundDelay;
-            ArenaController loserArena  = winner == 1 ? arena2 : arena1;
+            ArenaController loserArena = winner == 1 ? arena2 : arena1;
             ArenaController winnerArena = winner == 1 ? arena1 : arena2;
-            loserArena?.TriggerHitStop(roundEndFrames,  strong: true,  shake: true);
+            loserArena?.TriggerHitStop(roundEndFrames, strong: true, shake: true);
             winnerArena?.TriggerHitStop(roundEndFrames, strong: false, shake: false);
             winnerArena?.FlashRoundResult(isWinner: true);
             loserArena?.FlashRoundResult(isWinner: false);
@@ -580,15 +580,15 @@ public class GameManager : MonoBehaviour
     // 外部からの情報取得（UIなどが使う）
     // =====================================================
 
-    public ArenaController GetArena(int playerIndex)        => playerIndex == 1 ? arena1 : arena2;
-    public float  GetEnergyRatio(int playerIndex)           => GetArena(playerIndex)?.GetSkillController()?.EnergyRatio ?? 0f;
-    public string GetEquippedSkillName(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.SkillName    ?? "---";
-    public SkillId? GetEquippedSkillId(int playerIndex)     => GetArena(playerIndex)?.GetSkillController()?.EquippedSkillId;
+    public ArenaController GetArena(int playerIndex) => playerIndex == 1 ? arena1 : arena2;
+    public float GetEnergyRatio(int playerIndex) => GetArena(playerIndex)?.GetSkillController()?.EnergyRatio ?? 0f;
+    public string GetEquippedSkillName(int playerIndex) => GetArena(playerIndex)?.GetSkillController()?.SkillName ?? "---";
+    public SkillId? GetEquippedSkillId(int playerIndex) => GetArena(playerIndex)?.GetSkillController()?.EquippedSkillId;
 
     // Danger Proximity / Last Stand 用アクセサ（UIManager がポーリング, DESIGN.md 5.4 / 5.10）
-    public float  GetLowestBlockY(int playerIndex)          => GetArena(playerIndex)?.GetSpawner()?.GetLowestBlockY()    ?? float.MaxValue;
-    public float  GetBlockDeadZoneY(int playerIndex)        => GetArena(playerIndex)?.GetSpawner()?.GetBlockDeadZoneY()  ?? 0f;
-    public bool   IsSkillReady(int playerIndex)             => GetArena(playerIndex)?.GetSkillController()?.IsReady      ?? false;
+    public float GetLowestBlockY(int playerIndex) => GetArena(playerIndex)?.GetSpawner()?.GetLowestBlockY() ?? float.MaxValue;
+    public float GetBlockDeadZoneY(int playerIndex) => GetArena(playerIndex)?.GetSpawner()?.GetBlockDeadZoneY() ?? 0f;
+    public bool IsSkillReady(int playerIndex) => GetArena(playerIndex)?.GetSkillController()?.IsReady ?? false;
 
     public void Heal(int playerIndex, int amount)
     {
@@ -597,28 +597,28 @@ public class GameManager : MonoBehaviour
         hp.Heal(amount);
     }
 
-    public int   GetHP(int playerIndex)        => playerIndex == 1 ? p1HP.CurrentHP : p2HP.CurrentHP;
-    public int   GetMaxHP(int playerIndex)     => playerIndex == 1 ? p1HP.MaxHP     : p2HP.MaxHP;
-    public float GetHPRatio(int playerIndex)   => playerIndex == 1 ? p1HP.Ratio     : p2HP.Ratio;
-    public int   GetScore(int playerIndex)     => playerIndex == 1 ? p1Score        : p2Score;
-    public int   GetRoundWins(int playerIndex) => playerIndex == 1 ? p1RoundWins    : p2RoundWins;
-    public int   GetCombo(int playerIndex)     => playerIndex == 1 ? p1Combo : p2Combo;
-    public GameState GetCurrentState()         => currentState;
+    public int GetHP(int playerIndex) => playerIndex == 1 ? p1HP.CurrentHP : p2HP.CurrentHP;
+    public int GetMaxHP(int playerIndex) => playerIndex == 1 ? p1HP.MaxHP : p2HP.MaxHP;
+    public float GetHPRatio(int playerIndex) => playerIndex == 1 ? p1HP.Ratio : p2HP.Ratio;
+    public int GetScore(int playerIndex) => playerIndex == 1 ? p1Score : p2Score;
+    public int GetRoundWins(int playerIndex) => playerIndex == 1 ? p1RoundWins : p2RoundWins;
+    public int GetCombo(int playerIndex) => playerIndex == 1 ? p1Combo : p2Combo;
+    public GameState GetCurrentState() => currentState;
 
     // Combo Timer Arc 用（DESIGN.md 6.2/12.22）: 直近の破壊で 1、comboTimeout 経過で 0。
     // combo==0 のときは 0（UI 側で非表示にする）。
     public float GetComboTimerRatio(int playerIndex)
     {
-        int   combo = playerIndex == 1 ? p1Combo      : p2Combo;
+        int combo = playerIndex == 1 ? p1Combo : p2Combo;
         float timer = playerIndex == 1 ? p1ComboTimer : p2ComboTimer;
         if (combo <= 0 || comboTimeout <= 0f) return 0f;
         return Mathf.Clamp01((comboTimeout - timer) / comboTimeout);
     }
 
     // マッチ統計（DESIGN.md 5.10。RoundResultUI / MatchResultUI が参照）
-    public int GetMaxComboRound(int playerIndex)        => playerIndex == 1 ? p1MaxComboRound        : p2MaxComboRound;
-    public int GetMaxComboMatch(int playerIndex)        => playerIndex == 1 ? p1MaxComboMatch        : p2MaxComboMatch;
-    public int GetBlocksDestroyed(int playerIndex)      => playerIndex == 1 ? p1BlocksDestroyed      : p2BlocksDestroyed;
+    public int GetMaxComboRound(int playerIndex) => playerIndex == 1 ? p1MaxComboRound : p2MaxComboRound;
+    public int GetMaxComboMatch(int playerIndex) => playerIndex == 1 ? p1MaxComboMatch : p2MaxComboMatch;
+    public int GetBlocksDestroyed(int playerIndex) => playerIndex == 1 ? p1BlocksDestroyed : p2BlocksDestroyed;
     public int GetInterferenceReceived(int playerIndex) => playerIndex == 1 ? p1InterferenceReceived : p2InterferenceReceived;
 
     // =====================================================
@@ -646,7 +646,7 @@ public class GameManager : MonoBehaviour
         var effect = new ActiveEffect { slot = slot, name = itemName, endTime = Time.time + duration };
         int idx = list.FindIndex(e => e.slot == slot);
         if (idx >= 0) list[idx] = effect;   // 同スロット上書き
-        else          list.Add(effect);
+        else list.Add(effect);
     }
 
     // ラウンド遷移時にアクティブ効果表示をリセット（効果コルーチンはボール/パドル側で別途解除済み）
