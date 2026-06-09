@@ -177,8 +177,8 @@ public class ArenaSharedConfig : MonoBehaviour
     public Color indicatorColor       = Color.yellow;
     public float metronomeAngleRange  = 60f;
     public float metronomePeriodSec   = 1.0f;
-    // 振れ幅の扇形ガイド（輪郭線）
-    public Color rangeArcColor        = new Color(1f, 1f, 1f, 0.22f); // 控えめな半透明白
+    // 振れ幅の扇形ガイド（内部を塗りつぶす Fill）
+    public Color rangeFillColor       = new Color(1f, 1f, 1f, 0.12f); // 控えめな半透明白（不透明にしたければ a=1）
     // センター通過ビジュアル（真上 ±threshold° でインジケーターを切替）
     public float centerThresholdDeg   = 10f;
     public Color centerColor          = Color.cyan;                   // 真上付近の色（発光なし）
@@ -187,7 +187,8 @@ public class ArenaSharedConfig : MonoBehaviour
     public float trajectoryMaxDist    = 30f;                          // 1 セグメントの最大長（SphereCast 上限）
     public float trajectoryTotalLength = 14f;                         // 軌道全体の打ち切り長（これを超えたら途中で止める）
     public float trajectoryDashPeriod  = 0.5f;                        // 点線 1 周期（破線＋すき間）のワールド長
-    public Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f); // 軌道線の色
+    public Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f); // 軌道線の色（始点側）
+    public float trajectoryTailAlpha   = 0f;                          // 軌道の後端アルファ（後ろほど薄く。0=完全に消える）
 
     // ---------------- Skill ----------------
     [Header("Skill (SkillController)")]

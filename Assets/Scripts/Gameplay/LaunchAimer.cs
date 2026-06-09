@@ -11,7 +11,7 @@ public class LaunchAimer : MonoBehaviour
     private Color indicatorColor  = Color.yellow;
     private float metronomeAngleRange = 60f;
     private float metronomePeriodSec  = 1.0f;
-    private Color rangeArcColor        = new Color(1f, 1f, 1f, 0.22f);
+    private Color rangeFillColor       = new Color(1f, 1f, 1f, 0.12f);
     private float centerThresholdDeg   = 10f;
     private Color centerColor          = Color.cyan;
     private int   trajectoryMaxBounces = 3;
@@ -19,6 +19,7 @@ public class LaunchAimer : MonoBehaviour
     private float trajectoryTotalLength = 14f;
     private float trajectoryDashPeriod  = 0.5f;
     private Color trajectoryColor      = new Color(1f, 1f, 1f, 0.45f);
+    private float trajectoryTailAlpha   = 0f;
 
     private BallScript       ball;
     private int              playerIndex;
@@ -28,8 +29,9 @@ public class LaunchAimer : MonoBehaviour
     private float            currentAngleDeg;
     private float            prevAngleDeg;      // 前フレームのエイマー角度（センター通過検出用）
     private LineRenderer     line;            // 現在角度のインジケーター
-    private LineRenderer     rangeLine;       // 振れ幅の扇形ガイド（輪郭線）
-    private LineRenderer     trajectoryLine;  // 予想軌道（壁反射を辿った折れ線）
+    private LineRenderer     trajectoryLine;  // 予想軌道（壁反射を辿った折れ線・点線）
+    private Transform        rangeFillTf;     // 振れ幅の扇形 Fill（メッシュ）の Transform
+    private MeshRenderer     rangeFillRenderer;
 
     private float            ballRadius = 0.18f;          // SphereCast 用のボール半径（Awake で算出）
     private readonly List<Vector3> trajPoints = new();    // 軌道の頂点（GC 回避で使い回す）
@@ -51,7 +53,7 @@ public class LaunchAimer : MonoBehaviour
         indicatorColor      = c.indicatorColor;
         metronomeAngleRange = c.metronomeAngleRange;
         metronomePeriodSec  = c.metronomePeriodSec;
-        rangeArcColor        = c.rangeArcColor;
+        rangeFillColor       = c.rangeFillColor;
         centerThresholdDeg   = c.centerThresholdDeg;
         centerColor          = c.centerColor;
         trajectoryMaxBounces = c.trajectoryMaxBounces;
@@ -59,22 +61,48 @@ public class LaunchAimer : MonoBehaviour
         trajectoryTotalLength = c.trajectoryTotalLength;
         trajectoryDashPeriod  = c.trajectoryDashPeriod;
         trajectoryColor      = c.trajectoryColor;
+        trajectoryTailAlpha   = c.trajectoryTailAlpha;
     }
 
     void Awake()
     {
         ApplySharedConfig();
 
-        // 角度インジケーターは LaunchAimer 本体に、扇形と軌道は子オブジェクトに描く
-        // （1 つの GameObject には LineRenderer は 1 個しか付けられないため）。
+        // 角度インジケーターは LaunchAimer 本体に、軌道は子オブジェクトに描く（1 GameObject に
+        // LineRenderer は 1 個まで）。扇形 Fill はメッシュなのでルート直下に別途生成。
         line           = CreateLine(gameObject, 0.08f, Color.white);
-        rangeLine      = CreateLine(NewChild("RangeArc"),   0.04f, rangeArcColor);
         trajectoryLine = CreateLine(NewChild("Trajectory"), 0.05f, trajectoryColor);
-        SetupDashedMaterial(trajectoryLine); // 軌道だけ点線マテリアルへ差し替え
+        SetupDashedMaterial(trajectoryLine); // 軌道だけ点線＋後方フェードのマテリアルへ
+        BuildRangeFill();                     // 振れ幅の扇形 Fill メッシュ
     }
 
-    // 軌道線を「点線」にする。線の長さ方向(U)に半分不透明・半分透明のテクスチャを Repeat で貼り、
-    // Stretch モードで U=0→1 を線全体に対応させ、毎フレーム mainTextureScale で繰り返し回数を決める。
+    // 透過スプライト用シェーダー Custom/HDRSprite でマテリアルを作る（_MainTex_ST タイル可・頂点カラー可・
+    // 両面・透過ブレンド）。色は _Color、テクスチャ未指定なら白で塗りつぶし。
+    private Material MakeSpriteMaterial(Texture2D tex, Color color)
+    {
+        Shader s = Shader.Find("Custom/HDRSprite")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+        var mat = new Material(s);
+        if (tex != null) mat.mainTexture = tex;
+        if (mat.HasProperty("_Color"))          mat.SetColor("_Color", color);
+        else if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+        // URP/Unlit へフォールバックした場合だけ透過設定が要る（HDRSprite はシェーダー側で透過済み）。
+        if (s != null && s.name.Contains("Universal Render Pipeline/Unlit") && mat.HasProperty("_Surface"))
+        {
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        }
+        return mat;
+    }
+
+    // 軌道線を「点線＋後方フェード」にする。
+    //   点線 : 長さ方向(U)に半分不透明・半分透明のテクスチャを Repeat で貼り、Stretch + mainTextureScale で繰り返す。
+    //   フェード: LineRenderer の colorGradient（頂点カラー）で始点 trajectoryColor → 終点アルファ trajectoryTailAlpha。
     private void SetupDashedMaterial(LineRenderer lr)
     {
         // 破線テクスチャ（横 8px: 前半不透明 / 後半透明 = デューティ 50%）。
@@ -90,27 +118,54 @@ public class LaunchAimer : MonoBehaviour
         tex.SetPixels(px);
         tex.Apply();
 
-        Shader s = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
-        var mat = new Material(s);
-        // URP/Unlit を透過サーフェスに切り替える（テクスチャのアルファで点線のすき間を抜く）。
-        if (mat.HasProperty("_Surface"))
-        {
-            mat.SetFloat("_Surface", 1f); // 0=Opaque / 1=Transparent
-            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            mat.SetFloat("_ZWrite", 0f);
-            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-        }
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", trajectoryColor);
-        else if (mat.HasProperty("_Color")) mat.SetColor("_Color", trajectoryColor);
-        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
-        else mat.mainTexture = tex;
-
+        // 色は colorGradient（頂点カラー）側で付けるので _Color は白。
+        var mat = MakeSpriteMaterial(tex, Color.white);
         lr.material       = mat;
-        trajectoryMat     = mat;                   // 毎フレ mainTextureScale を更新するためキャッシュ
-        lr.textureMode    = LineTextureMode.Stretch; // U を線全体に張り、_ST(mainTextureScale) で繰り返す
-        lr.numCapVertices = 0;                      // 丸キャップだと破線端がにじむので無効
+        trajectoryMat     = mat;                     // 毎フレ mainTextureScale を更新するためキャッシュ
+        lr.textureMode    = LineTextureMode.Stretch; // U を線全体に張り、mainTextureScale で繰り返す
+        lr.numCapVertices = 0;                       // 丸キャップだと破線端がにじむので無効
+
+        // 後方フェード: 終点へ向けてアルファを trajectoryTailAlpha へ落とす。
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(trajectoryColor, 0f), new GradientColorKey(trajectoryColor, 1f) },
+            new[] { new GradientAlphaKey(trajectoryColor.a, 0f), new GradientAlphaKey(trajectoryTailAlpha, 1f) });
+        lr.colorGradient = grad;
+    }
+
+    // 振れ幅の扇形 Fill（三角形ファンのメッシュ）。中心 + 円弧上の点で扇を貼る。
+    // ローカル +Y を「上」として組み、毎フレーム位置/向きをボールへ合わせる（UpdateRangeFill）。
+    private void BuildRangeFill()
+    {
+        var go = new GameObject("RangeFill");
+        go.transform.SetParent(null, false); // ルート直下＝ワールド変換で扱う（親の変換に引きずられない）
+        var mf = go.AddComponent<MeshFilter>();
+        rangeFillRenderer = go.AddComponent<MeshRenderer>();
+        rangeFillRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        rangeFillRenderer.receiveShadows = false;
+
+        const int seg = 24;
+        var verts = new Vector3[seg + 2];
+        var cols  = new Color[seg + 2];
+        var tris  = new int[seg * 3];
+        verts[0] = Vector3.zero;        // 扇の要（ボール位置）
+        cols[0]  = Color.white;
+        for (int i = 0; i <= seg; i++)
+        {
+            float deg = Mathf.Lerp(-metronomeAngleRange, metronomeAngleRange, (float)i / seg);
+            float rad = deg * Mathf.Deg2Rad;
+            verts[i + 1] = new Vector3(Mathf.Sin(rad), Mathf.Cos(rad), 0f) * indicatorLength;
+            cols[i + 1]  = Color.white; // 頂点カラー白 → _Color(rangeFillColor) がそのまま出る
+        }
+        for (int i = 0; i < seg; i++) { tris[i * 3] = 0; tris[i * 3 + 1] = i + 1; tris[i * 3 + 2] = i + 2; }
+
+        var mesh = new Mesh { vertices = verts, colors = cols, triangles = tris };
+        mesh.RecalculateBounds();
+        mf.mesh = mesh;
+
+        rangeFillRenderer.material = MakeSpriteMaterial(null, rangeFillColor);
+        rangeFillRenderer.enabled  = false;
+        rangeFillTf = go.transform;
     }
 
     void Start()
@@ -193,7 +248,7 @@ public class LaunchAimer : MonoBehaviour
         Vector3 origin   = ball.transform.position;
         Vector3 worldDir = LocalAngleToWorldDir(currentAngleDeg);
         UpdateLineAt(origin, worldDir);
-        UpdateRangeArc(origin);
+        UpdateRangeFill(origin);
         UpdateTrajectory(origin, worldDir);
 
         // 発射は Playing 中のみ（カウントダウン中は S/K 無効, DESIGN.md 12.12）
@@ -247,32 +302,27 @@ public class LaunchAimer : MonoBehaviour
         line.SetPosition(1, origin + worldDir * indicatorLength);
     }
 
-    // 振れ幅の扇形ガイド（DESIGN 5.3）: 原点→左端→円弧→右端→原点 を 1 本の折れ線で描く輪郭扇形。
-    private void UpdateRangeArc(Vector3 origin)
+    // 振れ幅の扇形 Fill（DESIGN 5.3）: メッシュをボール位置へ置き、アリーナの向き・スケールへ合わせる。
+    // メッシュ自体はローカル +Y を上として組んであるので、ここでは位置と回転/スケールだけ更新する。
+    private void UpdateRangeFill(Vector3 origin)
     {
-        const int arcSegments = 16;
-        float r = indicatorLength;
-
-        // 頂点数 = 原点 + 円弧上の (arcSegments+1) 点 + 原点で閉じる 1 点
-        rangeLine.positionCount = arcSegments + 3;
-        rangeLine.SetPosition(0, origin);
-        for (int i = 0; i <= arcSegments; i++)
+        if (rangeFillTf == null) return;
+        rangeFillTf.position   = origin;
+        // インジケーター線（LocalAngleToWorldDir = parent.TransformDirection）と同じ向き・倍率に合わせる。
+        if (ball != null && ball.transform.parent != null)
         {
-            // -metronomeAngleRange から +metronomeAngleRange まで等間隔に走査
-            float t   = (float)i / arcSegments;
-            float deg = Mathf.Lerp(-metronomeAngleRange, metronomeAngleRange, t);
-            rangeLine.SetPosition(i + 1, origin + LocalAngleToWorldDir(deg) * r);
+            rangeFillTf.rotation   = ball.transform.parent.rotation;
+            rangeFillTf.localScale = ball.transform.parent.lossyScale;
         }
-        rangeLine.SetPosition(arcSegments + 2, origin); // 右端から原点へ戻して閉じる
-        rangeLine.enabled = true;
+        rangeFillRenderer.enabled = true;
     }
 
     private void StopAiming()
     {
         isAiming = false;
         line.enabled           = false;
-        rangeLine.enabled      = false;
         trajectoryLine.enabled = false;
+        if (rangeFillRenderer != null) rangeFillRenderer.enabled = false;
     }
 
     // 予想軌道（DESIGN 5.3）: SphereCast でボール半径ぶんの球を発射方向へ飛ばし、
