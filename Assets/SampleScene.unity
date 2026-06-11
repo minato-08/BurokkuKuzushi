@@ -19988,10 +19988,10 @@ MonoBehaviour:
   volUiMove: 1
   seUiConfirm: {fileID: 8300000, guid: c3298d9fba5b44ec9dab52372882bd7a, type: 3}
   volUiConfirm: 1
-  bgmTitle: {fileID: 0}
-  bgmMatch: {fileID: 0}
-  bgmMatchTense: {fileID: 0}
-  bgmResultJingle: {fileID: 0}
+  bgmTitle: {fileID: 8300000, guid: db736e9b07864472fb81c0b602436216, type: 3}
+  bgmMatch: {fileID: 8300000, guid: db736e9b07864472fb81c0b602436216, type: 3}
+  bgmMatchTense: {fileID: 8300000, guid: db736e9b07864472fb81c0b602436216, type: 3}
+  bgmResultJingle: {fileID: 8300000, guid: a450af387d8b944f8933d3aa6a6baf02, type: 3}
   bgmVolume: 0.7
   ballWallPitchPerSpeed: 0.2
   blockHitSeCooldown: 0.05
